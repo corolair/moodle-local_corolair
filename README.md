@@ -1,8 +1,8 @@
 # Corolair Moodle Plugin
 
-**Version:** [Version Placeholder]
+**Version:** 1.7
 
-**Last Updated:** [Date Placeholder]
+**Last Updated:** 2024/12/06
 
 ## Overview
 
@@ -35,8 +35,8 @@ The Corolair Moodle Plugin enables seamless integration of **AI Tutors** into Mo
 
 ### For Trainers & Instructional Designers:
 
-- **Via Moodle Homepage:**Navigate to **Plus > Corolair** to access the Creator tools.
-- **From Course View:**Select **Plus > Corolair: Create AI Tutor** to initiate the AI Tutor creation process for a specific course.
+- **Via Moodle Homepage:** Navigate to **Plus > Corolair** to access the Creator tools.
+- **From Course View:** Select **Plus > Corolair: Create AI Tutor** to initiate the AI Tutor creation process for a specific course.
 
 Once in the Creator platform, trainers can:
 
