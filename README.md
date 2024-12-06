@@ -49,8 +49,8 @@ Once in the Creator platform, trainers can:
 ### For Learners:
 
 - Access Corolair directly as an embedded chatbot within their enrolled courses.
-- **Start and Resume Discussions:**Click to interact with AI Tutors anytime, with the ability to pause and return.
-- **Switch Modes:**Seamlessly transition from discussion to self-assessment mode.
+- **Start and Resume Discussions:** Click to interact with AI Tutors anytime, with the ability to pause and return.
+- **Switch Modes:** Seamlessly transition from discussion to self-assessment mode.
 
 ---
 
