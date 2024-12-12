@@ -63,7 +63,7 @@ function xmldb_local_corolair_install() {
 
         // Step 3: Create external service
         $service = (object)[
-            'name' => 'Corolair REST Service',
+            'name' => get_string('servicename', 'local_corolair'),
             'shortname' => 'corolair_rest',
             'enabled' => 1,
             'restrictedusers' => 0,
@@ -104,15 +104,15 @@ function xmldb_local_corolair_install() {
             'validuntil' => 0,
             'externalserviceid' => $serviceid,
             'privatetoken' => random_string(64),
-            'name' => 'Corolair REST token'
+            'name' => get_string('tokenname', 'local_corolair')
         ];
         $DB->insert_record('external_tokens', $token);
 
         // Step 6: Create "Corolair Manager" role
         $roleid = create_role(
-            'Corolair Manager',
+            get_string('rolename', 'local_corolair'),
             'corolair',
-            'Role description...',
+            get_string('roledescription', 'local_corolair'),
             null,
             null
         );

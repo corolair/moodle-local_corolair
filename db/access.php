@@ -40,6 +40,6 @@ $capabilities = array(
     'local/corolair:createtutor' => array(
         'captype' => 'write',
         'contextlevel' => CONTEXT_SYSTEM,
-        'description' => 'Allows users to create and manage tutors within the Corolair plugin.'
+        'description' => get_string('createtutorcapability', 'local_corolair')
     ),
 );

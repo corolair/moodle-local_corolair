@@ -64,7 +64,7 @@ if ($hassiteconfig) {
         'local_corolair/apikey',
         get_string('apikey', 'local_corolair'), // Setting title.
         get_string('apikeydesc', 'local_corolair'), // Setting description.
-        'No Corolair Api Key', // Default value.
+        get_string('noapikey', 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
 
@@ -73,7 +73,7 @@ if ($hassiteconfig) {
         'local_corolair/corolairlogin',
         get_string('corolairlogin', 'local_corolair'), // Setting title.
         get_string('corolairlogindesc', 'local_corolair'), // Setting description.
-        'No Corolair Login', // Default value.
+        get_string('nocorolairlogin' , 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
 
