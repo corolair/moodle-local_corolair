@@ -41,7 +41,7 @@ function xmldb_local_corolair_uninstall() {
     global $DB, $CFG;
 
     // Define API URL for deregistration
-    $url = "https://services.corolair.com/moodle-integration/plugin/organization/deregister";
+    $url = "https://services.corolair.dev/moodle-integration/plugin/organization/deregister";
 
     try {
         // Step 1: Remove the custom role 'Corolair Manager'

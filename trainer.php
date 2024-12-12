@@ -31,8 +31,8 @@ require_once(__DIR__ . '/../../config.php');
 global $USER;
 
 // Constants for external URLs.
-$auth_url = "https://services.corolair.com/moodle-integration/auth";
-$front_url = "https://embed.corolair.com/auth";
+$auth_url = "https://services.corolair.dev/moodle-integration/auth";
+$front_url = "https://embed.corolair.dev/auth";
 
 try {
     // Set up the Moodle page.
