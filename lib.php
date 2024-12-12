@@ -60,7 +60,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
     }
 
     // URL for the POST request
-    $url = "https://services.corolair.com/moodle-integration/courses/instances/tutor"; // TODO: Should be moved to settings and use get_string('apiendpoint', 'local_corolair')
+    $url = "https://services.corolair.com/moodle-integration/courses/instances/tutor"; 
 
     // Get the API key from the configuration
     $apikey = get_config('local_corolair', 'apikey');
