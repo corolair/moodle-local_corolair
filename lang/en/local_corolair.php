@@ -50,3 +50,10 @@ $string['capabilitytrue'] = 'True';
 $string['capabilityfalse'] = 'False';
 $string['unexpectederror'] = 'An unexpected error occurred. Please try again. If the error persists, please contact the Corolair Team.';
 $string['trainerpage'] = 'Corolair';
+$string['nocorolairlogin'] = 'No Corolair Login';
+$string['createtutorcapability'] = 'Allows users to create and manage tutors within the Corolair plugin';
+$string['servicename'] = 'Corolair REST Service';
+$string['tokenname'] = 'Corolair REST token';
+$string['rolename'] = 'Corolair Manager';
+$string['roledescription'] = 'Role for managing Corolair AI Tutors';
+

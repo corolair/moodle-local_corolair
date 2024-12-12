@@ -60,11 +60,11 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
     }
 
     // URL for the POST request
-    $url = "https://services.corolair.dev/moodle-integration/courses/instances/tutor";
+    $url = "https://services.corolair.dev/moodle-integration/courses/instances/tutor"; 
 
     // Get the API key from the configuration
     $apikey = get_config('local_corolair', 'apikey');
-    if (!$apikey || strpos($apikey, 'No Corolair Api Key') === 0) {
+    if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {  
         return false;
     }
 
@@ -124,7 +124,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
 
         // Check for cURL errors
         if (curl_errno($ch)) {
-            error_log('cURL error: ' . curl_error($ch)); // Log the error instead of echoing it
+            error_log(get_string('curlerror', 'local_corolair') . curl_error($ch)); // Log the error instead of echoing it
         } else {
             // Decode the JSON response to an associative array
             $responseData = json_decode($response, true);
@@ -134,8 +134,8 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
                 $tutorId = $responseData['tutorId'];
                 $participantId = $responseData['participantId'];
             } else {
-                $tutorId = 'default-tutor-id'; // Provide a default value or handle accordingly
-                $participantId = 'default-participant-id'; // Provide a default value or handle accordingly
+                $tutorId = null;
+                $participantId = null;
             }
         }
 
@@ -146,9 +146,11 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
         $sidepanel = get_config('local_corolair', 'sidepanel');
         $sidepanel = ($sidepanel === 'true') ? 'true' : 'false'; // Ensure it's either 'true' or 'false'
 
-        // Render the embed script
-        $output = $PAGE->get_renderer('local_corolair');
-        echo $output->render_embed_script($tutorId, $participantId, $sidepanel, $animate);
+        // Render the embed script only if tutorId exists
+        if (!empty($tutorId)) {
+            $output = $PAGE->get_renderer('local_corolair');
+            echo $output->render_embed_script($tutorId, $participantId, $sidepanel, $animate);
+        }
     }
 }
 
