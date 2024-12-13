@@ -114,4 +114,3 @@ try {
 
 // Output footer.
 echo $OUTPUT->footer();
-?>

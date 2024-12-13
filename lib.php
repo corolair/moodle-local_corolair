@@ -186,4 +186,3 @@ function local_corolair_extend_navigation_frontpage(navigation_node $parentnode,
         }
     }
 }
-?>
