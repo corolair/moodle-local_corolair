@@ -1,0 +1,50 @@
+#id_s_local_corolair_apikey,
+#id_s_local_corolair_corolairlogin {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+#id_s_local_corolair_apikey:disabled,
+#id_s_local_corolair_corolairlogin:disabled {
+  color: #6c757d;
+}
+
+#topofscroll {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#corolair-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+#page {
+  overflow: hidden !important;
+  height: 100vh !important;
+  box-sizing: border-box !important;
+  width: 100vw !important;
+  padding: 0 !important;
+}
+
+#page-content {
+  padding: 0 !important;
+  height: 100%;
+}
+
+#region-main-box {
+  height: 100%;
+}
+
+#region-main {
+  height: 100%;
+}
+
+div[role="main"] {
+  height: 100%;
+  padding: 0 !important;
+}
+
+#page-header {
+  display: none;
+}

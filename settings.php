@@ -76,17 +76,7 @@ if ($hassiteconfig) {
         get_string('nocorolairlogin' , 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-
-    // Inline CSS to style certain inputs as read-only.
-    echo '<style>
-        #id_s_local_corolair_apikey,
-        #id_s_local_corolair_corolairlogin {
-            background-color: #e9ecef;
-            cursor: not-allowed;
-        }
-        #id_s_local_corolair_apikey:disabled,
-        #id_s_local_corolair_corolairlogin:disabled {
-            color: #6c757d;
-        }
-    </style>';
+    // added styles.css
+    global $PAGE;
+    $PAGE->requires->css('/local/corolair/styles.css');
 }
