@@ -76,7 +76,4 @@ if ($hassiteconfig) {
         get_string('nocorolairlogin' , 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-    // added styles.css
-    global $PAGE;
-    $PAGE->requires->css('/local/corolair/styles.css');
 }

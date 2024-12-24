@@ -1,25 +1,27 @@
-#id_s_local_corolair_apikey,
-#id_s_local_corolair_corolairlogin {
+/* Settings Page */
+#page-admin-setting-local_corolair #id_s_local_corolair_apikey,
+#page-admin-setting-local_corolair #id_s_local_corolair_corolairlogin {
   background-color: #e9ecef;
   cursor: not-allowed;
 }
-#id_s_local_corolair_apikey:disabled,
-#id_s_local_corolair_corolairlogin:disabled {
+#page-admin-setting-local_corolair #id_s_local_corolair_apikey:disabled,
+#page-admin-setting-local_corolair #id_s_local_corolair_corolairlogin:disabled {
   color: #6c757d;
 }
 
-#topofscroll {
+/* Trainer Page */
+#page-local-corolair-trainer #topofscroll {
   margin: 0 !important;
   padding: 0 !important;
 }
 
-#corolair-iframe {
+#page-local-corolair-trainer #corolair-iframe {
   width: 100%;
   height: 100%;
   border: none;
 }
 
-#page {
+#page-local-corolair-trainer #page {
   overflow: hidden !important;
   height: 100vh !important;
   box-sizing: border-box !important;
@@ -27,24 +29,25 @@
   padding: 0 !important;
 }
 
-#page-content {
+#page-local-corolair-trainer #page-content {
+  padding: 0 !important;
   padding: 0 !important;
   height: 100%;
 }
 
-#region-main-box {
+#page-local-corolair-trainer #region-main-box {
   height: 100%;
 }
 
-#region-main {
+#page-local-corolair-trainer #region-main {
   height: 100%;
 }
 
-div[role="main"] {
+#page-local-corolair-trainer div[role="main"] {
   height: 100%;
   padding: 0 !important;
 }
 
-#page-header {
+#page-local-corolair-trainer #page-header {
   display: none;
 }
