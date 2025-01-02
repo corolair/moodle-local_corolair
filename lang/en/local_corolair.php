@@ -56,4 +56,10 @@ $string['servicename'] = 'Corolair REST Service';
 $string['tokenname'] = 'Corolair REST token';
 $string['rolename'] = 'Corolair Manager';
 $string['roledescription'] = 'Role for managing Corolair AI Tutors';
-
+$string['privacy:metadata:corolair'] = 'The corolair metadata is sent from Moodle to allow you to access your data on the remote system.';
+$string['privacy:metadata:corolair:userid'] = 'The userid is sent from Moodle to allow you to access your data on the remote system.';
+$string['privacy:metadata:corolair:useremail'] = 'The useremail is sent from Moodle to allow you to access your data on the remote system.';
+$string['privacy:metadata:corolair:userfirstname'] = 'The userfirstname is sent from Moodle to allow you to access your data on the remote system.';
+$string['privacy:metadata:corolair:userlastname'] = 'The userlastname is sent from Moodle to allow you to access your data on the remote system.';
+$string['privacy:metadata:corolair:userrolename'] = 'The userrolename is sent from Moodle to allow you to access your data on the remote system.';
+$string['privacy:metadata:corolair:interaction'] = 'All user interaction within Corolair including Tutors created and conversations';
