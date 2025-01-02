@@ -156,7 +156,6 @@ lc_userlist_provider{
             return;
         }
         $context = $userlist->get_context();
-        $url = '';
         $contextLevel = '';
         if ($context->contextlevel == CONTEXT_COURSE) {
             $contextLevel = 'course';
@@ -168,7 +167,6 @@ lc_userlist_provider{
 
         $url = 'https://services.corolair.dev/moodle-integration/privacy/contexts/users?apikey=' . urlencode($apikey) . '&contextlevel=' . $contextLevel;
 
-        if ($url) {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
@@ -182,31 +180,71 @@ lc_userlist_provider{
                 $userlist->add_users($userids);
             }
             }
-        }
         return;
     }
 
     public static function delete_data_for_all_users_in_context(\context $context) {
-        // Call the external API to delete all data for the given context.
-        //external_api_delete_all_data_for_context($context->id); // Implement this function for API calls.
+        $apikey = get_config('local_corolair', 'apikey');
+        if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {  
+            return;
+        }
+        $contextLevel = '';
+        if ($context->contextlevel == CONTEXT_COURSE) {
+            $contextLevel = 'course';
+        } else if ($context->contextlevel == CONTEXT_SYSTEM) {
+            $contextLevel = 'system';
+        } else {
+            return;
+        }
+        $url = 'https://services.corolair.dev/moodle-integration/privacy/contexts/delete?apikey=' . urlencode($apikey) . '&contextlevel=' . $contextLevel;
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+        $response = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return;
     }
 
     public static function delete_data_for_user(approved_contextlist $contextlist) {
-        // Call the external API to delete the user's data for the context.
-        //external_api_delete_user_data($userid, $context->id); // Implement this function for API calls.
+        $apikey = get_config('local_corolair', 'apikey');
+        if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {  
+            return;
+        }
+        $user = $contextlist->get_user();
+        $userid = $user->id;
+        
+        $url = 'https://services.corolair.dev/moodle-integration/privacy/users/' . $userid . '/delete?apikey=' . urlencode($apikey);
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+        $response = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
     }
     
     
 
     public static function delete_data_for_users(approved_userlist $userlist) {
-        // $context = $userlist->get_context();
-        // $userids = $userlist->get_userids();
-    
-        // if (!empty($userids)) {
-        //     // Call the external API to delete data for the list of users in the context.
-        //     external_api_delete_data_for_users($userids, $context->id); // Implement this function for API calls.
-        // }
+        $apikey = get_config('local_corolair', 'apikey');
+        if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {  
+            return;
+        }
+
+        $users = $userlist->get_userids();
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+
+        foreach ($users as $userid) {
+            $url = 'https://services.corolair.dev/moodle-integration/privacy/users/' . $userid . '/delete?apikey=' . urlencode($apikey);
+            curl_setopt($ch, CURLOPT_URL, $url);
+            $response = curl_exec($ch);
+            $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        }
+
+        curl_close($ch);
         
     } 
 }
