@@ -18,7 +18,7 @@
  * Language strings for the Corolair Local Plugin.
  *
  * @package   local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -56,10 +56,10 @@ $string['servicename'] = 'Service REST Corolair';
 $string['tokenname'] = 'Jeton REST Corolair';
 $string['rolename'] = 'Manager Corolair';
 $string['roledescription'] = 'Rôle pour la gestion des Tuteurs IA dans Corolair';
-$string['privacy:metadata:corolair'] = 'Les métadonnées envoyées à Corolair permettent un accès transparent à vos données sur le système distant.' ;
-$string['privacy:metadata:corolair:userid'] = 'L\'identifiant de l\'utilisateur est envoyé pour vous identifier de manière unique sur Corolair' ;
-$string['privacy:metadata:corolair:useremail'] = 'Votre adresse e-mail est envoyée pour vous identifier de manière unique sur Corolair et anticiper de potentielles communication ultérieure' ;
-$string['privacy:metadata:corolair:userfirstname'] = 'Votre prénom est envoyé pour personnaliser votre expérience sur Corolair et identifier vos conversations pour votre formateur' ;
-$string['privacy:metadata:corolair:userlastname'] = 'Votre nom de famille est envoyé pour personnaliser votre expérience sur Corolair et identifier vos conversations pour votre formateur' ;
-$string['privacy:metadata:corolair:userrolename'] = 'Votre rôle est envoyé pour gérer vos permissions sur Corolair' ; 
-$string['privacy:metadata:corolair:interaction'] = 'Les enregistrements de vos interactions, tels que les tuteurs créés et les conversations, sont envoyés pour améliorer votre expérience' ;
+$string['privacy:metadata:corolair'] = 'Les métadonnées envoyées à Corolair permettent un accès transparent à vos données sur le système distant.';
+$string['privacy:metadata:corolair:userid'] = 'L\'identifiant de l\'utilisateur est envoyé pour vous identifier de manière unique sur Corolair';
+$string['privacy:metadata:corolair:useremail'] = 'Votre adresse e-mail est envoyée pour vous identifier de manière unique sur Corolair et anticiper de potentielles communication ultérieure';
+$string['privacy:metadata:corolair:userfirstname'] = 'Votre prénom est envoyé pour personnaliser votre expérience sur Corolair et identifier vos conversations pour votre formateur';
+$string['privacy:metadata:corolair:userlastname'] = 'Votre nom de famille est envoyé pour personnaliser votre expérience sur Corolair et identifier vos conversations pour votre formateur';
+$string['privacy:metadata:corolair:userrolename'] = 'Votre rôle est envoyé pour gérer vos permissions sur Corolair';
+$string['privacy:metadata:corolair:interaction'] = 'Les enregistrements de vos interactions, tels que les tuteurs créés et les conversations, sont envoyés pour améliorer votre expérience';

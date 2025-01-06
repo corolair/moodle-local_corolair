@@ -16,10 +16,10 @@
 
 /**
  * Renderer class for the local_corolair plugin.
- * 
+ *
  * This class extends the plugin_renderer_base and provides methods to render
  * custom templates for the local_corolair plugin.
- * 
+ *
  * @package    local_corolair
  * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -27,33 +27,30 @@
 
 namespace local_corolair\output;
 
-defined('MOODLE_INTERNAL') || die();
-
 use plugin_renderer_base;
 
 /**
  * Class renderer
- * 
+ *
  * This class is responsible for rendering templates for the local_corolair plugin.
  */
 class renderer extends plugin_renderer_base {
 
     /**
      * Renders the embed script template.
-     * 
+     *
      * This method prepares the data and renders the 'local_corolair/embed_script' template.
-     * 
-     * @param string $tutorId The ID of the tutor.
-     * @param string $participantId The ID of the participant.
+     *
+     * @param string $tutorid The ID of the tutor.
+     * @param string $participantid The ID of the participant.
      * @param string $sidepanel Whether to embed as a side panel.
      * @param bool $animate Whether to animate the embed script.
      * @return string The rendered template.
      */
-
-    public function render_embed_script($tutorId, $participantId, $sidepanel, $animate) {
+    public function render_embed_script($tutorid, $participantid, $sidepanel, $animate) {
         $data = [
-            'tutorId' => htmlspecialchars($tutorId, ENT_QUOTES, 'UTF-8'),
-            'participantId' => htmlspecialchars($participantId, ENT_QUOTES, 'UTF-8'),
+            'tutorid' => htmlspecialchars($tutorid, ENT_QUOTES, 'UTF-8'),
+            'participantid' => htmlspecialchars($participantid, ENT_QUOTES, 'UTF-8'),
             'sidepanel' => htmlspecialchars($sidepanel, ENT_QUOTES, 'UTF-8'),
             'animate' => $animate,
         ];
@@ -63,17 +60,16 @@ class renderer extends plugin_renderer_base {
     /**
      * Renders the trainer template with the provided user, provider, and course data.
      *
-     * @param int $userId The ID of the user.
+     * @param int $userid The ID of the user.
      * @param string $provider The name of the provider.
-     * @param int $courseId The ID of the course.
+     * @param int $courseid The ID of the course.
      * @return string The rendered HTML content.
      */
-    
-    public function render_trainer($userId, $provider, $courseId) {
+    public function render_trainer($userid, $provider, $courseid) {
         $data = [
-            'userId' => htmlspecialchars($userId, ENT_QUOTES, 'UTF-8'),
+            'userid' => htmlspecialchars($userid, ENT_QUOTES, 'UTF-8'),
             'provider' => htmlspecialchars($provider, ENT_QUOTES, 'UTF-8'),
-            'courseId' => htmlspecialchars($courseId, ENT_QUOTES, 'UTF-8'),
+            'courseid' => htmlspecialchars($courseid, ENT_QUOTES, 'UTF-8'),
         ];
 
         return $this->render_from_template('local_corolair/trainer', $data);
