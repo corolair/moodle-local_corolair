@@ -17,11 +17,10 @@
 /**
  * Upgrade script for local_corolair plugin.
  * @package   local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Executes the upgrade steps for the local_corolair plugin.
@@ -56,16 +55,16 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 throw new moodle_exception('noapikey', 'local_corolair');
             }
 
-            $postData = json_encode(['apiKey' => $apikey]);
+            $postdata = json_encode(['apiKey' => $apikey]);
 
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Content-Type: application/json',
-                'Content-Length: ' . strlen($postData),
+                'Content-Length: ' . strlen($postdata),
             ]);
 
             $response = curl_exec($ch);

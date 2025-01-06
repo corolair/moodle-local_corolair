@@ -21,7 +21,7 @@
  * allowing site administrators to configure plugin behavior.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -43,7 +43,7 @@ if ($hassiteconfig) {
         'true', // Default value.
         [
             'true' => get_string('true', 'local_corolair'),
-            'false' => get_string('false', 'local_corolair')
+            'false' => get_string('false', 'local_corolair'),
         ]
     ));
 
@@ -55,7 +55,7 @@ if ($hassiteconfig) {
         'true', // Default value.
         [
             'true' => get_string('capabilitytrue', 'local_corolair'),
-            'false' => get_string('capabilityfalse', 'local_corolair')
+            'false' => get_string('capabilityfalse', 'local_corolair'),
         ]
     ));
 

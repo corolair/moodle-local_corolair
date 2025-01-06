@@ -17,22 +17,22 @@
 /**
  * Trainer integration page for embedding the Corolair application.
  *
- * This page handles user authentication and passes required data to embed 
+ * This page handles user authentication and passes required data to embed
  * the Corolair application in an iframe within Moodle.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require_once(__DIR__ . '/../../config.php');
+require_login();
 
 // Ensure global scope access.
 global $USER;
 
 // Constants for external URLs.
-$auth_url = "https://services.corolair.dev/moodle-integration/auth";
-$front_url = "https://embed.corolair.dev/auth";
+$authurl = "https://services.corolair.dev/moodle-integration/auth";
 
 try {
     // Set up the Moodle page.
@@ -54,27 +54,27 @@ try {
         throw new moodle_exception('noapikey', 'local_corolair');
     }
 
-    $create_tutor_with_capability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
+    $createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
 
     // Prepare payload for external authentication request.
-    $postData = json_encode([
+    $postdata = json_encode([
         'email' => $USER->email,
         'apiKey' => $apikey,
         'firstname' => $USER->firstname,
         'lastname' => $USER->lastname,
         'moodleUserId' => $USER->id,
-        'createTutorWithCapability' => $create_tutor_with_capability
+        'createTutorWithCapability' => $createtutorwithcapability,
     ]);
 
     // Send the authentication request.
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $auth_url);
+    curl_setopt($ch, CURLOPT_URL, $authurl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'Content-Length: ' . strlen($postData)
+        'Content-Length: ' . strlen($postdata),
     ]);
 
     $response = curl_exec($ch);
@@ -83,22 +83,22 @@ try {
     }
 
     // Validate the response.
-    $json_response = json_decode($response, true);
-    if (!isset($json_response['userId'])) {
+    $jsonresponse = json_decode($response, true);
+    if (!isset($jsonresponse['userId'])) {
         throw new moodle_exception('errortoken', 'local_corolair');
     }
 
-    $userId = $json_response['userId'];
+    $userid = $jsonresponse['userId'];
     curl_close($ch);
 
     // Handle optional course parameter for embedding.
     $corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
     $provider = $corolairsourcecourse ? 'moodle' : '';
-    $courseId = $corolairsourcecourse ?: '';
+    $courseid = $corolairsourcecourse ?: '';
 
     // Embed the Corolair application.
     $output = $PAGE->get_renderer('local_corolair');
-    echo $output->render_trainer($userId, $provider, $courseId);
+    echo $output->render_trainer($userid, $provider, $courseid);
 
 } catch (moodle_exception $e) {
     // Handle Moodle-specific errors.

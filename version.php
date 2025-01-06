@@ -21,7 +21,7 @@
  * It ensures compatibility and proper registration with Moodle.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -29,7 +29,7 @@ defined('MOODLE_INTERNAL') || die();
 
 // Plugin metadata.
 $plugin->component = 'local_corolair';    // Full name of the plugin (used for diagnostics).
-$plugin->version   = 2025010600;          // The current plugin version (Date: YYYYMMDDXX).
+$plugin->version   = 2025010601;          // The current plugin version (Date: YYYYMMDDXX).
 $plugin->requires  = 2020110900;          // Minimum required Moodle version.
 $plugin->maturity  = MATURITY_STABLE;     // Plugin maturity level: MATURITY_ALPHA, MATURITY_BETA, MATURITY_RC, MATURITY_STABLE.
 $plugin->release   = '1.7';               // Human-readable version name.

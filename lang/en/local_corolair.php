@@ -18,7 +18,7 @@
  * Language strings for the Corolair Local Plugin.
  *
  * @package   local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
