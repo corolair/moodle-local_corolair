@@ -57,9 +57,6 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
         }
     }
 
-    // URL for the POST request.
-    $url = "https://services.corolair.dev/moodle-integration/courses/instances/tutor";
-
     // Get the API key from the configuration.
     $apikey = get_config('local_corolair', 'apikey');
     if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {
@@ -93,7 +90,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
         $rolename = $roles[$role]->shortname;
 
         // Prepare the data to send in the POST request.
-        $postdata = json_encode([
+        $moodleoptions = json_encode([
             'courseId' => $courseid,
             'url' => $moodlebaseurl,
             'moodleId' => $userid,
@@ -104,52 +101,12 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
             'apiKey' => $apikey,
         ]);
 
-        // Initialize cURL session.
-        $ch = curl_init();
-
-        // Set cURL options for POST request.
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Content-Length: ' . strlen($postdata),
-        ]);
-
-        // Execute the cURL request and get the response.
-        $response = curl_exec($ch);
-
-        // Check for cURL errors.
-        if (curl_errno($ch)) {
-            // Log the error instead of echoing it.
-            debugging(get_string('curlerror', 'local_corolair') . curl_error($ch) , DEBUG_DEVELOPER);
-        } else {
-            // Decode the JSON response to an associative array.
-            $responsedata = json_decode($response, true);
-
-            // Check for the expected response data.
-            if (isset($responsedata['tutorId']) && isset($responsedata['participantId'])) {
-                $tutorid = $responsedata['tutorId'];
-                $participantid = $responsedata['participantId'];
-            } else {
-                $tutorid = null;
-                $participantid = null;
-            }
-        }
-
-        // Close the cURL session.
-        curl_close($ch);
-
         // Get the sidepanel setting value.
         $sidepanel = get_config('local_corolair', 'sidepanel');
         $sidepanel = ($sidepanel === 'true') ? 'true' : 'false'; // Ensure it's either 'true' or 'false'.
-
-        // Render the embed script only if tutorId exists.
-        if (!empty($tutorid)) {
-            $output = $PAGE->get_renderer('local_corolair');
-            echo $output->render_embed_script($tutorid, $participantid, $sidepanel, $animate);
-        }
+        
+        $output = $PAGE->get_renderer('local_corolair');
+        echo $output->render_embed_script($sidepanel, $animate, $moodleoptions);
     }
 }
 
