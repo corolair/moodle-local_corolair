@@ -41,18 +41,16 @@ class renderer extends plugin_renderer_base {
      *
      * This method prepares the data and renders the 'local_corolair/embed_script' template.
      *
-     * @param string $tutorid The ID of the tutor.
-     * @param string $participantid The ID of the participant.
      * @param string $sidepanel Whether to embed as a side panel.
      * @param bool $animate Whether to animate the embed script.
+     * @param string $moodleoptions The Moodle options.
      * @return string The rendered template.
      */
-    public function render_embed_script($tutorid, $participantid, $sidepanel, $animate) {
+    public function render_embed_script($sidepanel, $animate, $moodleoptions) {
         $data = [
-            'tutorid' => htmlspecialchars($tutorid, ENT_QUOTES, 'UTF-8'),
-            'participantid' => htmlspecialchars($participantid, ENT_QUOTES, 'UTF-8'),
             'sidepanel' => htmlspecialchars($sidepanel, ENT_QUOTES, 'UTF-8'),
             'animate' => $animate,
+            'moodleoptions' => $moodleoptions,
         ];
         return $this->render_from_template('local_corolair/embed_script', $data);
     }
