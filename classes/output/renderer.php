@@ -69,7 +69,6 @@ class renderer extends plugin_renderer_base {
             'provider' => htmlspecialchars($provider, ENT_QUOTES, 'UTF-8'),
             'courseid' => htmlspecialchars($courseid, ENT_QUOTES, 'UTF-8'),
         ];
-
         return $this->render_from_template('local_corolair/trainer', $data);
     }
 }

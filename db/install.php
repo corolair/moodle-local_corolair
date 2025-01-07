@@ -29,27 +29,28 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-
 /**
  * Installation script for the local_corolair plugin.
- *
- * This function performs the following steps:
- * 1. Enables web services.
- * 2. Enables the REST protocol.
- * 3. Creates an external service for the plugin.
- * 4. Assigns necessary capabilities to the external service.
- * 5. Generates a token for the external service.
- * 6. Creates a "Corolair Manager" role with specific capabilities.
- * 7. Registers the Moodle instance with the Corolair service.
  */
 function xmldb_local_corolair_install() {
     global $DB, $CFG, $USER, $SITE;
-
     $adminid = $USER->id;
     $url = "https://services.corolair.dev/moodle-integration/plugin/organization/register";
-
     try {
-        // Step 1: Enable web services.
+        $moodlerooturl = $CFG->wwwroot;
+        // Check if the Moodle instance is running on localhost.
+        if (strpos($moodlerooturl, 'localhost') !== false || strpos($moodlerooturl, '127.0.0.1') !== false) {
+            \core\notification::add(
+                get_string('localhosterror', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            \core\notification::add(
+                get_string('installtroubleshoot', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            return false;
+        }
+        // Enable web services.
         $configrecord = $DB->get_record('config', ['name' => 'enablewebservices']);
         if ($configrecord) {
             $configrecord->value = 1;
@@ -57,8 +58,7 @@ function xmldb_local_corolair_install() {
         } else {
             $DB->insert_record('config', (object)['name' => 'enablewebservices', 'value' => 1]);
         }
-
-        // Step 2: Enable REST protocol.
+        // Enable REST protocol.
         $webserviceprotocols = $DB->get_record('config', ['name' => 'webserviceprotocols']);
         if ($webserviceprotocols) {
             if (empty($webserviceprotocols->value)) {
@@ -71,8 +71,15 @@ function xmldb_local_corolair_install() {
         } else {
             $DB->insert_record('config', (object)['name' => 'webserviceprotocols', 'value' => 'rest']);
         }
-
-        // Step 3: Create external service.
+        // Check if there is already a service with the same shortname.
+        $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
+        if ($existingservice) {
+            $existingserviceid = $existingservice->id;
+            $DB->delete_records('external_tokens', ['externalserviceid' => $existingserviceid]);
+            $DB->delete_records('external_services_functions', ['externalserviceid' => $existingserviceid]);
+            $DB->delete_records('external_services', ['id' => $existingserviceid]);
+        }
+        // Create new  external service.
         $service = (object)[
             'name' => get_string('servicename', 'local_corolair'),
             'shortname' => 'corolair_rest',
@@ -84,27 +91,48 @@ function xmldb_local_corolair_install() {
             'timecreated' => time(),
         ];
         $serviceid = $DB->insert_record('external_services', $service);
-
         if (!$serviceid) {
-            throw new moodle_exception('servicecreationfailed', 'local_corolair');
+            \core\notification::add(
+                get_string('servicecreationerror', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            \core\notification::add(
+                get_string('installtroubleshoot', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            return false;
         }
-
-        // Step 4: Assign capabilities to the service.
+        // Assign capabilities to the service.
         $capabilities = [
-            'core_user_get_users', 'core_user_get_users_by_field', 'core_course_get_courses',
-            'core_course_get_contents', 'mod_resource_get_resources_by_courses',
-            'core_enrol_get_users_courses', 'core_enrol_get_enrolled_users',
-            'core_webservice_get_site_info', 'core_enrol_get_enrolled_users_with_capability',
+            'core_user_get_users',
+            'core_user_get_users_by_field',
+            'core_course_get_courses',
+            'core_course_get_contents',
+            'mod_resource_get_resources_by_courses',
+            'core_enrol_get_users_courses',
+            'core_enrol_get_enrolled_users',
+            'core_webservice_get_site_info',
+            'core_enrol_get_enrolled_users_with_capability',
             'core_course_get_categories',
         ];
         foreach ($capabilities as $capability) {
-            $DB->insert_record('external_services_functions', (object)[
+            $insertcapability = $DB->insert_record('external_services_functions', (object)[
                 'externalserviceid' => $serviceid,
                 'functionname' => $capability,
             ]);
+            if (!$insertcapability) {
+                \core\notification::add(
+                    get_string('capabilityassignerror', 'local_corolair', $capability),
+                    \core\output\notification::NOTIFY_ERROR
+                );
+                \core\notification::add(
+                    get_string('installtroubleshoot', 'local_corolair'),
+                    \core\output\notification::NOTIFY_ERROR
+                );
+                return false;
+            }
         }
-
-        // Step 5: Generate a token.
+        // Generate a token.
         $token = (object)[
             'token' => md5(uniqid(rand(), true)),
             'userid' => $adminid,
@@ -117,9 +145,19 @@ function xmldb_local_corolair_install() {
             'privatetoken' => random_string(64),
             'name' => get_string('tokenname', 'local_corolair'),
         ];
-        $DB->insert_record('external_tokens', $token);
-
-        // Step 6: Create "Corolair Manager" role.
+        $insertedtoken = $DB->insert_record('external_tokens', $token);
+        if (!$insertedtoken) {
+            \core\notification::add(
+                get_string('tokencreationerror', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            \core\notification::add(
+                get_string('installtroubleshoot', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            return false;
+        }
+        // Create "Corolair Manager" role.
         $roleid = create_role(
             get_string('rolename', 'local_corolair'),
             'corolair',
@@ -127,34 +165,40 @@ function xmldb_local_corolair_install() {
             null,
             null
         );
-
-        if ($roleid) {
-            foreach ([CONTEXT_SYSTEM, CONTEXT_COURSE] as $contextlevel) {
-                $DB->insert_record('role_context_levels', (object)[
-                    'roleid' => $roleid,
-                    'contextlevel' => $contextlevel,
-                ]);
-            }
-            $DB->insert_record('role_capabilities', (object)[
-                'roleid' => $roleid,
-                'contextid' => context_system::instance()->id,
-                'capability' => 'local/corolair:createtutor',
-                'permission' => CAP_ALLOW,
-                'timemodified' => time(),
-            ]);
-            role_assign($roleid, $USER->id, context_system::instance()->id);
+        if (!$roleid) {
+            \core\notification::add(
+                get_string('roleproblem', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            \core\notification::add(
+                get_string('installtroubleshoot', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            return false;
         }
-
-        // Step 7: Register Moodle instance with Corolair.
+        foreach ([CONTEXT_SYSTEM, CONTEXT_COURSE] as $contextlevel) {
+            $DB->insert_record('role_context_levels', (object)[
+                'roleid' => $roleid,
+                'contextlevel' => $contextlevel,
+            ]);
+        }
+        $DB->insert_record('role_capabilities', (object)[
+            'roleid' => $roleid,
+            'contextid' => context_system::instance()->id,
+            'capability' => 'local/corolair:createtutor',
+            'permission' => CAP_ALLOW,
+            'timemodified' => time(),
+        ]);
+        role_assign($roleid, $USER->id, context_system::instance()->id);
+        // Register Moodle instance with Corolair.
         $postdata = json_encode([
-            'url' => $CFG->wwwroot,
+            'url' => $moodlerooturl,
             'webserviceToken' => $token->token,
             'email' => $USER->email,
             'firstname' => $USER->firstname,
             'lastname' => $USER->lastname,
             'siteName' => $SITE->fullname,
         ]);
-
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -164,17 +208,43 @@ function xmldb_local_corolair_install() {
         ]);
         $response = curl_exec($ch);
         if (!$response || curl_errno($ch)) {
-            throw new moodle_exception('curlerror', 'local_corolair', '', null, curl_error($ch));
+            \core\notification::add(
+                get_string('curlerror', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            \core\notification::add(
+                get_string('installtroubleshoot', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            debugging(curl_error($ch), DEBUG_DEVELOPER);
+            return false;
         }
+        curl_close($ch);
         $jsonresponse = json_decode($response, true);
         if (!isset($jsonresponse['apiKey'])) {
-            throw new moodle_exception('apikeymissing', 'local_corolair');
+            \core\notification::add(
+                get_string('apikeymissing', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            \core\notification::add(
+                get_string('installtroubleshoot', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            return false;
         }
         set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
         set_config('corolairlogin', $USER->email, 'local_corolair');
-
-        curl_close($ch);
+        return true;
     } catch (Exception $e) {
-        throw new moodle_exception('generalexceptionmessage', 'local_corolair', '', null, $e->getMessage());
+        debugging($e->getMessage(), DEBUG_DEVELOPER);
+        \core\notification::add(
+            get_string('unexpectederror', 'local_corolair'),
+            \core\output\notification::NOTIFY_ERROR
+        );
+        \core\notification::add(
+            get_string('installtroubleshoot', 'local_corolair'),
+            \core\output\notification::NOTIFY_ERROR
+        );
+        return false;
     }
 }

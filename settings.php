@@ -31,10 +31,8 @@ defined('MOODLE_INTERNAL') || die();
 if ($hassiteconfig) {
     // Create a new settings page for the Corolair plugin.
     $settings = new admin_settingpage('local_corolair', get_string('pluginname', 'local_corolair'));
-
     // Add the settings page to the "Local plugins" category.
     $ADMIN->add('localplugins', $settings);
-
     // Add a dropdown setting for enabling/disabling the side panel.
     $settings->add(new admin_setting_configselect(
         'local_corolair/sidepanel',
@@ -46,7 +44,6 @@ if ($hassiteconfig) {
             'false' => get_string('false', 'local_corolair'),
         ]
     ));
-
     // Add a dropdown setting for enabling tutor creation capability checks.
     $settings->add(new admin_setting_configselect(
         'local_corolair/createtutorwithcapability',
@@ -58,7 +55,6 @@ if ($hassiteconfig) {
             'false' => get_string('capabilityfalse', 'local_corolair'),
         ]
     ));
-
     // Add a text input setting for the Corolair API key.
     $settings->add(new admin_setting_configtext(
         'local_corolair/apikey',
@@ -67,7 +63,6 @@ if ($hassiteconfig) {
         get_string('noapikey', 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-
     // Add a text input setting for the Corolair login identifier.
     $settings->add(new admin_setting_configtext(
         'local_corolair/corolairlogin',
