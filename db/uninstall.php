@@ -38,10 +38,8 @@
  */
 function xmldb_local_corolair_uninstall() {
     global $DB, $CFG;
-
     // Define API URL for deregistration.
     $url = "https://services.corolair.dev/moodle-integration/plugin/organization/deregister";
-
     try {
         // Step 1: Remove the custom role 'Corolair Manager'.
         $role = $DB->get_record('role', ['shortname' => 'corolair']);
@@ -52,7 +50,6 @@ function xmldb_local_corolair_uninstall() {
             $DB->delete_records('role_context_levels', ['roleid' => $role->id]);
             $DB->delete_records('role_capabilities', ['roleid' => $role->id]);
         }
-
         // Step 2: Remove external service and associated tokens and functions.
         $service = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
         if ($service) {
@@ -60,13 +57,10 @@ function xmldb_local_corolair_uninstall() {
             $DB->delete_records('external_services_functions', ['externalserviceid' => $service->id]);
             $DB->delete_records('external_services', ['id' => $service->id]);
         }
-
         // Step 3: Retrieve the 'apikey' value before deleting all Corolair-specific config settings.
         $apikeyrecord = $DB->get_record('config_plugins', ['plugin' => 'local_corolair', 'name' => 'apikey'], 'value');
-
         // Step 4: Remove all Corolair-specific config settings from config_plugins.
         $DB->delete_records('config_plugins', ['plugin' => 'local_corolair']);
-
         // Step 5: Send deregistration request to external API.
         $apikey = '';
         if ($apikeyrecord) {
@@ -77,7 +71,6 @@ function xmldb_local_corolair_uninstall() {
             'url' => $moodlebaseurl,
             'apiKey' => $apikey,
         ]);
-
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, true);
@@ -86,22 +79,30 @@ function xmldb_local_corolair_uninstall() {
             'Content-Type: application/json',
             'Content-Length: ' . strlen($postdata),
         ]);
-
         // Set options to make the request asynchronous.
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, false); // Don't wait for response.
-        curl_setopt($ch, CURLOPT_TIMEOUT_MS, 100); // 100 ms timeout, just enough to send the request.
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 100); // Connection timeout.
-
+        curl_setopt($ch, CURLOPT_TIMEOUT_MS, 1); // 1 ms timeout, just enough to send the request.
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 1); // Connection timeout.
         // Execute the request.
         curl_exec($ch);
-
         // Close the cURL session immediately without waiting for the response.
         curl_close($ch);
         return true;
 
     } catch (moodle_exception $me) {
-        throw $me;
+        debugging($me->getMessage() , DEBUG_DEVELOPER);
+        \core\notification::add(
+            get_string('unexpectederror', 'local_corolair'),
+            \core\output\notification::NOTIFY_ERROR
+        );
+        return false;
+
     } catch (Exception $e) {
-        throw new moodle_exception('generalexceptionmessage', 'local_corolair', '', null, $e->getMessage());
+        debugging($e->getMessage(), DEBUG_DEVELOPER);
+        \core\notification::add(
+            get_string('unexpectederror', 'local_corolair'),
+            \core\output\notification::NOTIFY_ERROR
+        );
+        return false;
     }
 }

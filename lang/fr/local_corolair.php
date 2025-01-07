@@ -63,3 +63,11 @@ $string['privacy:metadata:corolair:userfirstname'] = 'Votre prénom est envoyé 
 $string['privacy:metadata:corolair:userlastname'] = 'Votre nom de famille est envoyé pour personnaliser votre expérience sur Corolair et identifier vos conversations pour votre formateur';
 $string['privacy:metadata:corolair:userrolename'] = 'Votre rôle est envoyé pour gérer vos permissions sur Corolair';
 $string['privacy:metadata:corolair:interaction'] = 'Les enregistrements de vos interactions, tels que les tuteurs créés et les conversations, sont envoyés pour améliorer votre expérience';
+$string['localhosterror'] = 'Impossible d\'enregistrer l\'instance Moodle avec Corolair car le site fonctionne en localhost.';
+$string['webservicesenableerror'] = 'Impossible d\'activer les services web.';
+$string['restprotocolenableerror'] = 'Impossible d\'activer le protocole REST.';
+$string['servicecreationerror'] = 'Impossible de créer le service REST Corolair.';
+$string['capabilityassignerror'] = 'Impossible d\'attribuer la capacité "{$a}" au rôle.';
+$string['tokencreationerror'] = 'Impossible de créer le jeton REST Corolair.';
+$string['installtroubleshoot'] = 'Si vous rencontrez des problèmes lors de l\'installation, veuillez vous référer au <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328"> guide de dépannage manuel</a>';
+

@@ -104,7 +104,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
         // Get the sidepanel setting value.
         $sidepanel = get_config('local_corolair', 'sidepanel');
         $sidepanel = ($sidepanel === 'true') ? 'true' : 'false'; // Ensure it's either 'true' or 'false'.
-        
+
         $output = $PAGE->get_renderer('local_corolair');
         echo $output->render_embed_script($sidepanel, $animate, $moodleoptions);
     }
