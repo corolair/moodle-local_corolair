@@ -18,7 +18,7 @@
  * Language strings for the Corolair Local Plugin.
  *
  * @package   local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -50,3 +50,24 @@ $string['capabilitytrue'] = 'True';
 $string['capabilityfalse'] = 'False';
 $string['unexpectederror'] = 'An unexpected error occurred. Please try again. If the error persists, please contact the Corolair Team.';
 $string['trainerpage'] = 'Corolair';
+$string['nocorolairlogin'] = 'No account attached';
+$string['createtutorcapability'] = 'Allows users to create and manage AI Tutors within Corolair';
+$string['servicename'] = 'Corolair REST Service';
+$string['tokenname'] = 'Corolair REST token';
+$string['rolename'] = 'Corolair Manager';
+$string['roledescription'] = 'Role for managing Corolair AI Tutors';
+$string['privacy:metadata:corolair'] = 'Metadata sent to Corolair allows seamless access to your data on the remote system.';
+$string['privacy:metadata:corolair:userid'] = 'The user ID is sent to uniquely identify you on Corolair.';
+$string['privacy:metadata:corolair:useremail'] = 'Your email address is sent to uniquely identify you on Corolair and enable further communication.';
+$string['privacy:metadata:corolair:userfirstname'] = 'Your first name is sent to personalize your experience on Corolair and identify your conversations for your Trainer.';
+$string['privacy:metadata:corolair:userlastname'] = 'Your last name is sent to personalize your experience on Corolair and identify your conversations for your Trainer.';
+$string['privacy:metadata:corolair:userrolename'] = 'Your role name is sent to manage your permissions on Corolair.';
+$string['privacy:metadata:corolair:interaction'] = 'Records of your interactions, such as created tutors and conversations, are sent to enhance your experience.';
+$string['localhosterror'] = 'Cannot register Moodle instance with Corolair because the site is running on localhost.';
+$string['webservicesenableerror'] = 'Could not enable web services.';
+$string['restprotocolenableerror']  = 'Could not enable the REST protocol.';
+$string['servicecreationerror'] = 'Could not create the Corolair REST service.';
+$string['capabilityassignerror'] = 'Could not assign the capability "{$a}" to the role.';
+$string['tokencreationerror'] = 'Could not create the Corolair REST token.';
+$string['installtroubleshoot'] = 'If you encounter any issues during installation, please refer to the <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328">troubleshooting guide </a>.';
+

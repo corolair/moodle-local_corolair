@@ -21,7 +21,7 @@
  * allowing site administrators to configure plugin behavior.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -31,10 +31,8 @@ defined('MOODLE_INTERNAL') || die();
 if ($hassiteconfig) {
     // Create a new settings page for the Corolair plugin.
     $settings = new admin_settingpage('local_corolair', get_string('pluginname', 'local_corolair'));
-
     // Add the settings page to the "Local plugins" category.
     $ADMIN->add('localplugins', $settings);
-
     // Add a dropdown setting for enabling/disabling the side panel.
     $settings->add(new admin_setting_configselect(
         'local_corolair/sidepanel',
@@ -43,10 +41,9 @@ if ($hassiteconfig) {
         'true', // Default value.
         [
             'true' => get_string('true', 'local_corolair'),
-            'false' => get_string('false', 'local_corolair')
+            'false' => get_string('false', 'local_corolair'),
         ]
     ));
-
     // Add a dropdown setting for enabling tutor creation capability checks.
     $settings->add(new admin_setting_configselect(
         'local_corolair/createtutorwithcapability',
@@ -55,38 +52,23 @@ if ($hassiteconfig) {
         'true', // Default value.
         [
             'true' => get_string('capabilitytrue', 'local_corolair'),
-            'false' => get_string('capabilityfalse', 'local_corolair')
+            'false' => get_string('capabilityfalse', 'local_corolair'),
         ]
     ));
-
     // Add a text input setting for the Corolair API key.
     $settings->add(new admin_setting_configtext(
         'local_corolair/apikey',
         get_string('apikey', 'local_corolair'), // Setting title.
         get_string('apikeydesc', 'local_corolair'), // Setting description.
-        'No Corolair Api Key', // Default value.
+        get_string('noapikey', 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-
     // Add a text input setting for the Corolair login identifier.
     $settings->add(new admin_setting_configtext(
         'local_corolair/corolairlogin',
         get_string('corolairlogin', 'local_corolair'), // Setting title.
         get_string('corolairlogindesc', 'local_corolair'), // Setting description.
-        'No Corolair Login', // Default value.
+        get_string('nocorolairlogin' , 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-
-    // Inline CSS to style certain inputs as read-only.
-    echo '<style>
-        #id_s_local_corolair_apikey,
-        #id_s_local_corolair_corolairlogin {
-            background-color: #e9ecef;
-            cursor: not-allowed;
-        }
-        #id_s_local_corolair_apikey:disabled,
-        #id_s_local_corolair_corolairlogin:disabled {
-            color: #6c757d;
-        }
-    </style>';
 }

@@ -18,7 +18,7 @@
  * Language strings for the Corolair Local Plugin.
  *
  * @package   local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -50,3 +50,24 @@ $string['capabilitytrue'] = 'Vrai';
 $string['capabilityfalse'] = 'Faux';
 $string['unexpectederror'] = 'Une erreur inattendue s\'est produite. Veuillez réessayer. Si l\'erreur persiste, veuillez contacter l\'équipe Corolair.';
 $string['trainerpage'] = 'Corolair';
+$string['nocorolairlogin'] = 'Aucun compte rattaché';
+$string['createtutorcapability'] = 'Permet à l\'utilisateur de créer et gérer ses Tuteurs IA avec Corolair';
+$string['servicename'] = 'Service REST Corolair';
+$string['tokenname'] = 'Jeton REST Corolair';
+$string['rolename'] = 'Manager Corolair';
+$string['roledescription'] = 'Rôle pour la gestion des Tuteurs IA dans Corolair';
+$string['privacy:metadata:corolair'] = 'Les métadonnées envoyées à Corolair permettent un accès transparent à vos données sur le système distant.';
+$string['privacy:metadata:corolair:userid'] = 'L\'identifiant de l\'utilisateur est envoyé pour vous identifier de manière unique sur Corolair';
+$string['privacy:metadata:corolair:useremail'] = 'Votre adresse e-mail est envoyée pour vous identifier de manière unique sur Corolair et anticiper de potentielles communication ultérieure';
+$string['privacy:metadata:corolair:userfirstname'] = 'Votre prénom est envoyé pour personnaliser votre expérience sur Corolair et identifier vos conversations pour votre formateur';
+$string['privacy:metadata:corolair:userlastname'] = 'Votre nom de famille est envoyé pour personnaliser votre expérience sur Corolair et identifier vos conversations pour votre formateur';
+$string['privacy:metadata:corolair:userrolename'] = 'Votre rôle est envoyé pour gérer vos permissions sur Corolair';
+$string['privacy:metadata:corolair:interaction'] = 'Les enregistrements de vos interactions, tels que les tuteurs créés et les conversations, sont envoyés pour améliorer votre expérience';
+$string['localhosterror'] = 'Impossible d\'enregistrer l\'instance Moodle avec Corolair car le site fonctionne en localhost.';
+$string['webservicesenableerror'] = 'Impossible d\'activer les services web.';
+$string['restprotocolenableerror'] = 'Impossible d\'activer le protocole REST.';
+$string['servicecreationerror'] = 'Impossible de créer le service REST Corolair.';
+$string['capabilityassignerror'] = 'Impossible d\'attribuer la capacité "{$a}" au rôle.';
+$string['tokencreationerror'] = 'Impossible de créer le jeton REST Corolair.';
+$string['installtroubleshoot'] = 'Si vous rencontrez des problèmes lors de l\'installation, veuillez vous référer au <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328"> guide de dépannage manuel</a>';
+

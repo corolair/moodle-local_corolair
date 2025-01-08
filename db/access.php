@@ -21,25 +21,21 @@
  * Capabilities are used to control access to various features within the plugin.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair 
+ * @copyright  2024 Corolair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$capabilities = array(
-    /**
-    * Capability to create and manage tutors within the Corolair plugin.
-    *
-    * This capability allows users to create and manage tutors within the Corolair plugin.
-    *
-    * @captype      write
-    * @contextlevel CONTEXT_SYSTEM
-    * @description  Allows users to create and manage tutors within the Corolair plugin.
-    */
-    'local/corolair:createtutor' => array(
+$capabilities = [
+    // Capability to create and manage tutors within the Corolair plugin.
+    // This capability allows users to create and manage tutors within the Corolair plugin.
+    // @captype      write
+    // @contextlevel CONTEXT_SYSTEM
+    // @description  Allows users to create and manage tutors within the Corolair plugin.
+    'local/corolair:createtutor' => [
         'captype' => 'write',
         'contextlevel' => CONTEXT_SYSTEM,
-        'description' => 'Allows users to create and manage tutors within the Corolair plugin.'
-    ),
-);
+        'description' => get_string('createtutorcapability', 'local_corolair'),
+    ],
+];

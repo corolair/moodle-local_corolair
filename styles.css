@@ -1,0 +1,53 @@
+/* Settings Page */
+#page-admin-setting-local_corolair #id_s_local_corolair_apikey,
+#page-admin-setting-local_corolair #id_s_local_corolair_corolairlogin {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+#page-admin-setting-local_corolair #id_s_local_corolair_apikey:disabled,
+#page-admin-setting-local_corolair #id_s_local_corolair_corolairlogin:disabled {
+  color: #6c757d;
+}
+
+/* Trainer Page */
+#page-local-corolair-trainer #topofscroll {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#page-local-corolair-trainer #corolair-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+#page-local-corolair-trainer #page {
+  overflow: hidden !important;
+  height: 100vh !important;
+  box-sizing: border-box !important;
+  width: 100vw !important;
+  padding: 0 !important;
+}
+
+#page-local-corolair-trainer #page-content {
+  padding: 0 !important;
+  padding: 0 !important;
+  height: 100%;
+}
+
+#page-local-corolair-trainer #region-main-box {
+  height: 100%;
+}
+
+#page-local-corolair-trainer #region-main {
+  height: 100%;
+}
+
+#page-local-corolair-trainer div[role="main"] {
+  height: 100%;
+  padding: 0 !important;
+}
+
+#page-local-corolair-trainer #page-header {
+  display: none;
+}
