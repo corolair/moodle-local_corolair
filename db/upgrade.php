@@ -44,7 +44,7 @@ function xmldb_local_corolair_upgrade($oldversion) {
         }
         // Step 2: Notify external Corolair service of the update.
         if ($result && $oldversion < 2024100701) {
-            $url = "https://services.corolair.dev/moodle-integration/update";
+            $url = "https://services.corolair.com/moodle-integration/update";
             $apikey = get_config('local_corolair', 'apikey');
             if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0) {
                 \core\notification::add(

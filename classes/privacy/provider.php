@@ -112,7 +112,7 @@ class provider implements \core_privacy\local\metadata\provider,
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
             return $contextlist;
         }
-        $url = 'https://services.corolair.dev/moodle-integration/privacy/users/'
+        $url = 'https://services.corolair.com/moodle-integration/privacy/users/'
              . $userid . '/contexts?apikey=' . urlencode($apikey);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -173,7 +173,7 @@ class provider implements \core_privacy\local\metadata\provider,
         }
         $user = $approvedcontextlist->get_user();
         $userid = $user->id;
-        $url = 'https://services.corolair.dev/moodle-integration/privacy/users/'
+        $url = 'https://services.corolair.com/moodle-integration/privacy/users/'
              . $userid . '/export?apikey=' . urlencode($apikey);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -216,7 +216,7 @@ class provider implements \core_privacy\local\metadata\provider,
         } else {
             return;
         }
-        $url = 'https://services.corolair.dev/moodle-integration/privacy/contexts/users?apikey='
+        $url = 'https://services.corolair.com/moodle-integration/privacy/contexts/users?apikey='
              . urlencode($apikey) . '&contextlevel=' . $contextlevel;
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -253,7 +253,7 @@ class provider implements \core_privacy\local\metadata\provider,
         } else {
             return;
         }
-        $url = 'https://services.corolair.dev/moodle-integration/privacy/contexts/delete?apikey='
+        $url = 'https://services.corolair.com/moodle-integration/privacy/contexts/delete?apikey='
              . urlencode($apikey) . '&contextlevel=' . $contextlevel;
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -282,7 +282,7 @@ class provider implements \core_privacy\local\metadata\provider,
         }
         $user = $contextlist->get_user();
         $userid = $user->id;
-        $url = 'https://services.corolair.dev/moodle-integration/privacy/users/'
+        $url = 'https://services.corolair.com/moodle-integration/privacy/users/'
              . $userid . '/delete?apikey=' . urlencode($apikey);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -312,7 +312,7 @@ class provider implements \core_privacy\local\metadata\provider,
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
         foreach ($users as $userid) {
-            $url = 'https://services.corolair.dev/moodle-integration/privacy/users/'
+            $url = 'https://services.corolair.com/moodle-integration/privacy/users/'
                  . $userid . '/delete?apikey=' . urlencode($apikey);
             curl_setopt($ch, CURLOPT_URL, $url);
             $response = curl_exec($ch);

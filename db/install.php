@@ -35,7 +35,7 @@
 function xmldb_local_corolair_install() {
     global $DB, $CFG, $USER, $SITE;
     $adminid = $USER->id;
-    $url = "https://services.corolair.dev/moodle-integration/plugin/organization/register";
+    $url = "https://services.corolair.com/moodle-integration/plugin/organization/register";
     try {
         $moodlerooturl = $CFG->wwwroot;
         // Check if the Moodle instance is running on localhost.
