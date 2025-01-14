@@ -44,7 +44,6 @@ function xmldb_local_corolair_upgrade($oldversion) {
         }
         // Step 2: Notify external Corolair service of the update.
         if ($result && $oldversion < 2024100701) {
-            $url = "https://services.corolair.dev/moodle-integration/update";
             $apikey = get_config('local_corolair', 'apikey');
             if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0) {
                 \core\notification::add(
@@ -53,18 +52,19 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 );
                 return false;
             }
+            $url = "https://services.corolair.dev/moodle-integration/update";
             $postdata = json_encode(['apiKey' => $apikey]);
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                'Content-Length: ' . strlen($postdata),
-            ]);
-            $response = curl_exec($ch);
-            if (curl_errno($ch)) {
+            $curl = new curl();
+            $options = [
+                "CURLOPT_RETURNTRANSFER" => true,
+                'CURLOPT_HTTPHEADER' => [
+                    'Content-Type: application/json',
+                    'Content-Length: ' . strlen($postdata),
+                ],
+            ];
+            $response = $curl->post($url, $postdata, $options);
+            $errno = $curl->get_errno();
+            if ($response === false || $errno !== 0) {
                 debugging(curl_error($ch), DEBUG_DEVELOPER);
                 \core\notification::add(
                     get_string('curlerror', 'local_corolair'),
@@ -72,7 +72,6 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 );
                 return false;
             }
-            curl_close($ch);
         }
         // Step 3: Add required capabilities to the external "Corolair REST" service.
         if ($result && $oldversion < 2024101100) {

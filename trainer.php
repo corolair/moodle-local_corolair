@@ -59,26 +59,29 @@ $postdata = json_encode([
     'createTutorWithCapability' => $createtutorwithcapability,
 ]);
 // Send the authentication request.
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $authurl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/json',
-    'Content-Length: ' . strlen($postdata),
-]);
-$response = curl_exec($ch);
-if (curl_errno($ch)) {
-    throw new moodle_exception('curlerror', 'local_corolair', '', null, curl_error($ch));
+$curl = new curl();
+$options = [
+    "CURLOPT_RETURNTRANSFER" => true,
+    'CURLOPT_HTTPHEADER' => [
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($postdata),
+    ],
+];
+$response = $curl->post($authurl, $postdata , $options);
+$errno = $curl->get_errno();
+// Handle the response.
+if ($response === false) {
+    throw new moodle_exception('curlerror', 'local_corolair', '', $curl->error);
 }
-// Validate the response.
+if ($errno !== 0) {
+    throw new moodle_exception('curlerror', 'local_corolair', '', null, $curl->error);
+}
 $jsonresponse = json_decode($response, true);
+// Validate the response.
 if (!isset($jsonresponse['userId'])) {
     throw new moodle_exception('errortoken', 'local_corolair');
 }
 $userid = $jsonresponse['userId'];
-curl_close($ch);
 // Handle optional course parameter for embedding.
 $corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
 $provider = $corolairsourcecourse ? 'moodle' : '';
