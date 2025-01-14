@@ -199,15 +199,17 @@ function xmldb_local_corolair_install() {
             'lastname' => $USER->lastname,
             'siteName' => $SITE->fullname,
         ]);
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $postdata,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-        ]);
-        $response = curl_exec($ch);
-        if (!$response || curl_errno($ch)) {
+        $curl = new curl();
+        $options = [
+            "CURLOPT_RETURNTRANSFER" => true,
+            'CURLOPT_HTTPHEADER' => [
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($postdata),
+            ],
+        ];
+        $response = $curl->post($url, $postdata, $options);
+        $errno = $curl->get_errno();
+        if ($response === false || $errno !== 0) {
             \core\notification::add(
                 get_string('curlerror', 'local_corolair'),
                 \core\output\notification::NOTIFY_ERROR
@@ -216,10 +218,9 @@ function xmldb_local_corolair_install() {
                 get_string('installtroubleshoot', 'local_corolair'),
                 \core\output\notification::NOTIFY_ERROR
             );
-            debugging(curl_error($ch), DEBUG_DEVELOPER);
+            debugging(curl_error($curl), DEBUG_DEVELOPER);
             return false;
         }
-        curl_close($ch);
         $jsonresponse = json_decode($response, true);
         if (!isset($jsonresponse['apiKey'])) {
             \core\notification::add(
