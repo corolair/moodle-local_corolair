@@ -54,7 +54,7 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 );
                 return false;
             }
-            $url = "https://services.corolair.dev/moodle-integration/update";
+            $url = "https://services.corolair.com/moodle-integration/update";
             $postdata = json_encode(['apiKey' => $apikey]);
             $curl = new curl();
             $options = [
