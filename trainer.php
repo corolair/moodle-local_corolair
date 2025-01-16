@@ -31,71 +31,63 @@ require_login();
 // Ensure global scope access.
 global $USER;
 // Constants for external URLs.
-$authurl = "https://services.corolair.com/moodle-integration/auth";
-try {
-    // Set up the Moodle page.
-    $PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
-    $PAGE->set_context(context_system::instance());
-    $PAGE->set_title(get_string('trainerpage', 'local_corolair'));
-    // Output header.
-    echo $OUTPUT->header();
-    // Check user capability.
-    if (!has_capability('local/corolair:createtutor', context_system::instance(), $USER->id)) {
-        throw new moodle_exception('missingcapability', 'local_corolair');
-    }
-    // Retrieve plugin configuration settings.
-    $apikey = get_config('local_corolair', 'apikey');
-    if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0) {
-        throw new moodle_exception('noapikey', 'local_corolair');
-    }
-    $createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
-    // Prepare payload for external authentication request.
-    $postdata = json_encode([
-        'email' => $USER->email,
-        'apiKey' => $apikey,
-        'firstname' => $USER->firstname,
-        'lastname' => $USER->lastname,
-        'moodleUserId' => $USER->id,
-        'createTutorWithCapability' => $createtutorwithcapability,
-    ]);
-    // Send the authentication request.
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $authurl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+$authurl = "https://services.corolair.dev/moodle-integration/auth";
+
+// Set up the Moodle page.
+$PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
+$PAGE->set_context(context_system::instance());
+$PAGE->set_title(get_string('trainerpage', 'local_corolair'));
+// Output header.
+echo $OUTPUT->header();
+// Check user capability.
+if (!has_capability('local/corolair:createtutor', context_system::instance(), $USER->id)) {
+    throw new moodle_exception('missingcapability', 'local_corolair');
+}
+// Retrieve plugin configuration settings.
+$apikey = get_config('local_corolair', 'apikey');
+if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0 || strpos($apikey, 'Aucune Clé API Corolair') === 0) {
+    throw new moodle_exception('noapikey', 'local_corolair');
+}
+$createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
+// Prepare payload for external authentication request.
+$postdata = json_encode([
+    'email' => $USER->email,
+    'apiKey' => $apikey,
+    'firstname' => $USER->firstname,
+    'lastname' => $USER->lastname,
+    'moodleUserId' => $USER->id,
+    'createTutorWithCapability' => $createtutorwithcapability,
+]);
+// Send the authentication request.
+$curl = new curl();
+$options = [
+    "CURLOPT_RETURNTRANSFER" => true,
+    'CURLOPT_HTTPHEADER' => [
         'Content-Type: application/json',
         'Content-Length: ' . strlen($postdata),
-    ]);
-    $response = curl_exec($ch);
-    if (curl_errno($ch)) {
-        throw new moodle_exception('curlerror', 'local_corolair', '', null, curl_error($ch));
-    }
-    // Validate the response.
-    $jsonresponse = json_decode($response, true);
-    if (!isset($jsonresponse['userId'])) {
-        throw new moodle_exception('errortoken', 'local_corolair');
-    }
-    $userid = $jsonresponse['userId'];
-    curl_close($ch);
-    // Handle optional course parameter for embedding.
-    $corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
-    $provider = $corolairsourcecourse ? 'moodle' : '';
-    $courseid = $corolairsourcecourse ?: '';
-    // Embed the Corolair application.
-    $output = $PAGE->get_renderer('local_corolair');
-    echo $output->render_trainer($userid, $provider, $courseid);
-} catch (moodle_exception $e) {
-    // Handle Moodle-specific errors.
-    echo $OUTPUT->notification($e->getMessage(), 'notifyproblem');
-    echo $OUTPUT->footer();
-    die();
-} catch (Exception $e) {
-    // Handle generic exceptions.
-    echo $OUTPUT->notification(get_string('unexpectederror', 'local_corolair') . $e->getMessage(), 'notifyproblem');
-    echo $OUTPUT->footer();
-    die();
+    ],
+];
+$response = $curl->post($authurl, $postdata , $options);
+$errno = $curl->get_errno();
+// Handle the response.
+if ($response === false) {
+    throw new moodle_exception('curlerror', 'local_corolair', '', $curl->error);
 }
+if ($errno !== 0) {
+    throw new moodle_exception('curlerror', 'local_corolair', '', null, $curl->error);
+}
+$jsonresponse = json_decode($response, true);
+// Validate the response.
+if (!isset($jsonresponse['userId'])) {
+    throw new moodle_exception('errortoken', 'local_corolair');
+}
+$userid = $jsonresponse['userId'];
+// Handle optional course parameter for embedding.
+$corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
+$provider = $corolairsourcecourse ? 'moodle' : '';
+$courseid = $corolairsourcecourse ?: '';
+// Embed the Corolair application.
+$output = $PAGE->get_renderer('local_corolair');
+echo $output->render_trainer($userid, $provider, $courseid);
 // Output footer.
 echo $OUTPUT->footer();

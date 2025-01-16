@@ -71,22 +71,15 @@ function xmldb_local_corolair_uninstall() {
             'url' => $moodlebaseurl,
             'apiKey' => $apikey,
         ]);
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Content-Length: ' . strlen($postdata),
-        ]);
-        // Set options to make the request asynchronous.
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, false); // Don't wait for response.
-        curl_setopt($ch, CURLOPT_TIMEOUT_MS, 1); // 1 ms timeout, just enough to send the request.
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 1); // Connection timeout.
-        // Execute the request.
-        curl_exec($ch);
-        // Close the cURL session immediately without waiting for the response.
-        curl_close($ch);
+        $curl = new curl();
+        $options = [
+            "CURLOPT_RETURNTRANSFER" => true,
+            'CURLOPT_HTTPHEADER' => [
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($postdata),
+            ],
+        ];
+        $response = $curl->post($url, $postdata, $options);
         return true;
 
     } catch (moodle_exception $me) {
