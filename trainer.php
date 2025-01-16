@@ -45,7 +45,7 @@ if (!has_capability('local/corolair:createtutor', context_system::instance(), $U
 }
 // Retrieve plugin configuration settings.
 $apikey = get_config('local_corolair', 'apikey');
-if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0) {
+if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0 || strpos($apikey, 'Aucune Clé API Corolair') === 0) {
     throw new moodle_exception('noapikey', 'local_corolair');
 }
 $createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
