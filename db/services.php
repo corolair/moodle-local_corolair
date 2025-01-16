@@ -15,10 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for the Corolair plugin.
- *
- * This file defines the version and other metadata for the "local_corolair" plugin.
- * It ensures compatibility and proper registration with Moodle.
+ * Services definitions For Corolair Integration with Moodle.
  *
  * @package    local_corolair
  * @copyright  2024 Corolair
@@ -27,9 +24,24 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-// Plugin metadata.
-$plugin->component = 'local_corolair';    // Full name of the plugin (used for diagnostics).
-$plugin->version   = 2025011600;          // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires  = 2020110900;          // Minimum required Moodle version.
-$plugin->maturity  = MATURITY_STABLE;     // Plugin maturity level: MATURITY_ALPHA, MATURITY_BETA, MATURITY_RC, MATURITY_STABLE.
-$plugin->release   = '1.8.3';               // Human-readable version name.
+$services = [
+    'Corolair REST Service' => [
+        'functions' => [
+            'core_user_get_users',
+            'core_user_get_users_by_field',
+            'core_course_get_courses',
+            'core_course_get_contents',
+            'mod_resource_get_resources_by_courses',
+            'core_enrol_get_users_courses',
+            'core_enrol_get_enrolled_users',
+            'core_webservice_get_site_info',
+            'core_enrol_get_enrolled_users_with_capability',
+            'core_course_get_categories',
+        ],
+        'restrictedusers' => 0,
+        'enabled' => 1,
+        'shortname' => 'corolair_rest',
+        'uploadfiles' => 1,
+        'downloadfiles' => 1,
+    ],
+];
