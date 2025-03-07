@@ -31,7 +31,7 @@ require_login();
 // Ensure global scope access.
 global $USER;
 // Constants for external URLs.
-$authurl = "https://services.corolair.com/moodle-integration/auth";
+$authurl = "https://services.corolair.dev/moodle-integration/auth";
 
 // Set up the Moodle page.
 $PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
