@@ -29,7 +29,7 @@ require_once(__DIR__ . '/../../config.php');
 require_login();
 
 // Ensure global scope access.
-global $USER;
+global $USER, $CFG, $SITE;
 // Constants for external URLs.
 $authurl = "https://services.corolair.dev/moodle-integration/auth";
 
@@ -46,8 +46,76 @@ if (!has_capability('local/corolair:createtutor', context_system::instance(), $U
 // Retrieve plugin configuration settings.
 $apikey = get_config('local_corolair', 'apikey');
 if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0 || strpos($apikey, 'Aucune Clé API Corolair') === 0) {
-    throw new moodle_exception('noapikey', 'local_corolair');
+
+$isretrysuccess = false;
+$sitename = $SITE->fullname;
+$moodlerooturl = $CFG->wwwroot;
+$useremail = $USER->email;
+$userfirstname = $USER->firstname;
+$userlastname = $USER->lastname;
+
+$enablewebserviceconfigrecord = $DB->get_record('config', ['name' => 'enablewebservices']);
+$iswebserviceenabled = false;
+if($enablewebserviceconfigrecord && $enablewebserviceconfigrecord->value == 1){
+    $iswebserviceenabled = true;
 }
+$webserviceprotocols = $DB->get_record('config', ['name' => 'webserviceprotocols']);
+
+$isrestprotocolenabled = false;
+if($webserviceprotocols && strpos($webserviceprotocols->value, 'rest') !== false){
+    $isrestprotocolenabled = true;
+}
+
+$existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
+$iscorolairserviceexist = false;
+$istokenexist = false;
+if($existingservice){
+    $iscorolairserviceexist = true;
+    $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
+    if($token){
+        $istokenexist = true;
+        // attempt to register the moodle instance again
+        $curl = new \curl();
+        $url = "https://services.corolair.dev/moodle-integration/plugin/organization/register";
+        $postdata = json_encode([
+            'url' => $moodlerooturl,
+            'webserviceToken' => $token->token,
+            'email' => $useremail,
+            'firstname' => $userfirstname,
+            'lastname' => $userlastname,
+            'siteName' => $sitename,
+        ]);
+        $options = [
+            "CURLOPT_RETURNTRANSFER" => true,
+            'CURLOPT_HTTPHEADER' => [
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($postdata),
+            ],
+        ];
+        $response = $curl->post($url, $postdata, $options);
+        $errno = $curl->get_errno();
+        if ($response !== false && $errno === 0) {
+            $jsonresponse = json_decode($response, true);
+            if (isset($jsonresponse['apiKey'])) {
+                set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
+                $isretrysuccess = true;
+            }
+        }
+        
+        
+    }
+}
+if(!$isretrysuccess){
+$output = $PAGE->get_renderer('local_corolair');
+echo $output->render_installation_troubleshoot($moodlerooturl, $sitename, $iswebserviceenabled, $isrestprotocolenabled, $iscorolairserviceexist, $istokenexist, $useremail, $userfirstname, $userlastname);
+echo $OUTPUT->footer();
+ return ;
+} else {
+    echo 'API Key is set, try to reload the page';
+    return;
+}
+}
+
 $createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
 // Prepare payload for external authentication request.
 $postdata = json_encode([
