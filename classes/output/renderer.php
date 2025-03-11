@@ -83,14 +83,41 @@ class renderer extends plugin_renderer_base {
      * @param bool $istokenexist Whether the token exists.
      * @return string The rendered HTML content.
      */
-    public function render_installation_troubleshoot($siteurl, $sitename, $iswebserviceenabled, $isrestprotocolenabled, $iscorolairserviceexist, $istokenexist,$useremail, $userfirstname, $userlastname) {
+    public function render_installation_troubleshoot(
+        $siteurl, 
+        $sitename, 
+        $iswebserviceenabled, 
+        $isrestprotocolenabled, 
+        $iscorolairserviceexist, 
+        $istokenexist, 
+        $useremail, 
+        $userfirstname, 
+        $userlastname
+    ) {
+        
+        $iswebserviceenabledstring = 'false';
+        if($iswebserviceenabled) {
+            $iswebserviceenabledstring = 'true';
+        }
+        $isrestprotocolenabledstring = 'false';
+        if($isrestprotocolenabled) {
+            $isrestprotocolenabledstring = 'true';
+        }
+        $iscorolairserviceexiststring = 'false';
+        if($iscorolairserviceexist) {
+            $iscorolairserviceexiststring = 'true';
+        }
+        $istokenexiststring = 'false';
+        if($istokenexist) {
+            $istokenexiststring = 'true';
+        }
         $data = [
             'siteUrl' => htmlspecialchars($siteurl, ENT_QUOTES, 'UTF-8'),
             'siteName' => htmlspecialchars($sitename, ENT_QUOTES, 'UTF-8'),
-            'isWebServiceEnabled' => $iswebserviceenabled,
-            'isRestProtocolEnabled' => $isrestprotocolenabled,
-            'isCorolairServiceExist' => $iscorolairserviceexist,
-            'isTokenExist' => $istokenexist,
+            'isWebServiceEnabled' => $iswebserviceenabledstring,
+            'isRestProtocolEnabled' => $isrestprotocolenabledstring,
+            'isCorolairServiceExist' => $iscorolairserviceexiststring,
+            'isTokenExist' => $istokenexiststring,
             'userEmail' => $useremail,
             'userFirstname' => $userfirstname,
             'userLastname' => $userlastname,
