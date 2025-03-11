@@ -84,31 +84,30 @@ class renderer extends plugin_renderer_base {
      * @return string The rendered HTML content.
      */
     public function render_installation_troubleshoot(
-        $siteurl, 
-        $sitename, 
-        $iswebserviceenabled, 
-        $isrestprotocolenabled, 
-        $iscorolairserviceexist, 
-        $istokenexist, 
-        $useremail, 
-        $userfirstname, 
+        $siteurl,
+        $sitename,
+        $iswebserviceenabled,
+        $isrestprotocolenabled,
+        $iscorolairserviceexist,
+        $istokenexist,
+        $useremail,
+        $userfirstname,
         $userlastname
     ) {
-        
         $iswebserviceenabledstring = 'false';
-        if($iswebserviceenabled) {
+        if ($iswebserviceenabled) {
             $iswebserviceenabledstring = 'true';
         }
         $isrestprotocolenabledstring = 'false';
-        if($isrestprotocolenabled) {
+        if ($isrestprotocolenabled) {
             $isrestprotocolenabledstring = 'true';
         }
         $iscorolairserviceexiststring = 'false';
-        if($iscorolairserviceexist) {
+        if ($iscorolairserviceexist) {
             $iscorolairserviceexiststring = 'true';
         }
         $istokenexiststring = 'false';
-        if($istokenexist) {
+        if ($istokenexist) {
             $istokenexiststring = 'true';
         }
         $data = [
