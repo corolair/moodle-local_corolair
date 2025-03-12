@@ -118,6 +118,20 @@ function xmldb_local_corolair_install() {
             'sitename' => $sitename,
         ]);
         \core\task\manager::queue_adhoc_task($task);
+        $adhoctasklink = (new moodle_url('/admin/tasklogs.php'))->out();
+        $trainerpagelink = (new moodle_url('/local/corolair/trainer.php'))->out();
+        $links = (object) [
+            'adhoc_link' => $adhoctasklink,
+            'trainer_page_link' => $trainerpagelink,
+        ];
+        \core\notification::add(
+            get_string('adhocqueued', 'local_corolair', $links),
+            \core\output\notification::NOTIFY_SUCCESS
+        );
+        \core\notification::add(
+            get_string('corolairtuto', 'local_corolair'),
+            \core\output\notification::NOTIFY_SUCCESS
+        );
         return true;
     } catch (Exception $e) {
         debugging($e->getMessage(), DEBUG_DEVELOPER);
