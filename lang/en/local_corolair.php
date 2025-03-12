@@ -68,4 +68,5 @@ $string['servicecreationerror'] = 'Could not create the Corolair REST service.';
 $string['capabilityassignerror'] = 'Could not assign the capability "{$a}" to the role.';
 $string['tokencreationerror'] = 'Could not create the Corolair REST token.';
 $string['installtroubleshoot'] = 'If you encounter any issues during installation, please refer to the <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328">troubleshooting guide </a>.';
-
+$string['adhocqueued'] = 'Synchronization with Corolair services should have started in your ad-hoc task <a href="{$a->adhoc_link}">\local_corolair\task\setup_corolair_connection_task</a>. If not, trigger an API key generation from <a href="{$a->trainer_page_link}">here</a>.';
+$string['corolairtuto'] = 'Learn how to use Corolair by visiting <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328">this tutorial</a>.';

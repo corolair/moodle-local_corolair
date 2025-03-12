@@ -68,4 +68,5 @@ $string['servicecreationerror'] = 'Impossible de créer le service REST Corolair
 $string['capabilityassignerror'] = 'Impossible d\'attribuer la capacité "{$a}" au rôle.';
 $string['tokencreationerror'] = 'Impossible de créer le jeton REST Corolair.';
 $string['installtroubleshoot'] = 'Si vous rencontrez des problèmes lors de l\'installation, veuillez vous référer au <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328"> guide de dépannage manuel</a>';
-
+$string['adhocqueued'] = 'La synchronisation avec les services Corolair aurait dû commencer dans votre tâche ad hoc <a href="{$a->adhoc_link}">\local_corolair\task\setup_corolair_connection_task</a>. Si ce n\'est pas le cas, déclenchez une génération de clé API depuis <a href="{$a->trainer_page_link}">ici</a>.';
+$string['corolairtuto'] = 'Apprenez à utiliser Corolair en consultant <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328">ce tutoriel</a>.';
