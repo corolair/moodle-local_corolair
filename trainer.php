@@ -37,39 +37,64 @@ $authurl = "https://services.corolair.dev/moodle-integration/auth";
 $PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
 $PAGE->set_context(context_system::instance());
 $PAGE->set_title(get_string('trainerpage', 'local_corolair'));
+
+// Load default plugin styles
+// $PAGE->requires->css('/local/corolair/styles.css');
+
+$iscustomcssenabled = get_config('local_corolair', 'enablecustomcss');
+// Inject custom CSS
+$customcss = get_config('local_corolair', 'customcss');
+if ($iscustomcssenabled && !empty($customcss)) {
+    $customcss = trim($customcss);
+    $customcss = str_replace(["\r", "\n"], ' ', $customcss); // Convert new lines to spaces
+    $customcss = preg_replace('/[^{}#.;:\-\w\s\(\),!]/', '', $customcss); // Keep only valid CSS characters
+    error_log("Injected CSS: " . $customcss); // Debugging log
+    $PAGE->requires->css('/local/corolair/styles.css'); // Ensure base styles load
+    $PAGE->requires->js_init_code("
+        console.log('Injecting CSS: ', `" . addslashes($customcss) . "`);
+        document.head.insertAdjacentHTML('beforeend', '<style>" . addslashes($customcss) . "</style>');
+    ");
+}
+
 // Output header.
 echo $OUTPUT->header();
 // Check user capability.
 if (!has_capability('local/corolair:createtutor', context_system::instance(), $USER->id)) {
     throw new moodle_exception('missingcapability', 'local_corolair');
 }
+
+$sitename = $SITE->fullname;
+$moodlerooturl = $CFG->wwwroot;
+$useremail = $USER->email;
+$userfirstname = $USER->firstname;
+$userlastname = $USER->lastname;
+$enablewebserviceconfigrecord = $DB->get_record('config', ['name' => 'enablewebservices']);
+$iswebserviceenabled = false;
+if ($enablewebserviceconfigrecord && $enablewebserviceconfigrecord->value == 1) {
+    $iswebserviceenabled = true;
+}
+$webserviceprotocols = $DB->get_record('config', ['name' => 'webserviceprotocols']);
+$isrestprotocolenabled = false;
+if ($webserviceprotocols && strpos($webserviceprotocols->value, 'rest') !== false) {
+    $isrestprotocolenabled = true;
+}
+$existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
+$iscorolairserviceexist = false;
+$istokenexist = false;
+if ($existingservice) {
+    $iscorolairserviceexist = true;
+    $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
+    if ($token) {
+        $istokenexist = true;
+    }
+}
+
 // Retrieve plugin configuration settings.
 $apikey = get_config('local_corolair', 'apikey');
 if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0 || strpos($apikey, 'Aucune Clé API Corolair') === 0) {
-    $isretrysuccess = false;
-    $sitename = $SITE->fullname;
-    $moodlerooturl = $CFG->wwwroot;
-    $useremail = $USER->email;
-    $userfirstname = $USER->firstname;
-    $userlastname = $USER->lastname;
-    $enablewebserviceconfigrecord = $DB->get_record('config', ['name' => 'enablewebservices']);
-    $iswebserviceenabled = false;
-    if ($enablewebserviceconfigrecord && $enablewebserviceconfigrecord->value == 1) {
-        $iswebserviceenabled = true;
-    }
-    $webserviceprotocols = $DB->get_record('config', ['name' => 'webserviceprotocols']);
-    $isrestprotocolenabled = false;
-    if ($webserviceprotocols && strpos($webserviceprotocols->value, 'rest') !== false) {
-        $isrestprotocolenabled = true;
-    }
-    $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
-    $iscorolairserviceexist = false;
-    $istokenexist = false;
     if ($existingservice) {
-        $iscorolairserviceexist = true;
         $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
         if ($token) {
-            $istokenexist = true;
             // Attempt to register the moodle instance again.
             $curl = new \curl();
             $url = "https://services.corolair.dev/moodle-integration/plugin/organization/register";
@@ -142,11 +167,21 @@ $options = [
 $response = $curl->post($authurl, $postdata , $options);
 $errno = $curl->get_errno();
 // Handle the response.
-if ($response === false) {
-    throw new moodle_exception('curlerror', 'local_corolair', '', $curl->error);
-}
-if ($errno !== 0) {
-    throw new moodle_exception('curlerror', 'local_corolair', '', null, $curl->error);
+if ($response === false || $errno !== 0) {
+    $output = $PAGE->get_renderer('local_corolair');
+    echo $output->render_installation_troubleshoot(
+        $moodlerooturl,
+        $sitename,
+        $iswebserviceenabled,
+        $isrestprotocolenabled,
+        $iscorolairserviceexist,
+        $istokenexist,
+        $useremail,
+        $userfirstname,
+        $userlastname
+    );
+    echo $OUTPUT->footer();
+    return;
 }
 $jsonresponse = json_decode($response, true);
 // Validate the response.
