@@ -45,7 +45,6 @@ if ($iscustomcssenabled && !empty($customcss)) {
     $customcss = trim($customcss);
     $customcss = str_replace(["\r", "\n"], ' ', $customcss); // Convert new lines to spaces.
     $customcss = preg_replace('/[^{}#.;:\-\w\s\(\),!]/', '', $customcss); // Keep only valid CSS characters.
-    $PAGE->requires->css('/local/corolair/styles.css'); // Ensure base styles load.
     $PAGE->requires->js_init_code("
         document.head.insertAdjacentHTML('beforeend', '<style>" . addslashes($customcss) . "</style>');
     ");
@@ -76,11 +75,13 @@ if ($webserviceprotocols && strpos($webserviceprotocols->value, 'rest') !== fals
 $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
 $iscorolairserviceexist = false;
 $istokenexist = false;
+$tokenvalue = '';
 if ($existingservice) {
     $iscorolairserviceexist = true;
     $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
     if ($token) {
         $istokenexist = true;
+        $tokenvalue = $token->token;
     }
 }
 
@@ -134,7 +135,8 @@ if (empty($apikey) ||
             $istokenexist,
             $useremail,
             $userfirstname,
-            $userlastname
+            $userlastname,
+            $tokenvalue
         );
         echo $OUTPUT->footer();
         return;
@@ -177,7 +179,8 @@ if ($response === false || $errno !== 0) {
         $istokenexist,
         $useremail,
         $userfirstname,
-        $userlastname
+        $userlastname,
+        $tokenvalue
     );
     echo $OUTPUT->footer();
     return;
