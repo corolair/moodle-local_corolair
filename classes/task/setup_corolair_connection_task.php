@@ -50,7 +50,10 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         $adminlastname = $data->adminlastname;
         $sitename = $data->sitename;
         $apikey = get_config('local_corolair', 'apikey');
-        if (!empty($apikey) && strpos($apikey, 'No Corolair Api Key') !== 0 && strpos($apikey, 'Aucune Clé API Corolair') !== 0) {
+        if (!empty($apikey) &&
+            strpos($apikey, 'No Corolair Api Key') !== 0 &&
+            strpos($apikey, 'Aucune Clé API Corolair') !== 0 &&
+            strpos($apikey, 'No hay clave API de Corolair') !== 0) {
             return;
         }
         $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);

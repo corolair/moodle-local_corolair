@@ -47,7 +47,9 @@ function xmldb_local_corolair_upgrade($oldversion) {
             $apikey = get_config('local_corolair', 'apikey');
             if (empty($apikey) ||
                 strpos($apikey, 'No Corolair Api Key') === 0 ||
-                strpos($apikey, 'Aucune Clé API Corolair') === 0) {
+                strpos($apikey, 'Aucune Clé API Corolair') === 0||
+                strpos($apikey, 'No hay clave API de Corolair') === 0
+                ) {
                 \core\notification::add(
                     get_string('noapikey', 'local_corolair'),
                     \core\output\notification::NOTIFY_ERROR
@@ -96,6 +98,63 @@ function xmldb_local_corolair_upgrade($oldversion) {
                     }
                 }
             }
+        }
+        if ($result && $oldversion < 2025031200) {
+            $defaultcssvalue = '
+.container-corolair {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    padding-top: 56.25%;
+}
+#page-local-corolair-trainer #topofscroll {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#page-local-corolair-trainer #corolair-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+#page-local-corolair-trainer #page {
+    overflow: hidden !important;
+    height: 100vh !important;
+    box-sizing: border-box !important;
+    width: 100vw !important;
+    padding: 0 !important;
+}
+
+#page-local-corolair-trainer #page-content {
+    padding: 0 !important;
+    padding: 0 !important;
+    height: 100%;
+}
+
+#page-local-corolair-trainer #region-main-box {
+    height: 100%;
+}
+
+#page-local-corolair-trainer #region-main {
+    height: 100%;
+}
+
+#page-local-corolair-trainer div[role="main"] {
+    height: 100%;
+    padding: 0 !important;
+}
+
+#page-local-corolair-trainer #page-header {
+    display: none;
+}';
+            set_config('customcss', $defaultcssvalue, 'local_corolair');
+            set_config('enablecustomcss' , 0, 'local_corolair');
         }
     } catch (moodle_exception $me) {
         debugging($me->getMessage(), DEBUG_DEVELOPER);
