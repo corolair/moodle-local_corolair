@@ -47,7 +47,9 @@ function xmldb_local_corolair_upgrade($oldversion) {
             $apikey = get_config('local_corolair', 'apikey');
             if (empty($apikey) ||
                 strpos($apikey, 'No Corolair Api Key') === 0 ||
-                strpos($apikey, 'Aucune Clé API Corolair') === 0) {
+                strpos($apikey, 'Aucune Clé API Corolair') === 0||
+                strpos($apikey, 'No hay clave API de Corolair') === 0
+                ) {
                 \core\notification::add(
                     get_string('noapikey', 'local_corolair'),
                     \core\output\notification::NOTIFY_ERROR
@@ -97,8 +99,8 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 }
             }
         }
-        if($result && $oldversion < 2025031200) {
-            $defaultcssvalue ='
+        if ($result && $oldversion < 2025031200) {
+            $defaultcssvalue = '
 .container-corolair {
     position: relative;
     width: 100%;
@@ -151,8 +153,8 @@ function xmldb_local_corolair_upgrade($oldversion) {
 #page-local-corolair-trainer #page-header {
     display: none;
 }';
-        set_config('customcss', $defaultcssvalue, 'local_corolair');
-        set_config('enablecustomcss' , 0, 'local_corolair');
+            set_config('customcss', $defaultcssvalue, 'local_corolair');
+            set_config('enablecustomcss' , 0, 'local_corolair');
         }
     } catch (moodle_exception $me) {
         debugging($me->getMessage(), DEBUG_DEVELOPER);

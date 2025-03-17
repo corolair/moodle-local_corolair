@@ -162,7 +162,7 @@ class provider implements \core_privacy\local\metadata\provider,
      * the function returns without exporting any data. If the request is successful, the function decodes the
      * JSON response and exports the data using Moodle's privacy API.
      *
-     * @param approved_contextlist $approved_contextlist The list of approved contexts for the user.
+     * @param approved_contextlist $approvedcontextlist The list of approved contexts for the user.
      */
     public static function export_user_data(approved_contextlist $approvedcontextlist) {
         $apikey = get_config('local_corolair', 'apikey');

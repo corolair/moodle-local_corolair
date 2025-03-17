@@ -105,7 +105,7 @@ function xmldb_local_corolair_install() {
         role_assign($roleid, $adminid, context_system::instance()->id);
         $adminemail = $USER->email;
         set_config('corolairlogin', $adminemail, 'local_corolair');
-        $defaultcssvalue ='
+        $defaultcssvalue = '
 .container-corolair {
     position: relative;
     width: 100%;
@@ -158,8 +158,8 @@ function xmldb_local_corolair_install() {
 #page-local-corolair-trainer #page-header {
     display: none;
 }';
-    set_config('customcss', $defaultcssvalue, 'local_corolair');
-    set_config('enablecustomcss' , 0, 'local_corolair');
+        set_config('customcss', $defaultcssvalue, 'local_corolair');
+        set_config('enablecustomcss' , 0, 'local_corolair');
         $adminfirstname = $USER->firstname;
         $adminlastname = $USER->lastname;
         $sitename = $SITE->fullname;

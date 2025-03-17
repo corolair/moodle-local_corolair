@@ -38,20 +38,15 @@ $PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
 $PAGE->set_context(context_system::instance());
 $PAGE->set_title(get_string('trainerpage', 'local_corolair'));
 
-// Load default plugin styles
-// $PAGE->requires->css('/local/corolair/styles.css');
-
 $iscustomcssenabled = get_config('local_corolair', 'enablecustomcss');
-// Inject custom CSS
+// Inject custom CSS.
 $customcss = get_config('local_corolair', 'customcss');
 if ($iscustomcssenabled && !empty($customcss)) {
     $customcss = trim($customcss);
-    $customcss = str_replace(["\r", "\n"], ' ', $customcss); // Convert new lines to spaces
-    $customcss = preg_replace('/[^{}#.;:\-\w\s\(\),!]/', '', $customcss); // Keep only valid CSS characters
-    error_log("Injected CSS: " . $customcss); // Debugging log
-    $PAGE->requires->css('/local/corolair/styles.css'); // Ensure base styles load
+    $customcss = str_replace(["\r", "\n"], ' ', $customcss); // Convert new lines to spaces.
+    $customcss = preg_replace('/[^{}#.;:\-\w\s\(\),!]/', '', $customcss); // Keep only valid CSS characters.
+    $PAGE->requires->css('/local/corolair/styles.css'); // Ensure base styles load.
     $PAGE->requires->js_init_code("
-        console.log('Injecting CSS: ', `" . addslashes($customcss) . "`);
         document.head.insertAdjacentHTML('beforeend', '<style>" . addslashes($customcss) . "</style>');
     ");
 }
@@ -91,7 +86,11 @@ if ($existingservice) {
 
 // Retrieve plugin configuration settings.
 $apikey = get_config('local_corolair', 'apikey');
-if (empty($apikey) || strpos($apikey, 'No Corolair Api Key') === 0 || strpos($apikey, 'Aucune Clé API Corolair') === 0) {
+if (empty($apikey) ||
+    strpos($apikey, 'No Corolair Api Key') === 0 ||
+    strpos($apikey, 'Aucune Clé API Corolair') === 0 ||
+    strpos($apikey, 'No hay clave API de Corolair') === 0
+    ) {
     if ($existingservice) {
         $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
         if ($token) {
