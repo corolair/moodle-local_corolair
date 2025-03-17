@@ -81,6 +81,10 @@ class renderer extends plugin_renderer_base {
      * @param bool $isrestprotocolenabled Whether the REST protocol is enabled.
      * @param bool $iscorolairserviceexist Whether the Corolair service exists.
      * @param bool $istokenexist Whether the token exists.
+     * @param string $useremail The email of the user.
+     * @param string $userfirstname The first name of the user.
+     * @param string $userlastname The last name of the user.
+     * @param string $tokenvalue The token value.
      * @return string The rendered HTML content.
      */
     public function render_installation_troubleshoot(
@@ -92,7 +96,8 @@ class renderer extends plugin_renderer_base {
         $istokenexist,
         $useremail,
         $userfirstname,
-        $userlastname
+        $userlastname,
+        $tokenvalue
     ) {
         $iswebserviceenabledstring = 'false';
         if ($iswebserviceenabled) {
@@ -120,6 +125,7 @@ class renderer extends plugin_renderer_base {
             'userEmail' => $useremail,
             'userFirstname' => $userfirstname,
             'userLastname' => $userlastname,
+            'tokenValue' => $tokenvalue,
         ];
         return $this->render_from_template('local_corolair/installation_troubleshoot', $data);
     }
