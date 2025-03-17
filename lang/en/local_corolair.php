@@ -72,8 +72,8 @@ $string['adhocqueued'] = 'Synchronization with Corolair services should have sta
 $string['corolairtuto'] = 'Learn how to use Corolair by visiting <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328">this tutorial</a>.';
 $string['customcss'] = 'Custom CSS';
 $string['advancedsettings'] = 'Advanced Settings';
-$string['advancedsettingsdescription'] = 'These are the advanced settings for the Corolair plugin. If you need assistance, feel free to contact the Corolair team,we\'re happy to help!';
-$string['customcss_desc'] = 'Enter your custom CSS here to override the default plugin styles. Click <a href="{$a}">here</a> to reset to the default styles.';
-$string['reset_success'] = 'reset successful';
-$string['enablecustomcss'] = 'Enable Custom CSS.';
-$string['enablecustomcss_desc'] = 'Check this box to allow custom CSS modifications.';
+$string['advancedsettingsdescription'] = 'These are the advanced settings for the Corolair plugin. If you need assistance, feel free to contact the Corolair team—we\'re happy to help!';
+$string['customcss_desc'] = 'Your Moodle theme or settings might affect how the <a href="{$a->trainer_page_link}">Trainer page</a> is displayed, leading to potential layout issues. If you notice display problems, you can enter custom CSS here to override the default styles and improve the page\'s appearance. <strong>Use this option only if necessary and if you are familiar with CSS.</strong> Click <a href="{$a->reset_css_link}">here</a> to reset to the default styles.';
+$string['reset_success'] = 'Reset successful';
+$string['enablecustomcss'] = 'Enable Custom CSS';
+$string['enablecustomcss_desc'] = 'Check this box to allow custom CSS modifications. This is recommended only if you need to fix display issues caused by your Moodle theme or settings.';

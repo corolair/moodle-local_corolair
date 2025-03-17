@@ -72,7 +72,12 @@ if ($hassiteconfig) {
         PARAM_TEXT // Validation type.
     ));
 
-    $reseturlstring = (new moodle_url('/local/corolair/resetcss.php'))->out();
+    $resetcsslink = (new moodle_url('/local/corolair/resetcss.php'))->out();
+    $trainerpagelink = (new moodle_url('/local/corolair/trainer.php'))->out();
+        $links = (object) [
+            'reset_css_link' => $resetcsslink,
+            'trainer_page_link' => $trainerpagelink,
+        ];
 
     $settings->add(new admin_setting_heading(
         'local_corolair_resetcssheading',
@@ -90,10 +95,10 @@ if ($hassiteconfig) {
     $settings->add(new admin_setting_configtextarea(
         'local_corolair/customcss',
         get_string('customcss', 'local_corolair'),
-        get_string('customcss_desc', 'local_corolair', $reseturlstring),
+        get_string('customcss_desc', 'local_corolair', $links),
         '', // Default value is empty
     ));
-    
+
     $settings->hide_if('local_corolair/customcss' , 'local_corolair/enablecustomcss');
 
 }
