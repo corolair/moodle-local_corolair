@@ -67,9 +67,9 @@ $string['restprotocolenableerror'] = 'Impossible d\'activer le protocole REST.';
 $string['servicecreationerror'] = 'Impossible de créer le service REST Corolair.';
 $string['capabilityassignerror'] = 'Impossible d\'attribuer la capacité "{$a}" au rôle.';
 $string['tokencreationerror'] = 'Impossible de créer le jeton REST Corolair.';
-$string['installtroubleshoot'] = 'Si vous rencontrez des problèmes lors de l\'installation, veuillez vous référer au <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328"> guide de dépannage manuel</a>';
+$string['installtroubleshoot'] = 'Si vous rencontrez des problèmes lors de l\'installation, veuillez vous référer au <a href="https://corolair.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank"> guide de dépannage manuel</a>';
 $string['adhocqueued'] = 'La synchronisation avec les services Corolair aurait dû commencer dans votre tâche ad hoc <a href="{$a->adhoc_link}">\local_corolair\task\setup_corolair_connection_task</a>. Si ce n\'est pas le cas, déclenchez une génération de clé API depuis <a href="{$a->trainer_page_link}">ici</a>.';
-$string['corolairtuto'] = 'Apprenez à utiliser Corolair en consultant <a href="https://corolair.notion.site/Corolair-Local-Plugin-Installation-Troubleshoot-1744d042d295805ca045d274b413a328">ce tutoriel</a>.';
+$string['corolairtuto'] = 'Apprenez à utiliser Corolair en consultant <a href="https://corolair.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">ce tutoriel</a>.';
 $string['customcss'] = 'CSS personnalisé';
 $string['advancedsettings'] = 'Paramètres avancés';
 $string['advancedsettingsdescription'] = 'Accédez ici aux paramètres avancés du plugin Corolair. Besoin d\'aide ? L\'équipe Corolair est à votre disposition !';
@@ -77,3 +77,8 @@ $string['customcss_desc'] = 'L\'apparence de l\'<a href="{$a->trainer_page_link}
 $string['reset_success'] = 'Réinitialisation effectuée avec succès';
 $string['enablecustomcss'] = 'Activer le CSS personnalisé';
 $string['enablecustomcss_desc'] = 'Cochez cette case pour appliquer vos propres styles CSS. À utiliser uniquement si votre thème Moodle ou vos paramètres causent des problèmes d\'affichage.';
+$string['tokennotexist'] = 'Aucun jeton n\'a été généré pour le service REST de Corolair. Cliquez <a href="{$a->create_token_auto}">ici</a> pour en créer un automatiquement. Si vous le souhaitez, vous pouvez également le générer manuellement en suivant <a href="https://corolair.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">ce guide</a>. Sinon, vous pouvez soumettre un rapport à l\'équipe de support de Corolair <a href="{$a->skip_to_troubleshoot}">ici</a>, et ils s\'en occuperont pour vous.';
+$string['apikeyset_success'] = 'La clé API a été configurée avec succès. Veuillez recharger la page pour appliquer les modifications.';
+$string['createtoken_success'] = 'Le jeton a été créé avec succès.';
+$string['createtoken_error'] = 'Une erreur est survenue lors de la création du jeton. Veuillez réessayer en suivant <a href="https://corolair.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">ce guide détaillé</a>.';
+

@@ -56,7 +56,6 @@ echo $OUTPUT->header();
 if (!has_capability('local/corolair:createtutor', context_system::instance(), $USER->id)) {
     throw new moodle_exception('missingcapability', 'local_corolair');
 }
-
 $sitename = $SITE->fullname;
 $moodlerooturl = $CFG->wwwroot;
 $useremail = $USER->email;
@@ -84,7 +83,39 @@ if ($existingservice) {
         $tokenvalue = $token->token;
     }
 }
-
+// Force Skip to troubleshoot.
+$skiptotroubleshoot = optional_param('skiptotroubleshoot', 0, PARAM_INT);
+if ($skiptotroubleshoot) {
+    $output = $PAGE->get_renderer('local_corolair');
+    echo $output->render_installation_troubleshoot(
+        $moodlerooturl,
+        $sitename,
+        $iswebserviceenabled,
+        $isrestprotocolenabled,
+        $iscorolairserviceexist,
+        $istokenexist,
+        $useremail,
+        $userfirstname,
+        $userlastname,
+        $tokenvalue
+    );
+    echo $OUTPUT->footer();
+    return;
+}
+// Token does not exist.
+if(!$istokenexist){
+    $createtokenauto = (new moodle_url('/local/corolair/createtoken.php'))->out();
+    $skiptotroubleshoot = (new moodle_url('/local/corolair/trainer.php' , ['skiptotroubleshoot' => 1]))->out();
+    $links = (object)[
+        'create_token_auto' => $createtokenauto,
+        'skip_to_troubleshoot' => $skiptotroubleshoot,
+    ];
+    \core\notification::add(
+        get_string('tokennotexist', 'local_corolair', $links),
+        \core\output\notification::NOTIFY_ERROR
+    );
+    return;
+}
 // Retrieve plugin configuration settings.
 $apikey = get_config('local_corolair', 'apikey');
 if (empty($apikey) ||
@@ -141,7 +172,10 @@ if (empty($apikey) ||
         echo $OUTPUT->footer();
         return;
     } else {
-        echo 'API Key is set, try to reload the page';
+        \core\notification::add(
+            get_string('apikeyset_success', 'local_corolair'),
+            \core\output\notification::NOTIFY_SUCCESS
+        ); 
         return;
     }
 }
@@ -169,6 +203,7 @@ $response = $curl->post($authurl, $postdata , $options);
 $errno = $curl->get_errno();
 // Handle the response.
 if ($response === false || $errno !== 0) {
+    set_config('apikey', '', 'local_corolair');
     $output = $PAGE->get_renderer('local_corolair');
     echo $output->render_installation_troubleshoot(
         $moodlerooturl,
@@ -188,7 +223,22 @@ if ($response === false || $errno !== 0) {
 $jsonresponse = json_decode($response, true);
 // Validate the response.
 if (!isset($jsonresponse['userId'])) {
-    throw new moodle_exception('errortoken', 'local_corolair');
+    set_config('apikey', '', 'local_corolair');
+    $output = $PAGE->get_renderer('local_corolair');
+    echo $output->render_installation_troubleshoot(
+        $moodlerooturl,
+        $sitename,
+        $iswebserviceenabled,
+        $isrestprotocolenabled,
+        $iscorolairserviceexist,
+        $istokenexist,
+        $useremail,
+        $userfirstname,
+        $userlastname,
+        $tokenvalue
+    );
+    echo $OUTPUT->footer();
+    return;
 }
 $userid = $jsonresponse['userId'];
 // Handle optional course parameter for embedding.
