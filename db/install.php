@@ -106,23 +106,12 @@ function xmldb_local_corolair_install() {
         $adminemail = $USER->email;
         set_config('corolairlogin', $adminemail, 'local_corolair');
         $defaultcssvalue = '
-.container-corolair {
-    position: relative;
-    width: 100%;
-    overflow: hidden;
-    padding-top: 56.25%;
-}
 #page-local-corolair-trainer #topofscroll {
     margin: 0 !important;
     padding: 0 !important;
 }
 
 #page-local-corolair-trainer #corolair-iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
     width: 100%;
     height: 100%;
     border: none;
