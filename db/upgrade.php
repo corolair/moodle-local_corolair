@@ -104,6 +104,9 @@ function xmldb_local_corolair_upgrade($oldversion) {
 #page-local-corolair-trainer #topofscroll {
     margin: 0 !important;
     padding: 0 !important;
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
 }
 
 #page-local-corolair-trainer #corolair-iframe {
