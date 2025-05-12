@@ -44,7 +44,7 @@ $customcss = get_config('local_corolair', 'customcss');
 if ($iscustomcssenabled && !empty($customcss)) {
     $customcss = trim($customcss);
     $customcss = str_replace(["\r", "\n"], ' ', $customcss); // Convert new lines to spaces.
-    $customcss = preg_replace('/[^{}#.;:\-\w\s\(\),!]/', '', $customcss); // Keep only valid CSS characters.
+    $customcss = preg_replace('/[^{}#.;:%\-\w\s\(\),!\'"\/]/', '', $customcss); // Keep only valid CSS characters.
     $PAGE->requires->js_init_code("
         document.head.insertAdjacentHTML('beforeend', '<style>" . addslashes($customcss) . "</style>');
     ");
