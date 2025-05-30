@@ -193,10 +193,13 @@ if (!isset($jsonresponse['userId'])) {
 $userid = $jsonresponse['userId'];
 // Handle optional course parameter for embedding.
 $corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
-$provider = $corolairsourcecourse ? 'moodle' : '';
-$courseid = $corolairsourcecourse ?: '';
-// Embed the Corolair application.
+$plugin = optional_param('corolairplugin', '', PARAM_TEXT);
+
 $output = $PAGE->get_renderer('local_corolair');
-echo $output->render_trainer($userid, $provider, $courseid);
+if ($corolairsourcecourse) {
+    echo $output->render_trainer($userid, 'moodle', $corolairsourcecourse, $plugin);
+} else {
+    echo $output->render_dashboard($userid);
+}
 // Output footer.
 echo $OUTPUT->footer();
