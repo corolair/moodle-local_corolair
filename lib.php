@@ -35,9 +35,8 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
 
     // Key to identify the node.
     $corolairnodekey = get_string('coursenodetitle', 'local_corolair');
-
     // Check if the user has the specific capability in this course context.
-    if (has_capability('local/corolair:createtutor', $context)) {
+    if (!is_dir($CFG->dirroot . '/mod/corolairtutor') && has_capability('local/corolair:createtutor', $context)) {
         // Add the node if it doesn't already exist.
         if (!$navigation->find($corolairnodekey, navigation_node::TYPE_SETTING)) {
             $corolairnode = navigation_node::create(
@@ -118,11 +117,12 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
  * @param context_course $context The context of the course.
  */
 function local_corolair_extend_navigation_frontpage(navigation_node $parentnode, stdClass $course, context_course $context) {
+    global $CFG;
     // Key to identify the node.
     $corolairnodekey = get_string('frontpagenodetitle', 'local_corolair');
 
     // Check if the user has the specific capability in this course context.
-    if (has_capability('local/corolair:createtutor', $context)) {
+    if (!is_dir($CFG->dirroot . '/mod/corolairtutor') && has_capability('local/corolair:createtutor', $context)) {
         // Add the node if it doesn't already exist.
         if (!$parentnode->find($corolairnodekey, navigation_node::TYPE_SETTING)) {
             $corolairnode = navigation_node::create(
