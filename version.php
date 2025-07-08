@@ -32,4 +32,4 @@ $plugin->component = 'local_corolair';    // Full name of the plugin (used for d
 $plugin->version   = 2025070800;          // The current plugin version (Date: YYYYMMDDXX).
 $plugin->requires  = 2020110900;          // Minimum required Moodle version.
 $plugin->maturity  = MATURITY_STABLE;     // Plugin maturity level: MATURITY_ALPHA, MATURITY_BETA, MATURITY_RC, MATURITY_STABLE.
-$plugin->release   = '1.8.6';             // Human-readable version name.
+$plugin->release   = '1.8.7';             // Human-readable version name.
