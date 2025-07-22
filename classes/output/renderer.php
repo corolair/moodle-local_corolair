@@ -72,13 +72,11 @@ class renderer extends plugin_renderer_base {
         ];
         return $this->render_from_template('local_corolair/trainer', $data);
     }
-
+    
     /**
-     * Renders the trainer template with the provided user, provider, and course data.
+     * Renders the dashboard template with the provided user data.
      *
      * @param int $userid The ID of the user.
-     * @param string $provider The name of the provider.
-     * @param int $courseid The ID of the course.
      * @return string The rendered HTML content.
      */
     public function render_dashboard($userid) {
@@ -144,5 +142,18 @@ class renderer extends plugin_renderer_base {
             'tokenValue' => $tokenvalue,
         ];
         return $this->render_from_template('local_corolair/installation_troubleshoot', $data);
+    }
+
+    /**
+     * Renders the quiz template with the provided user data.
+     *
+     * @param int $userid The ID of the user.
+     * @return string The rendered HTML content.
+     */
+    public function render_quiz($userid) {
+        $data = [
+            'userid' => htmlspecialchars($userid, ENT_QUOTES, 'UTF-8'),
+        ];
+        return $this->render_from_template('local_corolair/quiz', $data);
     }
 }

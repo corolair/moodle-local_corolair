@@ -77,3 +77,4 @@ $string['customcss_desc'] = 'L\'apparence de l\'<a href="{$a->trainer_page_link}
 $string['reset_success'] = 'Réinitialisation effectuée avec succès';
 $string['enablecustomcss'] = 'Activer le CSS personnalisé';
 $string['enablecustomcss_desc'] = 'Cochez cette case pour appliquer vos propres styles CSS. À utiliser uniquement si votre thème Moodle ou vos paramètres causent des problèmes d\'affichage.';
+$string['quizpage'] = 'Corolair Quiz';
