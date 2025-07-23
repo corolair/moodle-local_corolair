@@ -34,9 +34,9 @@ global $USER, $CFG, $SITE;
 $authurl = "https://services.corolair.dev/moodle-integration/auth";
 
 // Set up the Moodle page.
-$PAGE->set_url(new moodle_url('/local/corolair/quiz.php'));
+$PAGE->set_url(new moodle_url('/local/corolair/quiz_trainer.php'));
 $PAGE->set_context(context_system::instance());
-$PAGE->set_title(get_string('quizpage', 'local_corolair'));
+$PAGE->set_title(get_string('quiztrainerpage', 'local_corolair'));
 
 $iscustomcssenabled = get_config('local_corolair', 'enablecustomcss');
 // Inject custom CSS.
@@ -194,6 +194,6 @@ $userid = $jsonresponse['userId'];
 
 
 $output = $PAGE->get_renderer('local_corolair');
-echo $output->render_quiz($userid);
+echo $output->render_quiz_trainer($userid);
 // Output footer.
 echo $OUTPUT->footer();

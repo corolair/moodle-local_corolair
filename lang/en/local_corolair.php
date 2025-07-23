@@ -77,4 +77,5 @@ $string['customcss_desc'] = 'Your Moodle theme or settings might affect how the 
 $string['reset_success'] = 'Reset successful';
 $string['enablecustomcss'] = 'Enable Custom CSS';
 $string['enablecustomcss_desc'] = 'Check this box to allow custom CSS modifications. This is recommended only if you need to fix display issues caused by your Moodle theme or settings.';
-$string['quizpage'] = 'Corolair Quiz';
+$string['quiztrainerpage'] = 'Corolair Quiz - Trainer';
+$string['quizstudentpage'] = 'Corolair Quiz - Student';
