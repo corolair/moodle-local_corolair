@@ -85,7 +85,7 @@ class renderer extends plugin_renderer_base {
         ];
         return $this->render_from_template('local_corolair/trainer', $data);
     }
-    
+
     /**
      * Renders the dashboard template with the provided user data.
      *
@@ -163,10 +163,7 @@ class renderer extends plugin_renderer_base {
      * @param int $userid The ID of the user.
      * @return string The rendered HTML content.
      */
-    public function render_quiz_trainer($userid) {
-        $data = [
-            'userid' => htmlspecialchars($userid, ENT_QUOTES, 'UTF-8'),
-        ];
+    public function render_quiz_trainer($data) {
         return $this->render_from_template('local_corolair/quiz_trainer', $data);
     }
 }

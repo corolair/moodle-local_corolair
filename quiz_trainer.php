@@ -192,8 +192,14 @@ if (!isset($jsonresponse['userId'])) {
 }
 $userid = $jsonresponse['userId'];
 
-
+$corolairquizid = optional_param('corolairquizid', 0, PARAM_INT);
+$courseid = optional_param('courseid', 0, PARAM_INT);
+$data = [
+    'userId' => urlencode($userid),
+    'courseId' => urlencode($courseid),
+    'corolairQuizId' => urlencode($corolairquizid),
+];
 $output = $PAGE->get_renderer('local_corolair');
-echo $output->render_quiz_trainer($userid);
+echo $output->render_quiz_trainer($data);
 // Output footer.
 echo $OUTPUT->footer();
