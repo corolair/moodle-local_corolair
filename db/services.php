@@ -41,6 +41,7 @@ $services = [
             'mod_lesson_get_lesson',
             'mod_lesson_get_pages',
             'mod_lesson_get_page_data',
+            'core_grading_get_definitions',
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
