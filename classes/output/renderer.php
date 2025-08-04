@@ -56,6 +56,19 @@ class renderer extends plugin_renderer_base {
     }
 
     /**
+     * Renders the quiz student template.
+     *
+     * This method prepares the data and renders the 'local_corolair/quiz_student' template.
+     *
+     * @param string $moodleoptions The Moodle options.
+     * @return string The rendered template.
+     */
+    public function render_quiz_student($moodleoptions) {
+        // Pass each field individually to the template for direct access.
+        return $this->render_from_template('local_corolair/quiz_student', $moodleoptions);
+    }
+
+    /**
      * Renders the trainer template with the provided user, provider, and course data.
      *
      * @param int $userid The ID of the user.
@@ -74,11 +87,9 @@ class renderer extends plugin_renderer_base {
     }
 
     /**
-     * Renders the trainer template with the provided user, provider, and course data.
+     * Renders the dashboard template with the provided user data.
      *
      * @param int $userid The ID of the user.
-     * @param string $provider The name of the provider.
-     * @param int $courseid The ID of the course.
      * @return string The rendered HTML content.
      */
     public function render_dashboard($userid) {
@@ -144,5 +155,15 @@ class renderer extends plugin_renderer_base {
             'tokenValue' => $tokenvalue,
         ];
         return $this->render_from_template('local_corolair/installation_troubleshoot', $data);
+    }
+
+    /**
+     * Renders the quiz trainer template with the provided user data.
+     *
+     * @param int $userid The ID of the user.
+     * @return string The rendered HTML content.
+     */
+    public function render_quiz_trainer($data) {
+        return $this->render_from_template('local_corolair/quiz_trainer', $data);
     }
 }

@@ -77,3 +77,5 @@ $string['customcss_desc'] = 'El tema o la configuración de su Moodle podrían a
 $string['reset_success'] = 'Restablecimiento exitoso';
 $string['enablecustomcss'] = 'Activar CSS personalizado';
 $string['enablecustomcss_desc'] = 'Marque esta casilla para permitir modificaciones con CSS personalizado. Se recomienda solo si necesita corregir problemas de visualización causados por su tema o configuración de Moodle.';
+$string['quiztrainerpage'] = 'Corolair Quiz - Entrenador';
+$string['quizstudentpage'] = 'Corolair Quiz - Estudiante';
