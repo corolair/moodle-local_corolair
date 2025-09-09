@@ -79,3 +79,6 @@ $string['enablecustomcss'] = 'Activer le CSS personnalisé';
 $string['enablecustomcss_desc'] = 'Cochez cette case pour appliquer vos propres styles CSS. À utiliser uniquement si votre thème Moodle ou vos paramètres causent des problèmes d\'affichage.';
 $string['quiztrainerpage'] = 'Corolair Quiz - Formateur';
 $string['quizstudentpage'] = 'Corolair Quiz - Étudiant';
+$string['redirectoutside'] = 'Rediriger vers Corolair';
+$string['redirectoutside_desc'] = 'Si activé, les utilisateurs seront redirigés vers https://app.corolair.com au lieu d\'afficher le contenu dans Moodle. Cette approche offre l\'expérience complète de Corolair, évite les problèmes courants liés à l\'intégration (tels que les conflits CSS et les limitations de mise en page) et bénéficie également d\'une sécurité renforcée.';
+$string['redirectingmessage'] = 'Si vous n\'êtes pas redirigé automatiquement, veuillez cliquer sur le bouton ci-dessous pour continuer vers Corolair.';
