@@ -85,6 +85,14 @@ if ($hassiteconfig) {
         get_string('advancedsettingsdescription' , 'local_corolair')
     ));
 
+    // Add a checkbox setting for redirecting outside Moodle.
+    $settings->add(new admin_setting_configcheckbox(
+        'local_corolair/redirectoutside',
+        get_string('redirectoutside', 'local_corolair'),
+        get_string('redirectoutside_desc', 'local_corolair'),
+        1 // Enabled by default.
+    ));
+
     $settings->add(new admin_setting_configcheckbox(
         'local_corolair/enablecustomcss',
         get_string('enablecustomcss', 'local_corolair'),
@@ -100,5 +108,6 @@ if ($hassiteconfig) {
     ));
 
     $settings->hide_if('local_corolair/customcss' , 'local_corolair/enablecustomcss');
+    $settings->hide_if('local_corolair/enablecustomcss' , 'local_corolair/redirectoutside', 'checked');
 
 }

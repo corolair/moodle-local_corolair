@@ -79,3 +79,6 @@ $string['enablecustomcss'] = 'Activar CSS personalizado';
 $string['enablecustomcss_desc'] = 'Marque esta casilla para permitir modificaciones con CSS personalizado. Se recomienda solo si necesita corregir problemas de visualización causados por su tema o configuración de Moodle.';
 $string['quiztrainerpage'] = 'Corolair Quiz - Entrenador';
 $string['quizstudentpage'] = 'Corolair Quiz - Estudiante';
+$string['redirectoutside'] = 'Redirigir a la aplicación de Corolair';
+$string['redirectoutside_desc'] = 'Si está habilitado, los usuarios serán redirigidos a https://staging.corolair.dev en lugar de visualizar el contenido dentro de Moodle. Este enfoque ofrece la experiencia completa de Corolair, evita problemas comunes de incrustación (como conflictos de CSS y limitaciones de diseño) y además refuerza la seguridad.';
+$string['redirectingmessage'] = 'Si no se redirige automáticamente, haga clic en el botón a continuación para continuar a Corolair.';

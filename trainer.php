@@ -30,8 +30,6 @@ require_login();
 
 // Ensure global scope access.
 global $USER, $CFG, $SITE;
-// Constants for external URLs.
-$authurl = "https://services.corolair.dev/moodle-integration/auth";
 
 // Set up the Moodle page.
 $PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
@@ -146,7 +144,11 @@ if (empty($apikey) ||
     }
 }
 
+$redirectoutside = get_config('local_corolair', 'redirectoutside');
 $createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
+// Handle optional course parameter for embedding.
+$corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
+$plugin = optional_param('corolairplugin', '', PARAM_TEXT);
 // Prepare payload for external authentication request.
 $postdata = json_encode([
     'email' => $USER->email,
@@ -155,6 +157,8 @@ $postdata = json_encode([
     'lastname' => $USER->lastname,
     'moodleUserId' => $USER->id,
     'createTutorWithCapability' => $createtutorwithcapability,
+    'courseId' => $corolairsourcecourse,
+    'plugin' => $plugin,
 ]);
 // Send the authentication request.
 $curl = new curl();
@@ -165,6 +169,10 @@ $options = [
         'Content-Length: ' . strlen($postdata),
     ],
 ];
+$authurl = $redirectoutside
+    ? "https://services.corolair.dev/moodle-integration/auth/v2"
+    : "https://services.corolair.dev/moodle-integration/auth";
+
 $response = $curl->post($authurl, $postdata , $options);
 $errno = $curl->get_errno();
 // Handle the response.
@@ -187,19 +195,62 @@ if ($response === false || $errno !== 0) {
 }
 $jsonresponse = json_decode($response, true);
 // Validate the response.
-if (!isset($jsonresponse['userId'])) {
+if (!$redirectoutside && !isset($jsonresponse['userId'])) {
     throw new moodle_exception('errortoken', 'local_corolair');
 }
-$userid = $jsonresponse['userId'];
-// Handle optional course parameter for embedding.
-$corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
-$plugin = optional_param('corolairplugin', '', PARAM_TEXT);
-
-$output = $PAGE->get_renderer('local_corolair');
-if ($corolairsourcecourse) {
-    echo $output->render_trainer($userid, 'moodle', $corolairsourcecourse, $plugin);
-} else {
-    echo $output->render_dashboard($userid);
+if ($redirectoutside && !isset($jsonresponse['url'])) {
+    throw new moodle_exception('errortoken', 'local_corolair');
 }
-// Output footer.
+if ($redirectoutside) {
+    $targeturlresponse = $jsonresponse['url'];
+    $targeturl = new moodle_url($targeturlresponse);
+    $targeturlout = $targeturl->out(false);
+
+    echo html_writer::div(
+        html_writer::tag('p', get_string('redirectingmessage', 'local_corolair')) .
+        html_writer::link(
+            $targeturl,
+            get_string('continue', 'moodle'),
+            [
+                'target' => '_blank',
+                'class' => 'btn btn-primary',
+                'id'    => 'corolair-continue',
+            ]
+        ),
+        'corolair-fallback',
+        ['style' => 'margin-top:20px; text-align:center;']
+    );
+    // JS: try auto-open + handle manual click.
+    echo html_writer::tag('script', "
+        // Try to auto-open Corolair in a new tab
+        var win = window.open('$targeturlout', '_blank');
+        if (win && !win.closed && typeof win.closed != 'undefined') {
+            // Auto-open worked: hide fallback
+            var fb = document.getElementById('corolair-fallback');
+            if (fb) fb.style.display = 'none';
+            // Redirect Moodle tab home
+            window.location.href = '" . $CFG->wwwroot . "';
+        }
+
+        // If user clicks Continue manually
+        var continueBtn = document.getElementById('corolair-continue');
+        if (continueBtn) {
+            continueBtn.addEventListener('click', function(e) {
+                // Redirect Moodle tab home after opening new tab
+                setTimeout(function() {
+                    window.location.href = '" . $CFG->wwwroot . "';
+                }, 500);
+            });
+        }
+    ");
+} else {
+    // Render inside Moodle.
+    $userid = $jsonresponse['userId'];
+    $output = $PAGE->get_renderer('local_corolair');
+    if ($corolairsourcecourse) {
+        echo $output->render_trainer($userid, 'moodle', $corolairsourcecourse, $plugin);
+    } else {
+        echo $output->render_dashboard($userid);
+    }
+}
 echo $OUTPUT->footer();
