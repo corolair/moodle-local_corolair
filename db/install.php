@@ -46,6 +46,10 @@ function xmldb_local_corolair_install() {
                 get_string('installtroubleshoot', 'local_corolair'),
                 \core\output\notification::NOTIFY_ERROR
             );
+            \core\notification::add(
+                get_string('calendlydemo', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
             return false;
         }
         // Enable web services.
@@ -84,6 +88,10 @@ function xmldb_local_corolair_install() {
             );
             \core\notification::add(
                 get_string('installtroubleshoot', 'local_corolair'),
+                \core\output\notification::NOTIFY_ERROR
+            );
+            \core\notification::add(
+                get_string('calendlydemo', 'local_corolair'),
                 \core\output\notification::NOTIFY_ERROR
             );
             return false;
@@ -180,6 +188,10 @@ function xmldb_local_corolair_install() {
             get_string('corolairtuto', 'local_corolair'),
             \core\output\notification::NOTIFY_SUCCESS
         );
+        \core\notification::add(
+            get_string('calendlydemo', 'local_corolair'),
+            \core\output\notification::NOTIFY_SUCCESS
+        );
         return true;
     } catch (Exception $e) {
         debugging($e->getMessage(), DEBUG_DEVELOPER);
@@ -189,6 +201,10 @@ function xmldb_local_corolair_install() {
         );
         \core\notification::add(
             get_string('installtroubleshoot', 'local_corolair'),
+            \core\output\notification::NOTIFY_ERROR
+        );
+        \core\notification::add(
+            get_string('calendlydemo', 'local_corolair'),
             \core\output\notification::NOTIFY_ERROR
         );
         return false;

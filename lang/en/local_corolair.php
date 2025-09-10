@@ -82,4 +82,5 @@ $string['quizstudentpage'] = 'Corolair Quiz - Student';
 $string['redirectoutside'] = 'Redirect to Corolair app';
 $string['redirectoutside_desc'] = 'If enabled, users will be redirected to https://staging.corolair.dev instead of rendering inside Moodle. This approach provides the full Corolair experience while avoiding common issues with embedding (such as CSS conflicts and layout limitations), and it also benefits from stronger security enforcement.';
 $string['redirectingmessage'] = 'If you are not redirected automatically, please click the button below to continue to Corolair.';
+$string['calendlydemo'] = 'To help us assist you effectively, please first describe your use case and needs in a discovery call with the Corolair Team. Once we understand your requirements, our developers will prioritize resolving the connection issues with your Moodle instance. Schedule your call <strong> <a href="https://calendly.com/corolair/30min" target="_blank">here</a> </strong>.';
 
