@@ -201,6 +201,13 @@ if (!$redirectoutside && !isset($jsonresponse['userId'])) {
 if ($redirectoutside && !isset($jsonresponse['url'])) {
     throw new moodle_exception('errortoken', 'local_corolair');
 }
+$isdemodone = $jsonresponse['isDemoDone'];
+if (!$isdemodone) {
+    $output = $PAGE->get_renderer('local_corolair');
+    echo $output->render_demo();
+    echo $OUTPUT->footer();
+    return;
+}
 if ($redirectoutside) {
     $targeturlresponse = $jsonresponse['url'];
     $targeturl = new moodle_url($targeturlresponse);
