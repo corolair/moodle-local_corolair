@@ -166,4 +166,13 @@ class renderer extends plugin_renderer_base {
     public function render_quiz_trainer($data) {
         return $this->render_from_template('local_corolair/quiz_trainer', $data);
     }
+
+    /**
+     * Renders the demo template.
+     *
+     * @return string The rendered HTML content.
+     */
+    public function render_demo() {
+        return $this->render_from_template('local_corolair/demo' , []);
+    }
 }

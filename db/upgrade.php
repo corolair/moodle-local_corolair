@@ -54,6 +54,10 @@ function xmldb_local_corolair_upgrade($oldversion) {
                     get_string('noapikey', 'local_corolair'),
                     \core\output\notification::NOTIFY_ERROR
                 );
+                \core\notification::add(
+                    get_string('calendlydemo', 'local_corolair'),
+                    \core\output\notification::NOTIFY_ERROR
+                );
                 return false;
             }
             $url = "https://services.corolair.com/moodle-integration/update";
@@ -72,6 +76,10 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 debugging(curl_error($ch), DEBUG_DEVELOPER);
                 \core\notification::add(
                     get_string('curlerror', 'local_corolair'),
+                    \core\output\notification::NOTIFY_ERROR
+                );
+                \core\notification::add(
+                    get_string('calendlydemo', 'local_corolair'),
                     \core\output\notification::NOTIFY_ERROR
                 );
                 return false;
@@ -154,11 +162,19 @@ function xmldb_local_corolair_upgrade($oldversion) {
             get_string('unexpectederror', 'local_corolair'),
             \core\output\notification::NOTIFY_ERROR
         );
+        \core\notification::add(
+            get_string('calendlydemo', 'local_corolair'),
+            \core\output\notification::NOTIFY_ERROR
+        );
         return false;
     } catch (Exception $e) {
         debugging($e->getMessage(), DEBUG_DEVELOPER);
         \core\notification::add(
             get_string('unexpectederror', 'local_corolair'),
+            \core\output\notification::NOTIFY_ERROR
+        );
+        \core\notification::add(
+            get_string('calendlydemo', 'local_corolair'),
             \core\output\notification::NOTIFY_ERROR
         );
         return false;
