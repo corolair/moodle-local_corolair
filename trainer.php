@@ -227,6 +227,7 @@ if ($redirectoutside) {
         'corolair-fallback',
         ['style' => 'margin-top:20px; text-align:center;']
     );
+    $continueurl = $corolairsourcecourse ? $CFG->wwwroot . '/course/view.php?id=' . $corolairsourcecourse : $CFG->wwwroot;
     // JS: try auto-open + handle manual click.
     echo html_writer::tag('script', "
         // Try to auto-open Corolair in a new tab
@@ -236,7 +237,7 @@ if ($redirectoutside) {
             var fb = document.getElementById('corolair-fallback');
             if (fb) fb.style.display = 'none';
             // Redirect Moodle tab home
-            window.location.href = '" . $CFG->wwwroot . "';
+            window.location.href = '" . $continueurl . "';
         }
 
         // If user clicks Continue manually
@@ -245,7 +246,7 @@ if ($redirectoutside) {
             continueBtn.addEventListener('click', function(e) {
                 // Redirect Moodle tab home after opening new tab
                 setTimeout(function() {
-                    window.location.href = '" . $CFG->wwwroot . "';
+                    window.location.href = '" . $continueurl . "';
                 }, 500);
             });
         }
