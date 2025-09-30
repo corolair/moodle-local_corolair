@@ -98,6 +98,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
             'lastName' => $userlastname,
             'role' => $rolename,
             'apiKey' => $apikey,
+            'currentMoodlePageUrl' => $pageurlstr,
         ]);
 
         // Get the sidepanel setting value.
