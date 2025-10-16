@@ -1,8 +1,8 @@
 # Corolair Moodle Plugin
 
-**Version:** 1.8.12
+**Version:** 1.8.13
 
-**Last Updated:** 2025/09/30
+**Last Updated:** 2025/10/16
 
 ## Overview
 
