@@ -35,6 +35,7 @@ $services = [
             'mod_lesson_get_pages',
             'mod_lesson_get_page_data',
             'local_corolair_get_section_availability',
+            'mod_scorm_get_scorms_by_courses',
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
