@@ -99,6 +99,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
             'role' => $rolename,
             'apiKey' => $apikey,
             'currentMoodlePageUrl' => $pageurlstr,
+            'provider' => 'moodle',
         ]);
 
         // Get the sidepanel setting value.
