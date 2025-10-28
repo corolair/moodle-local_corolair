@@ -29,10 +29,26 @@ namespace local_corolair\external;
 defined('MOODLE_INTERNAL') || die();
 
 use context_course;
-use external_api;
-use external_function_parameters;
-use external_single_structure;
-use external_value;
+
+global $CFG;
+
+// Ensure externals are available on 4.0.x paths that haven't loaded them yet.
+if (!class_exists('\\core_external\\external_api') && !class_exists('\\external_api')) {
+    require_once($CFG->libdir . '/externallib.php');
+}
+
+// If we're on 4.0.x (globals), alias them into core_external so imports below work uniformly.
+if (!class_exists('\\core_external\\external_api') && class_exists('\\external_api')) {
+    class_alias('\\external_api', '\\core_external\\external_api');
+    class_alias('\\external_function_parameters', '\\core_external\\external_function_parameters');
+    class_alias('\\external_single_structure', '\\core_external\\external_single_structure');
+    class_alias('\\external_value', '\\core_external\\external_value');
+}
+
+use core_external\external_api;
+use core_external\external_function_parameters;
+use core_external\external_single_structure;
+use core_external\external_value;
 
 /**
  * External function to retrieve raw section availability (restrict access) JSON.
