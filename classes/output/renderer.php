@@ -56,50 +56,6 @@ class renderer extends plugin_renderer_base {
     }
 
     /**
-     * Renders the quiz student template.
-     *
-     * This method prepares the data and renders the 'local_corolair/quiz_student' template.
-     *
-     * @param string $moodleoptions The Moodle options.
-     * @return string The rendered template.
-     */
-    public function render_quiz_student($moodleoptions) {
-        // Pass each field individually to the template for direct access.
-        return $this->render_from_template('local_corolair/quiz_student', $moodleoptions);
-    }
-
-    /**
-     * Renders the trainer template with the provided user, provider, and course data.
-     *
-     * @param int $userid The ID of the user.
-     * @param string $provider The name of the provider.
-     * @param int $courseid The ID of the course.
-     * @return string The rendered HTML content.
-     */
-    public function render_trainer($userid, $provider, $courseid, $plugin) {
-        $data = [
-            'userid' => htmlspecialchars($userid, ENT_QUOTES, 'UTF-8'),
-            'provider' => htmlspecialchars($provider, ENT_QUOTES, 'UTF-8'),
-            'courseid' => htmlspecialchars($courseid, ENT_QUOTES, 'UTF-8'),
-            'plugin' => htmlspecialchars($plugin, ENT_QUOTES, 'UTF-8'),
-        ];
-        return $this->render_from_template('local_corolair/trainer', $data);
-    }
-
-    /**
-     * Renders the dashboard template with the provided user data.
-     *
-     * @param int $userid The ID of the user.
-     * @return string The rendered HTML content.
-     */
-    public function render_dashboard($userid) {
-        $data = [
-            'userid' => htmlspecialchars($userid, ENT_QUOTES, 'UTF-8'),
-        ];
-        return $this->render_from_template('local_corolair/dashboard', $data);
-    }
-
-    /**
      * Renders the installation troubleshoot template with the provided site data.
      *
      * @param string $siteurl The URL of the site.
@@ -155,16 +111,6 @@ class renderer extends plugin_renderer_base {
             'tokenValue' => $tokenvalue,
         ];
         return $this->render_from_template('local_corolair/installation_troubleshoot', $data);
-    }
-
-    /**
-     * Renders the quiz trainer template with the provided user data.
-     *
-     * @param int $userid The ID of the user.
-     * @return string The rendered HTML content.
-     */
-    public function render_quiz_trainer($data) {
-        return $this->render_from_template('local_corolair/quiz_trainer', $data);
     }
 
     /**

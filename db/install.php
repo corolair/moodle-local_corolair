@@ -113,54 +113,6 @@ function xmldb_local_corolair_install() {
         role_assign($roleid, $adminid, context_system::instance()->id);
         $adminemail = $USER->email;
         set_config('corolairlogin', $adminemail, 'local_corolair');
-        $defaultcssvalue = '
-
-#page-local-corolair-trainer #topofscroll {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: 100%;
-    width: 100%;
-    max-width: 100%;
-}
-
-#page-local-corolair-trainer #corolair-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-}
-
-#page-local-corolair-trainer #page {
-    overflow: hidden !important;
-    height: 100vh !important;
-    box-sizing: border-box !important;
-    width: 100vw !important;
-    padding: 0 !important;
-}
-
-#page-local-corolair-trainer #page-content {
-    padding: 0 !important;
-    padding: 0 !important;
-    height: 100%;
-}
-
-#page-local-corolair-trainer #region-main-box {
-    height: 100%;
-}
-
-#page-local-corolair-trainer #region-main {
-    height: 100%;
-}
-
-#page-local-corolair-trainer div[role="main"] {
-    height: 100%;
-    padding: 0 !important;
-}
-
-#page-local-corolair-trainer #page-header {
-    display: none;
-}';
-        set_config('customcss', $defaultcssvalue, 'local_corolair');
-        set_config('enablecustomcss' , 0, 'local_corolair');
         $adminfirstname = $USER->firstname;
         $adminlastname = $USER->lastname;
         $sitename = $SITE->fullname;
