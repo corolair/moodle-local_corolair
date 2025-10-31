@@ -36,18 +36,6 @@ $PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
 $PAGE->set_context(context_system::instance());
 $PAGE->set_title(get_string('trainerpage', 'local_corolair'));
 
-$iscustomcssenabled = get_config('local_corolair', 'enablecustomcss');
-// Inject custom CSS.
-$customcss = get_config('local_corolair', 'customcss');
-if ($iscustomcssenabled && !empty($customcss)) {
-    $customcss = trim($customcss);
-    $customcss = str_replace(["\r", "\n"], ' ', $customcss); // Convert new lines to spaces.
-    $customcss = preg_replace('/[^{}#.;:%\-\w\s\(\),!\'"\/]/', '', $customcss); // Keep only valid CSS characters.
-    $PAGE->requires->js_init_code("
-        document.head.insertAdjacentHTML('beforeend', '<style>" . addslashes($customcss) . "</style>');
-    ");
-}
-
 // Output header.
 echo $OUTPUT->header();
 // Check user capability.
@@ -144,7 +132,6 @@ if (empty($apikey) ||
     }
 }
 
-$redirectoutside = get_config('local_corolair', 'redirectoutside');
 $createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
 // Handle optional course parameter for embedding.
 $corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
@@ -169,9 +156,7 @@ $options = [
         'Content-Length: ' . strlen($postdata),
     ],
 ];
-$authurl = $redirectoutside
-    ? "https://services.corolair.com/moodle-integration/auth/v2"
-    : "https://services.corolair.com/moodle-integration/auth";
+$authurl = "https://services.corolair.com/moodle-integration/auth/v2";
 
 $response = $curl->post($authurl, $postdata , $options);
 $errno = $curl->get_errno();
@@ -195,10 +180,8 @@ if ($response === false || $errno !== 0) {
 }
 $jsonresponse = json_decode($response, true);
 // Validate the response.
-if (!$redirectoutside && !isset($jsonresponse['userId'])) {
-    throw new moodle_exception('errortoken', 'local_corolair');
-}
-if ($redirectoutside && !isset($jsonresponse['url'])) {
+
+if (!isset($jsonresponse['url'])) {
     throw new moodle_exception('errortoken', 'local_corolair');
 }
 $isdemodone = $jsonresponse['isDemoDone'];
@@ -208,57 +191,48 @@ if (!$isdemodone) {
     echo $OUTPUT->footer();
     return;
 }
-if ($redirectoutside) {
-    $targeturlresponse = $jsonresponse['url'];
-    $targeturl = new moodle_url($targeturlresponse);
-    $targeturlout = $targeturl->out(false);
 
-    echo html_writer::div(
-        html_writer::tag('p', get_string('redirectingmessage', 'local_corolair')) .
-        html_writer::link(
-            $targeturl,
-            get_string('continue', 'moodle'),
-            [
-                'target' => '_blank',
-                'class' => 'btn btn-primary',
-                'id'    => 'corolair-continue',
-            ]
-        ),
-        'corolair-fallback',
-        ['style' => 'margin-top:20px; text-align:center;']
-    );
-    $continueurl = $corolairsourcecourse ? $CFG->wwwroot . '/course/view.php?id=' . $corolairsourcecourse : $CFG->wwwroot;
-    // JS: try auto-open + handle manual click.
-    echo html_writer::tag('script', "
-        // Try to auto-open Corolair in a new tab
-        var win = window.open('$targeturlout', '_blank');
-        if (win && !win.closed && typeof win.closed != 'undefined') {
-            // Auto-open worked: hide fallback
-            var fb = document.getElementById('corolair-fallback');
-            if (fb) fb.style.display = 'none';
-            // Redirect Moodle tab home
-            window.location.href = '" . $continueurl . "';
-        }
+$targeturlresponse = $jsonresponse['url'];
+$targeturl = new moodle_url($targeturlresponse);
+$targeturlout = $targeturl->out(false);
 
-        // If user clicks Continue manually
-        var continueBtn = document.getElementById('corolair-continue');
-        if (continueBtn) {
-            continueBtn.addEventListener('click', function(e) {
-                // Redirect Moodle tab home after opening new tab
-                setTimeout(function() {
-                    window.location.href = '" . $continueurl . "';
-                }, 500);
-            });
-        }
-    ");
-} else {
-    // Render inside Moodle.
-    $userid = $jsonresponse['userId'];
-    $output = $PAGE->get_renderer('local_corolair');
-    if ($corolairsourcecourse) {
-        echo $output->render_trainer($userid, 'moodle', $corolairsourcecourse, $plugin);
-    } else {
-        echo $output->render_dashboard($userid);
+echo html_writer::div(
+    html_writer::tag('p', get_string('redirectingmessage', 'local_corolair')) .
+    html_writer::link(
+        $targeturl,
+        get_string('continue', 'moodle'),
+        [
+            'target' => '_blank',
+            'class' => 'btn btn-primary',
+            'id'    => 'corolair-continue',
+        ]
+    ),
+    'corolair-fallback',
+    ['style' => 'margin-top:20px; text-align:center;']
+);
+$continueurl = $corolairsourcecourse ? $CFG->wwwroot . '/course/view.php?id=' . $corolairsourcecourse : $CFG->wwwroot;
+// JS: try auto-open + handle manual click.
+echo html_writer::tag('script', "
+    // Try to auto-open Corolair in a new tab
+    var win = window.open('$targeturlout', '_blank');
+    if (win && !win.closed && typeof win.closed != 'undefined') {
+        // Auto-open worked: hide fallback
+        var fb = document.getElementById('corolair-fallback');
+        if (fb) fb.style.display = 'none';
+        // Redirect Moodle tab home
+        window.location.href = '" . $continueurl . "';
     }
-}
+
+    // If user clicks Continue manually
+    var continueBtn = document.getElementById('corolair-continue');
+    if (continueBtn) {
+        continueBtn.addEventListener('click', function(e) {
+            // Redirect Moodle tab home after opening new tab
+            setTimeout(function() {
+                window.location.href = '" . $continueurl . "';
+            }, 500);
+        });
+    }
+");
+
 echo $OUTPUT->footer();
