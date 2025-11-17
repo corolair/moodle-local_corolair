@@ -81,7 +81,7 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
             throw new \moodle_exception('tokencreationerror', 'local_corolair');
         }
         $curl = new \curl();
-        $url = "https://services.corolair.com/moodle-integration/plugin/organization/register";
+        $url = "https://services.raison.is/moodle-integration/plugin/organization/register";
         $postdata = json_encode([
             'url' => $moodlerooturl,
             'webserviceToken' => $token->token,

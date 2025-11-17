@@ -65,9 +65,9 @@ $string['restprotocolenableerror']  = 'Could not enable the REST protocol.';
 $string['servicecreationerror'] = 'Could not create the Raison REST service.';
 $string['capabilityassignerror'] = 'Could not assign the capability "{$a}" to the role.';
 $string['tokencreationerror'] = 'Could not create the Raison REST token.';
-$string['installtroubleshoot'] = 'If you encounter any issues during installation, please refer to the <a href="https://raison.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">troubleshooting guide </a>.';
+$string['installtroubleshoot'] = 'If you encounter any issues during installation, please refer to the <a href="http://troubleshoot-moodle.raison.is" target="_blank">troubleshooting guide </a>.';
 $string['adhocqueued'] = 'Synchronization with Raison services should have started in your ad-hoc task <a href="{$a->adhoc_link}">\local_corolair\task\setup_corolair_connection_task</a>. If not, trigger an API key generation from <a href="{$a->trainer_page_link}">here</a>.';
-$string['raisontuto'] = 'Learn how to use Raison by visiting <a href="https://raison.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">this tutorial</a>.';
+$string['raisontuto'] = 'Learn how to use Raison by visiting <a href="http://troubleshoot-moodle.raison.is" target="_blank">this tutorial</a>.';
 $string['redirectingmessage'] = 'If you are not redirected automatically, please click the button below to continue to Raison.';
 $string['calendlydemo'] = 'To help us assist you effectively, please first describe your use case and needs in a discovery call with the Raison Team. Once we understand your requirements, our developers will prioritize resolving the connection issues with your Moodle instance. Schedule your call <strong> <a href="http://discoverycall.raison.is/" target="_blank">here</a> </strong>.';
 

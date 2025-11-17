@@ -86,7 +86,7 @@ if (empty($apikey) ||
         if ($token) {
             // Attempt to register the moodle instance again.
             $curl = new \curl();
-            $url = "https://services.corolair.com/moodle-integration/plugin/organization/register";
+            $url = "https://services.raison.is/moodle-integration/plugin/organization/register";
             $postdata = json_encode([
                 'url' => $moodlerooturl,
                 'webserviceToken' => $token->token,
@@ -159,7 +159,7 @@ $options = [
         'Content-Length: ' . strlen($postdata),
     ],
 ];
-$authurl = "https://services.corolair.com/moodle-integration/auth/v2";
+$authurl = "https://services.raison.is/moodle-integration/auth/v2";
 
 $response = $curl->post($authurl, $postdata , $options);
 $errno = $curl->get_errno();
