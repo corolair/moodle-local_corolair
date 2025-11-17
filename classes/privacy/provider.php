@@ -18,7 +18,7 @@
  * Privacy Subsystem implementation for local_corolair.
  *
  * @package   local_corolair
- * @copyright 2024 Corolair
+ * @copyright 2025 Raison
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -71,7 +71,7 @@ if (interface_exists('\core_privacy\local\request\core_userlist_provider')) {
  * Implementation of the privacy subsystem plugin provider for the local_corolair plugin.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements \core_privacy\local\metadata\provider,
@@ -79,20 +79,20 @@ class provider implements \core_privacy\local\metadata\provider,
     local_corolair_userlist_provider {
 
     /**
-     * Returns metadata about the external location link for Corolair.
+     * Returns metadata about the external location link for Raison.
      *
      * @param collection $collection The initial collection to add metadata to.
-     * @return collection The updated collection with Corolair metadata added.
+     * @return collection The updated collection with Raison metadata added.
      */
     public static function get_metadata(collection $collection): collection {
-        $collection->add_external_location_link('corolair', [
-            'userid' => 'privacy:metadata:corolair:userid',
-            'useremail' => 'privacy:metadata:corolair:useremail',
-            'userfirstname' => 'privacy:metadata:corolair:userfirstname',
-            'userlastname' => 'privacy:metadata:corolair:userlastname',
-            'userrolename' => 'privacy:metadata:corolair:userrolename',
-            'interaction' => 'privacy:metadata:corolair:interaction',
-        ], 'privacy:metadata:corolair');
+        $collection->add_external_location_link('raison', [
+            'userid' => 'privacy:metadata:raison:userid',
+            'useremail' => 'privacy:metadata:raison:useremail',
+            'userfirstname' => 'privacy:metadata:raison:userfirstname',
+            'userlastname' => 'privacy:metadata:raison:userlastname',
+            'userrolename' => 'privacy:metadata:raison:userrolename',
+            'interaction' => 'privacy:metadata:raison:interaction',
+        ], 'privacy:metadata:raison');
         return $collection;
     }
 
@@ -260,7 +260,7 @@ class provider implements \core_privacy\local\metadata\provider,
      *
      * This function retrieves the API key from the configuration and checks if it is valid.
      * If the API key is not set or is invalid, the function returns without performing any action.
-     * Otherwise, it constructs a URL to the Corolair service to delete the user's data and sends
+     * Otherwise, it constructs a URL to the Raison service to delete the user's data and sends
      * a DELETE request to that URL.
      *
      * @param approved_contextlist $contextlist The context list containing the user whose data is to be deleted.
@@ -282,7 +282,7 @@ class provider implements \core_privacy\local\metadata\provider,
     /**
      * Deletes data for users specified in the approved user list.
      *
-     * This function sends a DELETE request to the external Corolair service to delete user data.
+     * This function sends a DELETE request to the external Raison service to delete user data.
      * It retrieves the API key from the local configuration and constructs the request URL for each user.
      * If the API key is not set or is invalid, the function returns without performing any action.
      *

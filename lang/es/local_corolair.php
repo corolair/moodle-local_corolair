@@ -15,60 +15,58 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Language strings for the Corolair Local Plugin.
+ * Language strings for the Raison Local Plugin.
  *
  * @package   local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$string['pluginname'] = 'Plugin Local de Corolair';
+$string['pluginname'] = 'Plugin Local de Raison';
 $string['sidepanel'] = 'Posición del Tutor IA en la pantalla';
 $string['sidepaneldesc'] = 'Elija si prefiere mostrar los Tutores IA en el lado derecho de los cursos como un Panel lateral (recomendado) o en la esquina inferior derecha como un Chatbot clásico.';
 $string['true'] = 'Panel lateral';
 $string['false'] = 'Chatbot';
-$string['apikey'] = 'Clave API de Corolair';
-$string['apikeydesc'] = 'Esta clave se genera durante la instalación del plugin. Guárdela en un lugar seguro. El equipo de soporte de Corolair podría solicitarla.';
-$string['corolairlogin'] = 'Cuenta Corolair';
-$string['corolairlogindesc'] = 'La cuenta maestra de Corolair está asociada a este correo electrónico. El equipo de soporte de Corolair podría solicitarlo.';
-$string['plugininstalledsuccess'] = 'El plugin se ha instalado correctamente. Ahora puede crear y compartir Tutores IA desde la pestaña Corolair. También puede permitir a los profesores/formadores crear Tutores IA asignándoles el rol de "Gestor de Corolair" en Usuarios > Permisos > Asignar roles del sistema. Si encuentra algún problema, no dude en contactar al equipo de Corolair.';
-$string['curlerror'] = 'Se ha producido un error al comunicarse con la API de Corolair. No se ha podido registrar su instancia de Moodle, intente nuevamente. Si el problema persiste, póngase en contacto con el equipo de Corolair.';
-$string['apikeymissing'] = 'No se ha encontrado la clave API en la respuesta de la API de Corolair.';
-$string['corolair:createtutor'] = 'Permite al usuario crear y gestionar tutores dentro del plugin de Corolair.';
-$string['noapikey'] = 'No hay clave API de Corolair';
+$string['apikey'] = 'Clave API de Raison';
+$string['apikeydesc'] = 'Esta clave se genera durante la instalación del plugin. Guárdela en un lugar seguro. El equipo de soporte de Raison podría solicitarla.';
+$string['raisonlogin'] = 'Cuenta Raison';
+$string['raisonlogindesc'] = 'La cuenta maestra de Raison está asociada a este correo electrónico. El equipo de soporte de Raison podría solicitarlo.';
+$string['curlerror'] = 'Se ha producido un error al comunicarse con la API de Raison. No se ha podido registrar su instancia de Moodle, intente nuevamente. Si el problema persiste, póngase en contacto con el equipo de Raison.';
+$string['apikeymissing'] = 'No se ha encontrado la clave API en la respuesta de la API de Raison.';
+$string['corolair:createtutor'] = 'Permite al usuario crear y gestionar tutores dentro del plugin de Raison.';
+$string['noapikey'] = 'No hay clave API de Raison';
 $string['errortoken'] = 'Error al obtener el token';
 $string['missingcapability'] = 'No tiene permisos para acceder a esta página';
-$string['roleproblem'] = 'Hemos encontrado un problema al crear o asignar el nuevo rol de Gestor de Corolair. Puede configurarlo manualmente permitiendo la capacidad "Plugin Local de Corolair" a cualquier rol del sistema. Si tiene alguna dificultad, póngase en contacto con el equipo de Corolair a través de contact@corolair.com.';
-$string['coursenodetitle'] = 'Asistente de IA de Corolair';
-$string['frontpagenodetitle'] = 'Corolair';
-$string['createtutorcapability'] = 'Excluir cursos sin capacidad de edición';
+$string['roleproblem'] = 'Hemos encontrado un problema al crear o asignar el nuevo rol de Gestor de Raison. Puede configurarlo manualmente permitiendo la capacidad "Plugin Local de Raison" a cualquier rol del sistema. Si tiene alguna dificultad, póngase en contacto con el equipo de Raison a través de contact@raison.is.';
+$string['coursenodetitle'] = 'Asistente de IA de Raison';
+$string['frontpagenodetitle'] = 'Raison';
 $string['createtutorcapabilitydesc'] = 'El usuario no podrá crear Tutores IA en cursos que no pueda gestionar. Si se establece en "Falso", podrá crearlos en cursos donde solo esté inscrito.';
 $string['capabilitytrue'] = 'Verdadero';
 $string['capabilityfalse'] = 'Falso';
-$string['unexpectederror'] = 'Se ha producido un error inesperado. Intente de nuevo. Si el problema persiste, póngase en contacto con el equipo de Corolair.';
-$string['trainerpage'] = 'Corolair';
-$string['nocorolairlogin'] = 'No hay ninguna cuenta asociada';
-$string['createtutorcapability'] = 'Permite a los usuarios crear y gestionar Tutores IA dentro de Corolair';
-$string['tokenname'] = 'Token REST de Corolair';
-$string['rolename'] = 'Gestor de Corolair';
-$string['roledescription'] = 'Rol para la gestión de Tutores IA en Corolair';
-$string['privacy:metadata:corolair'] = 'Los metadatos enviados a Corolair permiten acceder a sus datos de forma fluida en el sistema remoto.';
-$string['privacy:metadata:corolair:userid'] = 'El identificador del usuario se envía para reconocerle de manera única en Corolair.';
-$string['privacy:metadata:corolair:useremail'] = 'Su dirección de correo electrónico se envía para identificarle de forma única en Corolair y facilitar la comunicación.';
-$string['privacy:metadata:corolair:userfirstname'] = 'Su nombre se envía para personalizar su experiencia en Corolair y facilitar su identificación en sus conversaciones con el Tutor.';
-$string['privacy:metadata:corolair:userlastname'] = 'Su apellido se envía para personalizar su experiencia en Corolair y facilitar su identificación en sus conversaciones con el Tutor.';
-$string['privacy:metadata:corolair:userrolename'] = 'Su rol se envía para gestionar sus permisos en Corolair.';
-$string['privacy:metadata:corolair:interaction'] = 'Los registros de sus interacciones, como tutores creados y conversaciones, se envían para mejorar su experiencia.';
-$string['localhosterror'] = 'No es posible registrar la instancia de Moodle en Corolair porque el sitio se está ejecutando en localhost.';
+$string['unexpectederror'] = 'Se ha producido un error inesperado. Intente de nuevo. Si el problema persiste, póngase en contacto con el equipo de Raison.';
+$string['trainerpage'] = 'Raison';
+$string['noraisonlogin'] = 'No hay ninguna cuenta asociada';
+$string['createtutorcapability'] = 'Permite a los usuarios crear y gestionar Tutores IA dentro de Raison';
+$string['tokenname'] = 'Token REST de Raison';
+$string['rolename'] = 'Gestor de Raison';
+$string['roledescription'] = 'Rol para la gestión de Tutores IA en Raison';
+$string['privacy:metadata:raison'] = 'Los metadatos enviados a Raison permiten acceder a sus datos de forma fluida en el sistema remoto.';
+$string['privacy:metadata:raison:userid'] = 'El identificador del usuario se envía para reconocerle de manera única en Raison.';
+$string['privacy:metadata:raison:useremail'] = 'Su dirección de correo electrónico se envía para identificarle de forma única en Raison y facilitar la comunicación.';
+$string['privacy:metadata:raison:userfirstname'] = 'Su nombre se envía para personalizar su experiencia en Raison y facilitar su identificación en sus conversaciones con el Tutor.';
+$string['privacy:metadata:raison:userlastname'] = 'Su apellido se envía para personalizar su experiencia en Raison y facilitar su identificación en sus conversaciones con el Tutor.';
+$string['privacy:metadata:raison:userrolename'] = 'Su rol se envía para gestionar sus permisos en Raison.';
+$string['privacy:metadata:raison:interaction'] = 'Los registros de sus interacciones, como tutores creados y conversaciones, se envían para mejorar su experiencia.';
+$string['localhosterror'] = 'No es posible registrar la instancia de Moodle en Raison porque el sitio se está ejecutando en localhost.';
 $string['webservicesenableerror'] = 'No se han podido activar los servicios web.';
 $string['restprotocolenableerror'] = 'No se ha podido activar el protocolo REST.';
-$string['servicecreationerror'] = 'No se ha podido crear el servicio REST de Corolair.';
+$string['servicecreationerror'] = 'No se ha podido crear el servicio REST de Raison.';
 $string['capabilityassignerror'] = 'No se ha podido asignar la capacidad "{$a}" al rol.';
-$string['tokencreationerror'] = 'No se ha podido generar el token REST de Corolair.';
-$string['installtroubleshoot'] = 'Si encuentra algún problema durante la instalación, consulte la <a href="https://corolair.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">guía de solución de problemas</a>.';
-$string['adhocqueued'] = 'La sincronización con los servicios de Corolair debería haber comenzado en su tarea ad-hoc <a href="{$a->adhoc_link}">\local_corolair\task\setup_corolair_connection_task</a>. Si no es así, genere una clave API desde <a href="{$a->trainer_page_link}">aquí</a>.';
-$string['corolairtuto'] = 'Aprenda a utilizar Corolair consultando <a href="https://corolair.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">este tutorial</a>.';
-$string['redirectingmessage'] = 'Si no se redirige automáticamente, haga clic en el botón a continuación para continuar a Corolair.';
-$string['calendlydemo'] = 'Para poder ayudarte de manera efectiva, primero cuéntanos tu caso de uso y tus necesidades en una llamada de descubrimiento con el equipo de Corolair. Una vez entendamos tus requerimientos, nuestros desarrolladores se encargarán de solucionar los problemas de conexión con tu instancia de Moodle. Reserva tu llamada  <strong> <a href="https://calendly.com/corolair/30min" target="_blank">aquí</a> </strong>.';
+$string['tokencreationerror'] = 'No se ha podido generar el token REST de Raison.';
+$string['installtroubleshoot'] = 'Si encuentra algún problema durante la instalación, consulte la <a href="https://raison.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">guía de solución de problemas</a>.';
+$string['adhocqueued'] = 'La sincronización con los servicios de Raison debería haber comenzado en su tarea ad-hoc <a href="{$a->adhoc_link}">\local_corolair\task\setup_corolair_connection_task</a>. Si no es así, genere una clave API desde <a href="{$a->trainer_page_link}">aquí</a>.';
+$string['raisontuto'] = 'Aprenda a utilizar Raison consultando <a href="https://raison.notion.site/Moodle-Integration-EN-5d5dc1e61f8d4bd89372a6b8009ec4e4?pvs=4" target="_blank">este tutorial</a>.';
+$string['redirectingmessage'] = 'Si no se redirige automáticamente, haga clic en el botón a continuación para continuar a Raison.';
+$string['calendlydemo'] = 'Para poder ayudarte de manera efectiva, primero cuéntanos tu caso de uso y tus necesidades en una llamada de descubrimiento con el equipo de Raison. Una vez entendamos tus requerimientos, nuestros desarrolladores se encargarán de solucionar los problemas de conexión con tu instancia de Moodle. Reserva tu llamada  <strong> <a href="http://discoverycall.raison.is/" target="_blank">aquí</a> </strong>.';

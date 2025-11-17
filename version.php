@@ -15,13 +15,13 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for the Corolair plugin.
+ * Version information for the Raison plugin.
  *
  * This file defines the version and other metadata for the "local_corolair" plugin.
  * It ensures compatibility and proper registration with Moodle.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -29,7 +29,7 @@ defined('MOODLE_INTERNAL') || die();
 
 // Plugin metadata.
 $plugin->component = 'local_corolair';    // Full name of the plugin (used for diagnostics).
-$plugin->version   = 2025103100;          // The current plugin version (Date: YYYYMMDDXX).
+$plugin->version   = 2025111700;          // The current plugin version (Date: YYYYMMDDXX).
 $plugin->requires  = 2020110900;          // Minimum required Moodle version.
 $plugin->maturity  = MATURITY_STABLE;     // Plugin maturity level: MATURITY_ALPHA, MATURITY_BETA, MATURITY_RC, MATURITY_STABLE.
-$plugin->release   = '1.8.17';             // Human-readable version name.
+$plugin->release   = '1.8.18';             // Human-readable version name.
