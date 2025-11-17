@@ -17,11 +17,11 @@
 /**
  * Settings for the "local_corolair" plugin.
  *
- * This file defines the administrative settings for the Corolair plugin,
+ * This file defines the administrative settings for the Raison plugin,
  * allowing site administrators to configure plugin behavior.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -29,7 +29,7 @@ defined('MOODLE_INTERNAL') || die();
 
 // Ensure settings are only defined if the user has site configuration capabilities.
 if ($hassiteconfig) {
-    // Create a new settings page for the Corolair plugin.
+    // Create a new settings page for the Raison plugin.
     $settings = new admin_settingpage('local_corolair', get_string('pluginname', 'local_corolair'));
     // Add the settings page to the "Local plugins" category.
     $ADMIN->add('localplugins', $settings);
@@ -55,7 +55,7 @@ if ($hassiteconfig) {
             'false' => get_string('capabilityfalse', 'local_corolair'),
         ]
     ));
-    // Add a text input setting for the Corolair API key.
+    // Add a text input setting for the Raison API key.
     $settings->add(new admin_setting_configtext(
         'local_corolair/apikey',
         get_string('apikey', 'local_corolair'), // Setting title.
@@ -63,19 +63,12 @@ if ($hassiteconfig) {
         get_string('noapikey', 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-    // Add a text input setting for the Corolair login identifier.
+    // Add a text input setting for the Raison login identifier.
     $settings->add(new admin_setting_configtext(
         'local_corolair/corolairlogin',
-        get_string('corolairlogin', 'local_corolair'), // Setting title.
-        get_string('corolairlogindesc', 'local_corolair'), // Setting description.
-        get_string('nocorolairlogin' , 'local_corolair'), // Default value.
+        get_string('raisonlogin', 'local_corolair'), // Setting title.
+        get_string('raisonlogindesc', 'local_corolair'), // Setting description.
+        get_string('noraisonlogin' , 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-
-    $resetcsslink = (new moodle_url('/local/corolair/resetcss.php'))->out();
-    $trainerpagelink = (new moodle_url('/local/corolair/trainer.php'))->out();
-    $links = (object) [
-        'reset_css_link' => $resetcsslink,
-        'trainer_page_link' => $trainerpagelink,
-    ];
 }

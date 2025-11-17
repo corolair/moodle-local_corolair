@@ -22,10 +22,10 @@
  * 2. Creates a custom external service and assigns capabilities.
  * 3. Generates and assigns a token for the service.
  * 4. Creates the "Corolair Manager" role with specific permissions.
- * 5. Registers the Moodle instance with the Corolair platform.
+ * 5. Registers the Moodle instance with the Raison platform.
  *
  * @package   local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -73,7 +73,7 @@ function xmldb_local_corolair_install() {
         } else {
             $DB->insert_record('config', (object)['name' => 'webserviceprotocols', 'value' => 'rest']);
         }
-        // Create "Corolair Manager" role.
+        // Create "Raison Manager" role.
         $roleid = create_role(
             get_string('rolename', 'local_corolair'),
             'corolair',
@@ -137,7 +137,7 @@ function xmldb_local_corolair_install() {
             \core\output\notification::NOTIFY_SUCCESS
         );
         \core\notification::add(
-            get_string('corolairtuto', 'local_corolair'),
+            get_string('raisontuto', 'local_corolair'),
             \core\output\notification::NOTIFY_SUCCESS
         );
         \core\notification::add(

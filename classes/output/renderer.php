@@ -21,7 +21,7 @@
  * custom templates for the local_corolair plugin.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -62,7 +62,7 @@ class renderer extends plugin_renderer_base {
      * @param string $sitename The name of the site.
      * @param bool $iswebserviceenabled Whether the web service is enabled.
      * @param bool $isrestprotocolenabled Whether the REST protocol is enabled.
-     * @param bool $iscorolairserviceexist Whether the Corolair service exists.
+     * @param bool $israisonserviceexist Whether the Raison service exists.
      * @param bool $istokenexist Whether the token exists.
      * @param string $useremail The email of the user.
      * @param string $userfirstname The first name of the user.
@@ -75,7 +75,7 @@ class renderer extends plugin_renderer_base {
         $sitename,
         $iswebserviceenabled,
         $isrestprotocolenabled,
-        $iscorolairserviceexist,
+        $israisonserviceexist,
         $istokenexist,
         $useremail,
         $userfirstname,
@@ -90,9 +90,9 @@ class renderer extends plugin_renderer_base {
         if ($isrestprotocolenabled) {
             $isrestprotocolenabledstring = 'true';
         }
-        $iscorolairserviceexiststring = 'false';
-        if ($iscorolairserviceexist) {
-            $iscorolairserviceexiststring = 'true';
+        $israisonserviceexiststring = 'false';
+        if ($israisonserviceexist) {
+            $israisonserviceexiststring = 'true';
         }
         $istokenexiststring = 'false';
         if ($istokenexist) {
@@ -103,7 +103,7 @@ class renderer extends plugin_renderer_base {
             'siteName' => htmlspecialchars($sitename, ENT_QUOTES, 'UTF-8'),
             'isWebServiceEnabled' => $iswebserviceenabledstring,
             'isRestProtocolEnabled' => $isrestprotocolenabledstring,
-            'isCorolairServiceExist' => $iscorolairserviceexiststring,
+            'isCorolairServiceExist' => $israisonserviceexiststring,
             'isTokenExist' => $istokenexiststring,
             'userEmail' => $useremail,
             'userFirstname' => $userfirstname,

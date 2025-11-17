@@ -15,11 +15,11 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Adhoc task for the local_corolair plugin to establish a connection between Moodle and Corolair.
+ * Adhoc task for the local_corolair plugin to establish a connection between Moodle and Raison.
  * This task handles the setup process required to initiate and maintain the connection.
  *
  * @package   local_corolair
- * @copyright 2024 Corolair
+ * @copyright 2025 Raison
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -28,10 +28,10 @@ namespace local_corolair\task;
 /**
  * Class setup_corolair_connection_task
  *
- * Adhoc task to set up the connection between Moodle and Corolair.
+ * Adhoc task to set up the connection between Moodle and Raison.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class setup_corolair_connection_task extends \core\task\adhoc_task {
@@ -53,7 +53,10 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         if (!empty($apikey) &&
             strpos($apikey, 'No Corolair Api Key') !== 0 &&
             strpos($apikey, 'Aucune Clé API Corolair') !== 0 &&
-            strpos($apikey, 'No hay clave API de Corolair') !== 0) {
+            strpos($apikey, 'No hay clave API de Corolair') !== 0 &&
+            strpos($apikey, 'No Raison Api Key') !== 0 &&
+            strpos($apikey, 'Aucune Clé API Raison') !== 0 &&
+            strpos($apikey, 'No hay clave API de Raison') !== 0) {
             return;
         }
         $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);

@@ -17,7 +17,7 @@
 /**
  * Upgrade script for local_corolair plugin.
  * @package   local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -42,13 +42,16 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 $DB->update_record('config', $custommenuitems);
             }
         }
-        // Step 2: Notify external Corolair service of the update.
+        // Step 2: Notify external Raison service of the update.
         if ($result && $oldversion < 2024100701) {
             $apikey = get_config('local_corolair', 'apikey');
             if (empty($apikey) ||
                 strpos($apikey, 'No Corolair Api Key') === 0 ||
-                strpos($apikey, 'Aucune Clé API Corolair') === 0||
-                strpos($apikey, 'No hay clave API de Corolair') === 0
+                strpos($apikey, 'Aucune Clé API Corolair') === 0 ||
+                strpos($apikey, 'No hay clave API de Corolair') === 0 ||
+                strpos($apikey, 'No Raison Api Key') === 0 ||
+                strpos($apikey, 'Aucune Clé API Raison') === 0||
+                strpos($apikey, 'No hay clave API de Raison') === 0
                 ) {
                 \core\notification::add(
                     get_string('noapikey', 'local_corolair'),
