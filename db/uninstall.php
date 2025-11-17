@@ -18,7 +18,7 @@
  * Uninstall script for local_corolair plugin.
  *
  * @package   local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -27,10 +27,10 @@
  * Uninstall function for the local_corolair plugin.
  *
  * This function performs the following steps:
- * 1. Removes the custom role 'Corolair Manager'.
+ * 1. Removes the custom role 'Raison Manager'.
  * 2. Removes the external service and associated tokens and functions.
- * 3. Retrieves the 'apikey' value before deleting all Corolair-specific config settings.
- * 4. Removes all Corolair-specific config settings from config_plugins.
+ * 3. Retrieves the 'apikey' value before deleting all Raison-specific config settings.
+ * 4. Removes all Raison-specific config settings from config_plugins.
  * 5. Sends a deregistration request to the external API.
  *
  * @return bool True on success.
@@ -39,7 +39,7 @@
 function xmldb_local_corolair_uninstall() {
     global $DB, $CFG;
     // Define API URL for deregistration.
-    $url = "https://services.corolair.com/moodle-integration/plugin/organization/deregister";
+    $url = "https://services.raison.is/moodle-integration/plugin/organization/deregister";
     try {
         // Step 1: Remove the custom role 'Corolair Manager'.
         $role = $DB->get_record('role', ['shortname' => 'corolair']);
@@ -57,9 +57,9 @@ function xmldb_local_corolair_uninstall() {
             $DB->delete_records('external_services_functions', ['externalserviceid' => $service->id]);
             $DB->delete_records('external_services', ['id' => $service->id]);
         }
-        // Step 3: Retrieve the 'apikey' value before deleting all Corolair-specific config settings.
+        // Step 3: Retrieve the 'apikey' value before deleting all Raison-specific config settings.
         $apikeyrecord = $DB->get_record('config_plugins', ['plugin' => 'local_corolair', 'name' => 'apikey'], 'value');
-        // Step 4: Remove all Corolair-specific config settings from config_plugins.
+        // Step 4: Remove all Raison-specific config settings from config_plugins.
         $DB->delete_records('config_plugins', ['plugin' => 'local_corolair']);
         // Step 5: Send deregistration request to external API.
         $apikey = '';

@@ -18,12 +18,12 @@
  * Local plugin "local_corolair" - Library
  *
  * @package    local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 /**
- * Extends the course navigation with a custom node for Corolair.
+ * Extends the course navigation with a custom node for Raison.
  *
  * @param navigation_node $navigation The navigation node to extend.
  * @param stdClass $course The course object.
@@ -34,24 +34,24 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
     $courseid = $course->id;
 
     // Key to identify the node.
-    $corolairnodekey = get_string('coursenodetitle', 'local_corolair');
+    $raisonnodekey = get_string('coursenodetitle', 'local_corolair');
     // Check if the user has the specific capability in this course context.
-    if (!is_dir($CFG->dirroot . '/mod/corolairtutor') && has_capability('local/corolair:createtutor', $context)) {
+    if (has_capability('local/corolair:createtutor', $context)) {
         // Add the node if it doesn't already exist.
-        if (!$navigation->find($corolairnodekey, navigation_node::TYPE_SETTING)) {
-            $corolairnode = navigation_node::create(
+        if (!$navigation->find($raisonnodekey, navigation_node::TYPE_SETTING)) {
+            $raisonnode = navigation_node::create(
                 get_string('coursenodetitle', 'local_corolair'),
-                new moodle_url("/local/corolair/trainer.php?corolairsourcecourse=$courseid"),
+                new moodle_url("/local/corolair/trainer.php?raisonsourcecourse=$courseid"),
                 navigation_node::TYPE_SETTING,
                 null,
                 null,
                 null
             );
-            $navigation->add_node($corolairnode);
+            $navigation->add_node($raisonnode);
         }
     } else {
         // Remove the node if it exists.
-        if ($nodetoremove = $navigation->find($corolairnodekey, navigation_node::TYPE_SETTING)) {
+        if ($nodetoremove = $navigation->find($raisonnodekey, navigation_node::TYPE_SETTING)) {
             $nodetoremove->remove();
         }
     }
@@ -112,7 +112,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
 }
 
 /**
- * Extends the frontpage navigation with a custom node for Corolair.
+ * Extends the frontpage navigation with a custom node for Raison.
  *
  * @param navigation_node $parentnode The parent navigation node to extend.
  * @param stdClass $course The course object.
@@ -121,25 +121,25 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
 function local_corolair_extend_navigation_frontpage(navigation_node $parentnode, stdClass $course, context_course $context) {
     global $CFG;
     // Key to identify the node.
-    $corolairnodekey = get_string('frontpagenodetitle', 'local_corolair');
+    $raisonnodekey = get_string('frontpagenodetitle', 'local_corolair');
 
     // Check if the user has the specific capability in this course context.
-    if (!is_dir($CFG->dirroot . '/mod/corolairtutor') && has_capability('local/corolair:createtutor', $context)) {
+    if (has_capability('local/corolair:createtutor', $context)) {
         // Add the node if it doesn't already exist.
-        if (!$parentnode->find($corolairnodekey, navigation_node::TYPE_SETTING)) {
-            $corolairnode = navigation_node::create(
+        if (!$parentnode->find($raisonnodekey, navigation_node::TYPE_SETTING)) {
+            $raisonnode = navigation_node::create(
                 get_string('frontpagenodetitle', 'local_corolair'),
                 new moodle_url('/local/corolair/trainer.php'),
                 navigation_node::TYPE_SETTING,
                 null,
-                $corolairnodekey,
+                $raisonnodekey,
                 null
             );
-            $parentnode->add_node($corolairnode);
+            $parentnode->add_node($raisonnode);
         }
     } else {
         // Remove the node if it exists.
-        if ($nodetoremove = $parentnode->find($corolairnodekey, navigation_node::TYPE_SETTING)) {
+        if ($nodetoremove = $parentnode->find($raisonnodekey, navigation_node::TYPE_SETTING)) {
             $nodetoremove->remove();
         }
     }

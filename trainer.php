@@ -15,13 +15,13 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Trainer integration page for embedding the Corolair application.
+ * Trainer integration page for embedding the Raison application.
  *
  * This page handles user authentication and passes required data to embed
- * the Corolair application in an iframe within Moodle.
+ * the Raison application in an iframe within Moodle.
  *
  * @package    local_corolair
- * @copyright  2024 Corolair
+ * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -59,11 +59,11 @@ if ($webserviceprotocols && strpos($webserviceprotocols->value, 'rest') !== fals
     $isrestprotocolenabled = true;
 }
 $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
-$iscorolairserviceexist = false;
+$israisonserviceexist = false;
 $istokenexist = false;
 $tokenvalue = '';
 if ($existingservice) {
-    $iscorolairserviceexist = true;
+    $israisonserviceexist = true;
     $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
     if ($token) {
         $istokenexist = true;
@@ -76,14 +76,17 @@ $apikey = get_config('local_corolair', 'apikey');
 if (empty($apikey) ||
     strpos($apikey, 'No Corolair Api Key') === 0 ||
     strpos($apikey, 'Aucune Clé API Corolair') === 0 ||
-    strpos($apikey, 'No hay clave API de Corolair') === 0
+    strpos($apikey, 'No hay clave API de Corolair') === 0 ||
+    strpos($apikey, 'No Raison Api Key') === 0 ||
+    strpos($apikey, 'Aucune Clé API Raison') === 0 ||
+    strpos($apikey, 'No hay clave API de Raison') === 0
     ) {
     if ($existingservice) {
         $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
         if ($token) {
             // Attempt to register the moodle instance again.
             $curl = new \curl();
-            $url = "https://services.corolair.com/moodle-integration/plugin/organization/register";
+            $url = "https://services.raison.is/moodle-integration/plugin/organization/register";
             $postdata = json_encode([
                 'url' => $moodlerooturl,
                 'webserviceToken' => $token->token,
@@ -117,7 +120,7 @@ if (empty($apikey) ||
             $sitename,
             $iswebserviceenabled,
             $isrestprotocolenabled,
-            $iscorolairserviceexist,
+            $israisonserviceexist,
             $istokenexist,
             $useremail,
             $userfirstname,
@@ -134,7 +137,7 @@ if (empty($apikey) ||
 
 $createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
 // Handle optional course parameter for embedding.
-$corolairsourcecourse = optional_param('corolairsourcecourse', 0, PARAM_INT);
+$raisonsourcecourse = optional_param('raisonsourcecourse', 0, PARAM_INT);
 $plugin = optional_param('corolairplugin', '', PARAM_TEXT);
 // Prepare payload for external authentication request.
 $postdata = json_encode([
@@ -144,7 +147,7 @@ $postdata = json_encode([
     'lastname' => $USER->lastname,
     'moodleUserId' => $USER->id,
     'createTutorWithCapability' => $createtutorwithcapability,
-    'courseId' => $corolairsourcecourse,
+    'courseId' => $raisonsourcecourse,
     'plugin' => $plugin,
 ]);
 // Send the authentication request.
@@ -156,7 +159,7 @@ $options = [
         'Content-Length: ' . strlen($postdata),
     ],
 ];
-$authurl = "https://services.corolair.com/moodle-integration/auth/v2";
+$authurl = "https://services.raison.is/moodle-integration/auth/v2";
 
 $response = $curl->post($authurl, $postdata , $options);
 $errno = $curl->get_errno();
@@ -168,7 +171,7 @@ if ($response === false || $errno !== 0) {
         $sitename,
         $iswebserviceenabled,
         $isrestprotocolenabled,
-        $iscorolairserviceexist,
+        $israisonserviceexist,
         $istokenexist,
         $useremail,
         $userfirstname,
@@ -204,27 +207,27 @@ echo html_writer::div(
         [
             'target' => '_blank',
             'class' => 'btn btn-primary',
-            'id'    => 'corolair-continue',
+            'id'    => 'raison-continue',
         ]
     ),
-    'corolair-fallback',
+    'raison-fallback',
     ['style' => 'margin-top:20px; text-align:center;']
 );
-$continueurl = $corolairsourcecourse ? $CFG->wwwroot . '/course/view.php?id=' . $corolairsourcecourse : $CFG->wwwroot;
+$continueurl = $raisonsourcecourse ? $CFG->wwwroot . '/course/view.php?id=' . $raisonsourcecourse : $CFG->wwwroot;
 // JS: try auto-open + handle manual click.
 echo html_writer::tag('script', "
-    // Try to auto-open Corolair in a new tab
+    // Try to auto-open Raison in a new tab
     var win = window.open('$targeturlout', '_blank');
     if (win && !win.closed && typeof win.closed != 'undefined') {
         // Auto-open worked: hide fallback
-        var fb = document.getElementById('corolair-fallback');
+        var fb = document.getElementById('raison-fallback');
         if (fb) fb.style.display = 'none';
         // Redirect Moodle tab home
         window.location.href = '" . $continueurl . "';
     }
 
     // If user clicks Continue manually
-    var continueBtn = document.getElementById('corolair-continue');
+    var continueBtn = document.getElementById('raison-continue');
     if (continueBtn) {
         continueBtn.addEventListener('click', function(e) {
             // Redirect Moodle tab home after opening new tab

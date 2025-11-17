@@ -1,12 +1,12 @@
-# Corolair Moodle Plugin
+# Raison Moodle Plugin
 
-**Version:** 1.8.17
+**Version:** 1.8.18
 
-**Last Updated:** 2025/10/31
+**Last Updated:** 2025/11/17
 
 ## Overview
 
-The Corolair Moodle Plugin enables seamless integration of **AI Tutors** into Moodle courses, enhancing the learning experience for both trainers and learners. This plugin transforms courses into interactive, AI-powered learning assistants tailored to the course content.
+The Raison Moodle Plugin enables seamless integration of **AI Tutors** into Moodle courses, enhancing the learning experience for both trainers and learners. This plugin transforms courses into interactive, AI-powered learning assistants tailored to the course content.
 
 ### Key Features
 
@@ -26,8 +26,8 @@ The Corolair Moodle Plugin enables seamless integration of **AI Tutors** into Mo
 ## Installation
 
 1. Install the latest version of the plugin from Moodle Plugins directory
-2. Upon installation, a Corolair account with a trial plan will be automatically created for the administrator who installed the plugin.
-3. Assign the _Corolair Manager_ role to Trainers to configure access permissions. This role includes the capability to access Corolair from Home or Courses. You can also include the corresponding capability to existing roles. Trial accounts will also be automatically set up for all assigned Trainers.
+2. Upon installation, a Raison account with a trial plan will be automatically created for the administrator who installed the plugin.
+3. Assign the _Raison Manager_ role to Trainers to configure access permissions. This role includes the capability to access Raison from Home or Courses. You can also include the corresponding capability to existing roles. Trial accounts will also be automatically set up for all assigned Trainers.
 
 ---
 
@@ -35,8 +35,8 @@ The Corolair Moodle Plugin enables seamless integration of **AI Tutors** into Mo
 
 ### For Trainers & Instructional Designers:
 
-- **Via Moodle Homepage:** Navigate to **Plus > Corolair** to access the Creator tools.
-- **From Course View:** Select **Plus > Corolair AI Assistant** to initiate the AI Tutor creation process for a specific course.
+- **Via Moodle Homepage:** Navigate to **Plus > Raison** to access the Creator tools.
+- **From Course View:** Select **Plus > Raison AI Assistant** to initiate the AI Tutor creation process for a specific course.
 
 Once in the Creator platform, trainers can:
 
@@ -48,7 +48,7 @@ Once in the Creator platform, trainers can:
 
 ### For Learners:
 
-- Access Corolair directly as an embedded chatbot within their enrolled courses.
+- Access Raison directly as an embedded chatbot within their enrolled courses.
 - **Start and Resume Discussions:** Click to interact with AI Tutors anytime, with the ability to pause and return.
 - **Switch Modes:** Seamlessly transition from discussion to self-assessment mode.
 
@@ -75,8 +75,8 @@ We welcome contributions on the Moodle plugin! Do not hesitate to submit feature
 
 ## Support
 
-For support, please contact our team at contact@corolair.com.
+For support, please contact our team at contact@raison.is.
 
 ---
 
-_Copyright © 2024 Corolair. All rights reserved._
+_Copyright © 2025 Raison. All rights reserved._

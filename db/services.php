@@ -15,7 +15,7 @@ $functions = [
 ];
 
 /**
- * Services definitions For Corolair Integration with Moodle.
+ * Services definitions For Raison Integration with Moodle.
  */
 $services = [
     'Corolair REST Service' => [
