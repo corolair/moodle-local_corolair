@@ -70,4 +70,5 @@ $string['adhocqueued'] = 'Synchronization with Raison services should have start
 $string['raisontuto'] = 'Learn how to use Raison by visiting <a href="http://troubleshoot-moodle.raison.is" target="_blank">this tutorial</a>.';
 $string['redirectingmessage'] = 'If you are not redirected automatically, please click the button below to continue to Raison.';
 $string['calendlydemo'] = 'To help us assist you effectively, please first describe your use case and needs in a discovery call with the Raison Team. Once we understand your requirements, our developers will prioritize resolving the connection issues with your Moodle instance. Schedule your call <strong> <a href="http://discoverycall.raison.is/" target="_blank">here</a> </strong>.';
-
+$string['excludedmods'] = 'Excluded activities';
+$string['excludedmodsdesc'] = 'Use this list to disable assistants in specific activity types, for example to prevent students from using it during assessments. Provide a comma-separated list of activity module short names (e.g. "quiz, assign"). The short name is the folder shown in the activity\'s URL after \'/mod/\' (e.g. \'/mod/quiz/\' → \'quiz\'). This also works for activity modules provided by external plugins.';

@@ -71,4 +71,14 @@ if ($hassiteconfig) {
         get_string('noraisonlogin' , 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
+
+    // Add a text input setting for excluded activity modules.
+    // Example value: "quiz, lesson, forum".
+    $settings->add(new admin_setting_configtext(
+        'local_corolair/excludedmods',
+        get_string('excludedmods', 'local_corolair'),      // Setting title.
+        get_string('excludedmodsdesc', 'local_corolair'),  // Setting description.
+        '',                                                // Default value: none excluded.
+        PARAM_TEXT                                         // Validation type.
+    ));
 }

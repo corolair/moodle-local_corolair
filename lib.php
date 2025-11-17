@@ -64,6 +64,22 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
 
     // Get the current page URL.
     $pageurlstr = $PAGE->url->out();
+    // Get excluded mods from config (comma-separated).
+    $excludedmodsraw = get_config('local_corolair', 'excludedmods') ?? '';
+    $excludedmods = array_filter(array_map('trim', preg_split('/[,\s]+/', $excludedmodsraw)));
+    var_dump($excludedmods);
+
+    // If current URL contains /mod/{excluded}/ then skip rendering.
+    foreach ($excludedmods as $modname) {
+        if ($modname === '') {
+            continue;
+        }
+        // e.g. /mod/quiz/, /mod/quiz/view.php?id=...
+        if (strpos($pageurlstr, '/mod/' . $modname . '/') !== false) {
+            return; // skip plugin rendering
+        }
+    }
+
     $coursemodurl = new moodle_url('/mod/');
     $coursemodurlstr = $coursemodurl->out();
     $courseviewurl = new moodle_url('/course/view.php', ['id' => $courseid]);
