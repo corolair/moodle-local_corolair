@@ -67,7 +67,6 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
     // Get excluded mods from config (comma-separated).
     $excludedmodsraw = get_config('local_corolair', 'excludedmods') ?? '';
     $excludedmods = array_filter(array_map('trim', preg_split('/[,\s]+/', $excludedmodsraw)));
-    var_dump($excludedmods);
 
     // If current URL contains /mod/{excluded}/ then skip rendering.
     foreach ($excludedmods as $modname) {
