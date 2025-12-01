@@ -2,7 +2,7 @@
 
 **Version:** 1.8.21
 
-**Last Updated:** 2025/11/27
+**Last Updated:** 2025/12/01
 
 ## Overview
 
