@@ -12,6 +12,13 @@ $functions = [
         'type'        => 'read',
         'ajax'        => true,
     ],
+    'local_corolair_get_roles' => [
+        'classname'   => 'local_corolair\\external\\get_roles',
+        'methodname'  => 'execute',
+        'description' => 'Get Moodle roles (all roles, by id or by shortname)',
+        'type'        => 'read',
+        'ajax'        => true,
+    ],
 ];
 
 /**
@@ -36,6 +43,8 @@ $services = [
             'mod_lesson_get_page_data',
             'local_corolair_get_section_availability',
             'mod_scorm_get_scorms_by_courses',
+            'local_corolair_get_roles',
+            'core_role_assign_roles',
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
