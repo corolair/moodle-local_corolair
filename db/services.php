@@ -45,6 +45,8 @@ $services = [
             'mod_scorm_get_scorms_by_courses',
             'local_corolair_get_roles',
             'core_role_assign_roles',
+            'core_completion_get_activities_completion_status',
+            'core_completion_get_course_completion_status'
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
