@@ -101,7 +101,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
         $userlastname = $USER->lastname;
         $roles = get_user_roles($context, $USER->id, true);
         $role = key($roles);
-        $rolename = $roles[$role]->shortname;
+        $rolename = isset($role) ? $roles[$role]->shortname : '';
 
         // Prepare the data to send in the POST request.
         $moodleoptions = json_encode([
