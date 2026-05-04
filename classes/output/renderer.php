@@ -44,13 +44,15 @@ class renderer extends plugin_renderer_base {
      * @param string $sidepanel Whether to embed as a side panel.
      * @param bool $animate Whether to animate the embed script.
      * @param string $moodleoptions The Moodle options.
+     * @param string $supertutor Whether to mark this embed as a super tutor embed.
      * @return string The rendered template.
      */
-    public function render_embed_script($sidepanel, $animate, $moodleoptions) {
+    public function render_embed_script($sidepanel, $animate, $moodleoptions, $supertutor = '') {
         $data = [
             'sidepanel' => htmlspecialchars($sidepanel, ENT_QUOTES, 'UTF-8'),
             'animate' => $animate,
             'moodleoptions' => $moodleoptions,
+            'superTutor' => $supertutor,
         ];
         return $this->render_from_template('local_corolair/embed_script', $data);
     }

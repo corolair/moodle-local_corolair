@@ -22,6 +22,102 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+
+/**
+ * Builds the Raison embed script for the current page.
+ *
+ * @param int $courseid The course id to send to Raison.
+ * @param context $context The context used to resolve the current user's role.
+ * @param string $animate Whether the widget should animate on load.
+ * @param string $supertutor Whether to mark this embed as a super tutor embed.
+ * @return string The rendered embed script, or an empty string when disabled.
+ */
+function local_corolair_render_embed_script($courseid, $context, $animate, $supertutor = '') {
+    global $PAGE, $USER, $CFG;
+
+    $apikey = get_config('local_corolair', 'apikey');
+    if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {
+        return '';
+    }
+
+    if (!isloggedin() || isguestuser()) {
+        return '';
+    }
+
+    $pageurlstr = $PAGE->url->out();
+    $roles = get_user_roles($context, $USER->id, true);
+    $role = reset($roles);
+    $rolename = (!empty($role) && !empty($role->shortname)) ? $role->shortname : '';
+
+    $moodleoptions = [
+        'courseId' => $courseid,
+        'url' => $CFG->wwwroot,
+        'moodleId' => $USER->id,
+        'email' => $USER->email,
+        'firstName' => $USER->firstname,
+        'lastName' => $USER->lastname,
+        'role' => $rolename,
+        'apiKey' => $apikey,
+        'currentMoodlePageUrl' => $pageurlstr,
+        'provider' => 'moodle',
+    ];
+    $moodleoptions = json_encode($moodleoptions);
+
+    $sidepanel = get_config('local_corolair', 'sidepanel');
+    $sidepanel = ($sidepanel === 'true') ? 'true' : 'false';
+
+    $output = $PAGE->get_renderer('local_corolair');
+    return $output->render_embed_script($sidepanel, $animate, $moodleoptions, $supertutor);
+}
+
+/**
+ * Adds the Raison embed script to non-course pages.
+ *
+ * @return string The rendered embed script, or an empty string when disabled.
+ */
+function local_corolair_before_footer() {
+    global $PAGE, $SITE;
+
+    $pageurlstr = $PAGE->url->out();
+    $courseviewid = $PAGE->url->get_param('id');
+    $iscourseviewurl = strpos($pageurlstr, '/course/view.php') !== false;
+    $ismoduleurl = strpos($pageurlstr, '/mod/') !== false;
+
+    if (!empty($PAGE->course) && (int)$PAGE->course->id !== (int)$SITE->id) {
+        return '';
+    }
+
+    if (!empty($PAGE->context)) {
+        $contextlevel = $PAGE->context->contextlevel;
+        if ($contextlevel === CONTEXT_MODULE) {
+            return '';
+        }
+        if ($contextlevel === CONTEXT_COURSE && (int)$PAGE->context->instanceid !== (int)$SITE->id) {
+            return '';
+        }
+    }
+
+    if ($iscourseviewurl && ((int)$courseviewid !== (int)$SITE->id)) {
+        return '';
+    }
+
+    if ($ismoduleurl) {
+        return '';
+    }
+
+    if (strpos($pageurlstr, '/local/corolair/') !== false) {
+        return '';
+    }
+
+    $context = empty($PAGE->context) ? context_system::instance() : $PAGE->context;
+    $courseid = '';
+    if (!empty($PAGE->course) && !empty($PAGE->course->id) && (int)$PAGE->course->id !== (int)$SITE->id) {
+        $courseid = $PAGE->course->id;
+    }
+
+    return local_corolair_render_embed_script($courseid, $context, 'false', 'true');
+}
+
 /**
  * Extends the course navigation with a custom node for Raison.
  *
@@ -30,7 +126,7 @@
  * @param context $context The context of the course.
  */
 function local_corolair_extend_navigation_course($navigation, $course, $context) {
-    global $PAGE, $USER, $CFG;
+    global $PAGE;
     $courseid = $course->id;
 
     // Key to identify the node.
@@ -54,12 +150,6 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
         if ($nodetoremove = $navigation->find($raisonnodekey, navigation_node::TYPE_SETTING)) {
             $nodetoremove->remove();
         }
-    }
-
-    // Get the API key from the configuration.
-    $apikey = get_config('local_corolair', 'apikey');
-    if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {
-        return false;
     }
 
     // Get the current page URL.
@@ -92,37 +182,7 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
     if (($comparepositionpagewithcourseview !== false) || ($comparepositionpagewithmod !== false)) {
         // Decide whether to animate message or not.
         $animate = ($comparepositionpagewithcourseview !== false) ? 'true' : 'false';
-
-        // Collect user details.
-        $userid = $USER->id;
-        $moodlebaseurl = $CFG->wwwroot;
-        $useremail = $USER->email;
-        $userfirstname = $USER->firstname;
-        $userlastname = $USER->lastname;
-        $roles = get_user_roles($context, $USER->id, true);
-        $role = key($roles);
-        $rolename = isset($role) ? $roles[$role]->shortname : '';
-
-        // Prepare the data to send in the POST request.
-        $moodleoptions = json_encode([
-            'courseId' => $courseid,
-            'url' => $moodlebaseurl,
-            'moodleId' => $userid,
-            'email' => $useremail,
-            'firstName' => $userfirstname,
-            'lastName' => $userlastname,
-            'role' => $rolename,
-            'apiKey' => $apikey,
-            'currentMoodlePageUrl' => $pageurlstr,
-            'provider' => 'moodle',
-        ]);
-
-        // Get the sidepanel setting value.
-        $sidepanel = get_config('local_corolair', 'sidepanel');
-        $sidepanel = ($sidepanel === 'true') ? 'true' : 'false'; // Ensure it's either 'true' or 'false'.
-
-        $output = $PAGE->get_renderer('local_corolair');
-        echo $output->render_embed_script($sidepanel, $animate, $moodleoptions);
+        echo local_corolair_render_embed_script($courseid, $context, $animate);
     }
 }
 
@@ -134,7 +194,6 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
  * @param context_course $context The context of the course.
  */
 function local_corolair_extend_navigation_frontpage(navigation_node $parentnode, stdClass $course, context_course $context) {
-    global $CFG;
     // Key to identify the node.
     $raisonnodekey = get_string('frontpagenodetitle', 'local_corolair');
 
