@@ -130,7 +130,7 @@ if (empty($apikey) ||
         echo $OUTPUT->footer();
         return;
     } else {
-        echo 'API Key is set, try to reload the page';
+        echo get_string('apikeyset', 'local_corolair');
         return;
     }
 }
@@ -214,28 +214,6 @@ echo html_writer::div(
     ['style' => 'margin-top:20px; text-align:center;']
 );
 $continueurl = $raisonsourcecourse ? $CFG->wwwroot . '/course/view.php?id=' . $raisonsourcecourse : $CFG->wwwroot;
-// JS: try auto-open + handle manual click.
-echo html_writer::tag('script', "
-    // Try to auto-open Raison in a new tab
-    var win = window.open('$targeturlout', '_blank');
-    if (win && !win.closed && typeof win.closed != 'undefined') {
-        // Auto-open worked: hide fallback
-        var fb = document.getElementById('raison-fallback');
-        if (fb) fb.style.display = 'none';
-        // Redirect Moodle tab home
-        window.location.href = '" . $continueurl . "';
-    }
-
-    // If user clicks Continue manually
-    var continueBtn = document.getElementById('raison-continue');
-    if (continueBtn) {
-        continueBtn.addEventListener('click', function(e) {
-            // Redirect Moodle tab home after opening new tab
-            setTimeout(function() {
-                window.location.href = '" . $continueurl . "';
-            }, 500);
-        });
-    }
-");
+$PAGE->requires->js_call_amd('local_corolair/trainer_redirect', 'init', [$targeturlout, $continueurl]);
 
 echo $OUTPUT->footer();
