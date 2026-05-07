@@ -73,14 +73,15 @@ if ($existingservice) {
 
 // Retrieve plugin configuration settings.
 $apikey = get_config('local_corolair', 'apikey');
-if (empty($apikey) ||
+if (
+    empty($apikey) ||
     strpos($apikey, 'No Corolair Api Key') === 0 ||
     strpos($apikey, 'Aucune Clé API Corolair') === 0 ||
     strpos($apikey, 'No hay clave API de Corolair') === 0 ||
     strpos($apikey, 'No Raison Api Key') === 0 ||
     strpos($apikey, 'Aucune Clé API Raison') === 0 ||
     strpos($apikey, 'No hay clave API de Raison') === 0
-    ) {
+) {
     if ($existingservice) {
         $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
         if ($token) {
@@ -161,7 +162,7 @@ $options = [
 ];
 $authurl = "https://services.corolair.dev/moodle-integration/auth/v2";
 
-$response = $curl->post($authurl, $postdata , $options);
+$response = $curl->post($authurl, $postdata, $options);
 $errno = $curl->get_errno();
 // Handle the response.
 if ($response === false || $errno !== 0) {

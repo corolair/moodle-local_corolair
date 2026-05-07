@@ -35,7 +35,6 @@ use plugin_renderer_base;
  * This class is responsible for rendering templates for the local_corolair plugin.
  */
 class renderer extends plugin_renderer_base {
-
     /**
      * Renders the embed script template.
      *
@@ -121,6 +120,6 @@ class renderer extends plugin_renderer_base {
      * @return string The rendered HTML content.
      */
     public function render_demo() {
-        return $this->render_from_template('local_corolair/demo' , []);
+        return $this->render_from_template('local_corolair/demo', []);
     }
 }

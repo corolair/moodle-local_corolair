@@ -18,6 +18,20 @@
     @template local_corolair/installation_troubleshoot
 
     render the installation troubleshoot page.
+
+    Example context (json):
+    {
+        "siteUrl": "https://moodle.example.com",
+        "siteName": "Example Moodle",
+        "isWebServiceEnabled": "true",
+        "isRestProtocolEnabled": "true",
+        "isCorolairServiceExist": "true",
+        "isTokenExist": "true",
+        "userEmail": "admin@example.com",
+        "userFirstname": "Admin",
+        "userLastname": "User",
+        "tokenValue": "exampletoken123"
+    }
 }}
 
 <iframe id='corolair-iframe'

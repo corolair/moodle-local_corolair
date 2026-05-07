@@ -62,15 +62,12 @@ use core_external\external_value;
  * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
 class get_section_availability extends external_api {
-
     /**
      * Describes the parameters for the web service function.
      *
      * @return external_function_parameters
      */
-
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'sectionid'   => new external_value(PARAM_INT, 'Course section id', VALUE_DEFAULT, 0),
@@ -101,7 +98,6 @@ class get_section_availability extends external_api {
      * @throws \invalid_parameter_exception If required parameters are missing or invalid.
      * @throws \required_capability_exception If the user lacks required capabilities.
      */
-
     public static function execute($sectionid, $courseid, $sectionnum) {
         global $DB;
 
@@ -122,7 +118,7 @@ class get_section_availability extends external_api {
             $courseid = (int)$params['courseid'];
             $section  = $DB->get_record('course_sections', [
                 'course'  => $courseid,
-                'section' => (int)$params['sectionnum']
+                'section' => (int)$params['sectionnum'],
             ], '*', MUST_EXIST);
         }
 
@@ -156,13 +152,17 @@ class get_section_availability extends external_api {
      *
      * @return external_single_structure Response definition for the web service.
      */
-
     public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'sectionid'        => new external_value(PARAM_INT, 'Section id'),
             'courseid'         => new external_value(PARAM_INT, 'Course id'),
             'sectionnum'       => new external_value(PARAM_INT, 'Section number (topic index)'),
-            'availability_raw' => new external_value(PARAM_RAW, 'Raw availability JSON (null if not permitted)', VALUE_DEFAULT, null),
+            'availability_raw' => new external_value(
+                PARAM_RAW,
+                'Raw availability JSON (null if not permitted)',
+                VALUE_DEFAULT,
+                null
+            ),
         ]);
     }
 }

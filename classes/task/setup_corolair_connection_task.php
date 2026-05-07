@@ -35,7 +35,6 @@ namespace local_corolair\task;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class setup_corolair_connection_task extends \core\task\adhoc_task {
-
     /**
      * Do the job.
      * Throw exceptions on errors (the job will be retried).
@@ -50,13 +49,15 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         $adminlastname = $data->adminlastname;
         $sitename = $data->sitename;
         $apikey = get_config('local_corolair', 'apikey');
-        if (!empty($apikey) &&
+        if (
+            !empty($apikey) &&
             strpos($apikey, 'No Corolair Api Key') !== 0 &&
             strpos($apikey, 'Aucune Clé API Corolair') !== 0 &&
             strpos($apikey, 'No hay clave API de Corolair') !== 0 &&
             strpos($apikey, 'No Raison Api Key') !== 0 &&
             strpos($apikey, 'Aucune Clé API Raison') !== 0 &&
-            strpos($apikey, 'No hay clave API de Raison') !== 0) {
+            strpos($apikey, 'No hay clave API de Raison') !== 0
+        ) {
             return;
         }
         $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);

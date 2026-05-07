@@ -24,9 +24,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-/**
- * External functions exposed by local_corolair.
- */
+// External functions exposed by local_corolair.
 $functions = [
     'local_corolair_get_section_availability' => [
         'classname'   => 'local_corolair\\external\\get_section_availability',
@@ -44,9 +42,7 @@ $functions = [
     ],
 ];
 
-/**
- * Services definitions For Raison Integration with Moodle.
- */
+// Service definitions for Raison integration with Moodle.
 $services = [
     'Corolair REST Service' => [
         'functions' => [
@@ -69,7 +65,7 @@ $services = [
             'local_corolair_get_roles',
             'core_role_assign_roles',
             'core_completion_get_activities_completion_status',
-            'core_completion_get_course_completion_status'
+            'core_completion_get_course_completion_status',
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
