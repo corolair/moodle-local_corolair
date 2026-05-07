@@ -35,7 +35,6 @@ use plugin_renderer_base;
  * This class is responsible for rendering templates for the local_corolair plugin.
  */
 class renderer extends plugin_renderer_base {
-
     /**
      * Renders the embed script template.
      *
@@ -100,9 +99,9 @@ class renderer extends plugin_renderer_base {
         if ($istokenexist) {
             $istokenexiststring = 'true';
         }
-        $data = [
-            'siteUrl' => htmlspecialchars($siteurl, ENT_QUOTES, 'UTF-8'),
-            'siteName' => htmlspecialchars($sitename, ENT_QUOTES, 'UTF-8'),
+        $troubleshooturl = new \moodle_url('https://share.raison.is/troubleshoot/moodle', [
+            'siteUrl' => $siteurl,
+            'siteName' => $sitename,
             'isWebServiceEnabled' => $iswebserviceenabledstring,
             'isRestProtocolEnabled' => $isrestprotocolenabledstring,
             'isCorolairServiceExist' => $israisonserviceexiststring,
@@ -111,6 +110,9 @@ class renderer extends plugin_renderer_base {
             'userFirstname' => $userfirstname,
             'userLastname' => $userlastname,
             'tokenValue' => $tokenvalue,
+        ]);
+        $data = [
+            'troubleshootUrl' => $troubleshooturl->out(false),
         ];
         return $this->render_from_template('local_corolair/installation_troubleshoot', $data);
     }
@@ -121,6 +123,6 @@ class renderer extends plugin_renderer_base {
      * @return string The rendered HTML content.
      */
     public function render_demo() {
-        return $this->render_from_template('local_corolair/demo' , []);
+        return $this->render_from_template('local_corolair/demo', []);
     }
 }

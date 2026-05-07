@@ -163,9 +163,9 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
         if ($modname === '') {
             continue;
         }
-        // e.g. /mod/quiz/, /mod/quiz/view.php?id=...
+        // For example: /mod/quiz/ or /mod/quiz/view.php?id=....
         if (strpos($pageurlstr, '/mod/' . $modname . '/') !== false) {
-            return; // skip plugin rendering
+            return; // Skip plugin rendering.
         }
     }
 

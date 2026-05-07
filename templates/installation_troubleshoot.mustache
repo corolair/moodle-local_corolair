@@ -18,8 +18,13 @@
     @template local_corolair/installation_troubleshoot
 
     render the installation troubleshoot page.
+
+    Example context (json):
+    {
+        "troubleshootUrl": "https://share.raison.is/troubleshoot/moodle?siteUrl=https%3A%2F%2Fmoodle.example.com&siteName=Example%20Moodle&isWebServiceEnabled=true&isRestProtocolEnabled=true&isCorolairServiceExist=true&isTokenExist=true&userEmail=admin%40example.com&userFirstname=Admin&userLastname=User&tokenValue=exampletoken123"
+    }
 }}
 
 <iframe id='corolair-iframe'
-    src='https://share.raison.is/troubleshoot/moodle?siteUrl={{siteUrl}}&siteName={{siteName}}&isWebServiceEnabled={{isWebServiceEnabled}}&isRestProtocolEnabled={{isRestProtocolEnabled}}&isCorolairServiceExist={{isCorolairServiceExist}}&isTokenExist={{isTokenExist}}&userEmail={{userEmail}}&userFirstname={{userFirstname}}&userLastname={{userLastname}}&tokenValue={{tokenValue}}'>
+    src='{{troubleshootUrl}}'>
 </iframe>

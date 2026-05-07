@@ -55,14 +55,12 @@ use core_external\external_value;
  *
  * Supports fetching by id, by shortname, or returning all roles, mirroring
  * Moodle's default role table schema.
- * 
+ *
  * @package    local_corolair
  * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
 class get_roles extends external_api {
-
     /**
      * Describe parameters for execute().
      *
@@ -110,7 +108,6 @@ class get_roles extends external_api {
         self::validate_context($context);
 
         // Adjust capability if you want to restrict this.
-        // require_capability('moodle/role:manage', $context);
 
         $fields = 'id, name, shortname, description, sortorder, archetype';
         $roles = [];
@@ -119,12 +116,10 @@ class get_roles extends external_api {
             // Get role by id.
             $role = $DB->get_record('role', ['id' => $params['id']], $fields, MUST_EXIST);
             $roles[] = $role;
-
         } else if (!is_null($params['shortname'])) {
             // Get role by shortname.
             $role = $DB->get_record('role', ['shortname' => $params['shortname']], $fields, MUST_EXIST);
             $roles[] = $role;
-
         } else {
             // No filter -> return all roles.
             $roles = $DB->get_records('role', null, 'sortorder ASC', $fields);

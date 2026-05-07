@@ -81,15 +81,13 @@ function xmldb_local_corolair_uninstall() {
         ];
         $response = $curl->post($url, $postdata, $options);
         return true;
-
     } catch (moodle_exception $me) {
-        debugging($me->getMessage() , DEBUG_DEVELOPER);
+        debugging($me->getMessage(), DEBUG_DEVELOPER);
         \core\notification::add(
             get_string('unexpectederror', 'local_corolair'),
             \core\output\notification::NOTIFY_ERROR
         );
         return false;
-
     } catch (Exception $e) {
         debugging($e->getMessage(), DEBUG_DEVELOPER);
         \core\notification::add(
