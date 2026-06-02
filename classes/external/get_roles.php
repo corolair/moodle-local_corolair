@@ -106,8 +106,7 @@ class get_roles extends external_api {
 
         $context = context_system::instance();
         self::validate_context($context);
-
-        // Adjust capability if you want to restrict this.
+        require_capability('local/corolair:viewroles', $context);
 
         $fields = 'id, name, shortname, description, sortorder, archetype';
         $roles = [];

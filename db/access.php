@@ -38,4 +38,15 @@ $capabilities = [
         'contextlevel' => CONTEXT_SYSTEM,
         'description' => get_string('createtutorcapability', 'local_corolair'),
     ],
+    // Capability to read Moodle roles for Corolair integrations.
+    // This capability allows users to retrieve role metadata via the Corolair web service.
+    // @captype      read
+    // @contextlevel CONTEXT_SYSTEM
+    // @description  Allows users to retrieve role metadata via the Corolair web service.
+    'local/corolair:viewroles' => [
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'clonepermissionsfrom' => 'local/corolair:createtutor',
+        'description' => get_string('viewrolescapability', 'local_corolair'),
+    ],
 ];
