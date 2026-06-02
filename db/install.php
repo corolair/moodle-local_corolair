@@ -102,13 +102,15 @@ function xmldb_local_corolair_install() {
                 'contextlevel' => $contextlevel,
             ]);
         }
-        $DB->insert_record('role_capabilities', (object)[
-            'roleid' => $roleid,
-            'contextid' => context_system::instance()->id,
-            'capability' => 'local/corolair:createtutor',
-            'permission' => CAP_ALLOW,
-            'timemodified' => time(),
-        ]);
+        foreach (['local/corolair:createtutor', 'local/corolair:viewroles'] as $capability) {
+            $DB->insert_record('role_capabilities', (object)[
+                'roleid' => $roleid,
+                'contextid' => context_system::instance()->id,
+                'capability' => $capability,
+                'permission' => CAP_ALLOW,
+                'timemodified' => time(),
+            ]);
+        }
         $adminid = $USER->id;
         role_assign($roleid, $adminid, context_system::instance()->id);
         $adminemail = $USER->email;
