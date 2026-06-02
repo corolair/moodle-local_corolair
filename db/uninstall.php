@@ -30,7 +30,7 @@
  * 1. Removes the custom role 'Raison Manager'.
  * 2. Removes the external service and associated tokens and functions.
  * 3. Retrieves the 'apikey' value before deleting all Raison-specific config settings.
- * 4. Removes all Raison-specific config settings from config_plugins.
+ * 4. Removes all Raison-specific config settings using Moodle's configuration API.
  * 5. Sends a deregistration request to the external API.
  *
  * @return bool True on success.
@@ -57,15 +57,14 @@ function xmldb_local_corolair_uninstall() {
             $DB->delete_records('external_services_functions', ['externalserviceid' => $service->id]);
             $DB->delete_records('external_services', ['id' => $service->id]);
         }
-        // Step 3: Retrieve the 'apikey' value before deleting all Raison-specific config settings.
-        $apikeyrecord = $DB->get_record('config_plugins', ['plugin' => 'local_corolair', 'name' => 'apikey'], 'value');
-        // Step 4: Remove all Raison-specific config settings from config_plugins.
-        $DB->delete_records('config_plugins', ['plugin' => 'local_corolair']);
-        // Step 5: Send deregistration request to external API.
-        $apikey = '';
-        if ($apikeyrecord) {
-            $apikey = $apikeyrecord->value;
+        // Step 3: Retrieve the API key before removing all plugin settings.
+        $apikey = (string) (get_config('local_corolair', 'apikey') ?? '');
+        // Step 4: Remove all Raison-specific config settings via the configuration API.
+        $pluginconfig = (array) get_config('local_corolair');
+        foreach (array_keys($pluginconfig) as $configname) {
+            unset_config($configname, 'local_corolair');
         }
+        // Step 5: Send deregistration request to external API.
         $moodlebaseurl = $CFG->wwwroot;
         $postdata = json_encode([
             'url' => $moodlebaseurl,

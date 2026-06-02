@@ -37,31 +37,30 @@ use curl;
 
 defined('MOODLE_INTERNAL') || die();
 
+// phpcs:disable PSR1.Classes.ClassDeclaration.MultipleClasses, Generic.Classes.DuplicateClassName.Found
 if (interface_exists('\core_privacy\local\request\core_userlist_provider')) {
-     /**
-      * Interface for extending core_userlist_provider.
-      *
-      * This interface is used when \core_privacy\local\request\core_userlist_provider exists,
-      * ensuring compatibility with the Moodle privacy API.
-      *
-      * @package   local_corolair
-      * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-      */
+    /**
+     * Interface for extending core_userlist_provider.
+     *
+     * This interface is used when \core_privacy\local\request\core_userlist_provider exists,
+     * ensuring compatibility with the Moodle privacy API.
+     *
+     * @package   local_corolair
+     * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+     */
     interface local_corolair_userlist_provider extends \core_privacy\local\request\core_userlist_provider {
-
     }
 } else {
-     /**
-      * Fallback interface when core_userlist_provider is not available.
-      *
-      * This interface ensures the codebase can operate without relying
-      * on the \core_privacy\local\request\core_userlist_provider interface.
-      *
-      * @package   local_corolair
-      * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-      */
+    /**
+     * Fallback interface when core_userlist_provider is not available.
+     *
+     * This interface ensures the codebase can operate without relying
+     * on the \core_privacy\local\request\core_userlist_provider interface.
+     *
+     * @package   local_corolair
+     * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+     */
     interface local_corolair_userlist_provider {
-
     }
 }
 
@@ -74,10 +73,11 @@ if (interface_exists('\core_privacy\local\request\core_userlist_provider')) {
  * @copyright  2025 Raison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class provider implements \core_privacy\local\metadata\provider,
+class provider implements
+    \core_privacy\local\metadata\provider,
     \core_privacy\local\request\plugin\provider,
     local_corolair_userlist_provider {
-
+    // phpcs:enable PSR1.Classes.ClassDeclaration.MultipleClasses, Generic.Classes.DuplicateClassName.Found
     /**
      * Returns metadata about the external location link for Raison.
      *
