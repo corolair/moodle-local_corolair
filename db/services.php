@@ -66,6 +66,7 @@ $services = [
             'core_role_assign_roles',
             'core_completion_get_activities_completion_status',
             'core_completion_get_course_completion_status',
+            'mod_lti_get_ltis_by_courses',
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
