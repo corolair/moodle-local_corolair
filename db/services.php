@@ -40,6 +40,20 @@ $functions = [
         'type'        => 'read',
         'ajax'        => true,
     ],
+    'local_corolair_create_exam_placement' => [
+        'classname'    => 'local_corolair\\external\\create_exam_placement',
+        'methodname'   => 'execute',
+        'description'  => 'Create an LTI exam activity in a course section.',
+        'type'         => 'write',
+        'capabilities' => 'moodle/course:manageactivities,mod/lti:addinstance',
+    ],
+    'local_corolair_manage_exam_placement' => [
+        'classname'    => 'local_corolair\\external\\manage_exam_placement',
+        'methodname'   => 'execute',
+        'description'  => 'Manage an existing LTI exam activity.',
+        'type'         => 'write',
+        'capabilities' => 'moodle/course:manageactivities',
+    ],
 ];
 
 // Service definitions for Raison integration with Moodle.
@@ -67,6 +81,8 @@ $services = [
             'core_completion_get_activities_completion_status',
             'core_completion_get_course_completion_status',
             'mod_lti_get_ltis_by_courses',
+            'local_corolair_create_exam_placement',
+            'local_corolair_manage_exam_placement',
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
