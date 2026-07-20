@@ -111,7 +111,7 @@ class manage_exam_placement extends external_api {
         $moduleinfo->instance = (int)$lti->id;
         $moduleinfo->name = $name;
 
-        // update_moduleinfo() uses these computed fields when it builds the
+        // Update_moduleinfo() uses these computed fields when it builds the
         // course_module_updated event. Raw course_modules records omit them.
         $coursemodule->modname = 'lti';
         $coursemodule->name = (string)$lti->name;

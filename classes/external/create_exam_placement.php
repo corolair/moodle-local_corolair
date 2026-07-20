@@ -125,7 +125,7 @@ class create_exam_placement extends external_api {
         $moduleinfo->modulename = 'lti';
         $moduleinfo->module = (int)$module->id;
         $moduleinfo->course = (int)$course->id;
-        // add_moduleinfo() expects the section number, not course_sections.id.
+        // Add_moduleinfo() expects the section number, not course_sections.id.
         $moduleinfo->section = (int)$section->section;
         $moduleinfo->name = $name;
         $moduleinfo->typeid = (int)$params['typeid'];
