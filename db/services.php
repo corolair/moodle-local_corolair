@@ -83,6 +83,8 @@ $services = [
             'mod_lti_get_ltis_by_courses',
             'local_corolair_create_exam_placement',
             'local_corolair_manage_exam_placement',
+            'core_course_delete_modules',
+            'core_course_get_courses_by_field',
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
