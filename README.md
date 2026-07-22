@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.8.23
+**Version:** 1.8.28
 
-**Last Updated:** 2025/12/18
+**Last Updated:** 2026/07/22
 
 ## Overview
 
@@ -24,6 +24,8 @@ The Raison Moodle Plugin enables seamless integration of **AI Tutors** into Mood
 ---
 
 ## Installation
+
+This plugin requires Moodle 4.4 or later.
 
 1. Install the latest version of the plugin from Moodle Plugins directory
 2. Upon installation, a Raison account with a trial plan will be automatically created for the administrator who installed the plugin.

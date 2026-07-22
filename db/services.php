@@ -85,6 +85,7 @@ $services = [
             'local_corolair_manage_exam_placement',
             'core_course_delete_modules',
             'core_course_get_courses_by_field',
+            'mod_lti_toggle_showinactivitychooser',
         ],
         'restrictedusers' => 0,
         'enabled' => 1,
