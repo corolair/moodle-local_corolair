@@ -69,6 +69,8 @@ function xmldb_local_corolair_upgrade($oldversion) {
             $curl = new curl();
             $options = [
                 "CURLOPT_RETURNTRANSFER" => true,
+                "CURLOPT_CONNECTTIMEOUT" => 15,
+                "CURLOPT_TIMEOUT" => 60,
                 'CURLOPT_HTTPHEADER' => [
                     'Content-Type: application/json',
                     'Content-Length: ' . strlen($postdata),
@@ -76,8 +78,10 @@ function xmldb_local_corolair_upgrade($oldversion) {
             ];
             $response = $curl->post($url, $postdata, $options);
             $errno = $curl->get_errno();
-            if ($response === false || $errno !== 0) {
-                debugging(curl_error($ch), DEBUG_DEVELOPER);
+            $info = $curl->get_info();
+            $httpstatus = (int)($info['http_code'] ?? 0);
+            if ($response === false || $errno !== 0 || $httpstatus < 200 || $httpstatus >= 300) {
+                debugging('Corolair update request failed with curl error ' . $errno . '.', DEBUG_DEVELOPER);
                 \core\notification::add(
                     get_string('curlerror', 'local_corolair'),
                     \core\output\notification::NOTIFY_ERROR
@@ -86,6 +90,16 @@ function xmldb_local_corolair_upgrade($oldversion) {
                     get_string('calendlydemo', 'local_corolair'),
                     \core\output\notification::NOTIFY_ERROR
                 );
+                return false;
+            }
+            try {
+                $responsedata = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException $exception) {
+                debugging('Invalid JSON received from the Corolair update endpoint.', DEBUG_DEVELOPER);
+                return false;
+            }
+            if (!is_array($responsedata) || ($responsedata['status'] ?? null) !== 'updated') {
+                debugging('Unexpected response received from the Corolair update endpoint.', DEBUG_DEVELOPER);
                 return false;
             }
         }

@@ -36,12 +36,20 @@ $PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
 $PAGE->set_context(context_system::instance());
 $PAGE->set_title(get_string('trainerpage', 'local_corolair'));
 
-// Output header.
-echo $OUTPUT->header();
 // Check user capability.
-if (!has_capability('local/corolair:createtutor', context_system::instance(), $USER->id)) {
-    throw new moodle_exception('missingcapability', 'local_corolair');
+require_capability('local/corolair:createtutor', context_system::instance());
+
+// Manual registration recovery is a POST-only, sesskey-protected action.
+$retryregistration = optional_param('retryregistration', 0, PARAM_BOOL);
+if ($retryregistration) {
+    if (!data_submitted()) {
+        throw new moodle_exception('invalidrequest', 'error');
+    }
+    require_sesskey();
 }
+
+// Output header only after authentication and authorization have succeeded.
+echo $OUTPUT->header();
 
 $sitename = $SITE->fullname;
 $moodlerooturl = $CFG->wwwroot;
@@ -61,6 +69,7 @@ if ($webserviceprotocols && strpos($webserviceprotocols->value, 'rest') !== fals
 $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
 $israisonserviceexist = false;
 $istokenexist = false;
+$isretrysuccess = false;
 $tokenvalue = '';
 if ($existingservice) {
     $israisonserviceexist = true;
@@ -82,7 +91,7 @@ if (
     strpos($apikey, 'Aucune Clé API Raison') === 0 ||
     strpos($apikey, 'No hay clave API de Raison') === 0
 ) {
-    if ($existingservice) {
+    if ($retryregistration && $existingservice) {
         $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
         if ($token) {
             // Attempt to register the moodle instance again.
@@ -98,6 +107,8 @@ if (
             ]);
             $options = [
                 "CURLOPT_RETURNTRANSFER" => true,
+                "CURLOPT_CONNECTTIMEOUT" => 15,
+                "CURLOPT_TIMEOUT" => 60,
                 'CURLOPT_HTTPHEADER' => [
                     'Content-Type: application/json',
                     'Content-Length: ' . strlen($postdata),
@@ -105,16 +116,37 @@ if (
             ];
             $response = $curl->post($url, $postdata, $options);
             $errno = $curl->get_errno();
-            if ($response !== false && $errno === 0) {
-                $jsonresponse = json_decode($response, true);
-                if (isset($jsonresponse['apiKey'])) {
-                    set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
-                    $isretrysuccess = true;
+            $info = $curl->get_info();
+            $httpstatus = (int)($info['http_code'] ?? 0);
+            if ($response !== false && $errno === 0 && $httpstatus >= 200 && $httpstatus < 300) {
+                try {
+                    $jsonresponse = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+                    if (
+                        is_array($jsonresponse) &&
+                        isset($jsonresponse['apiKey']) &&
+                        is_string($jsonresponse['apiKey']) &&
+                        $jsonresponse['apiKey'] !== ''
+                    ) {
+                        set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
+                        $isretrysuccess = true;
+                    }
+                } catch (JsonException $exception) {
+                    debugging('Invalid JSON received while registering Corolair.', DEBUG_DEVELOPER);
                 }
             }
         }
     }
     if (!$isretrysuccess) {
+        if ($istokenexist) {
+            $retryurl = new moodle_url('/local/corolair/trainer.php', [
+                'retryregistration' => 1,
+            ]);
+            echo $OUTPUT->single_button(
+                $retryurl,
+                get_string('retryregistration', 'local_corolair'),
+                'post'
+            );
+        }
         $output = $PAGE->get_renderer('local_corolair');
         echo $output->render_installation_troubleshoot(
             $moodlerooturl,
@@ -155,6 +187,8 @@ $postdata = json_encode([
 $curl = new curl();
 $options = [
     "CURLOPT_RETURNTRANSFER" => true,
+    "CURLOPT_CONNECTTIMEOUT" => 15,
+    "CURLOPT_TIMEOUT" => 60,
     'CURLOPT_HTTPHEADER' => [
         'Content-Type: application/json',
         'Content-Length: ' . strlen($postdata),
@@ -164,8 +198,10 @@ $authurl = "https://services.corolair.dev/moodle-integration/auth/v2";
 
 $response = $curl->post($authurl, $postdata, $options);
 $errno = $curl->get_errno();
+$info = $curl->get_info();
+$httpstatus = (int)($info['http_code'] ?? 0);
 // Handle the response.
-if ($response === false || $errno !== 0) {
+if ($response === false || $errno !== 0 || $httpstatus < 200 || $httpstatus >= 300) {
     $output = $PAGE->get_renderer('local_corolair');
     echo $output->render_installation_troubleshoot(
         $moodlerooturl,
@@ -182,10 +218,22 @@ if ($response === false || $errno !== 0) {
     echo $OUTPUT->footer();
     return;
 }
-$jsonresponse = json_decode($response, true);
+try {
+    $jsonresponse = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+} catch (JsonException $exception) {
+    debugging('Invalid JSON received while authenticating with Corolair.', DEBUG_DEVELOPER);
+    throw new moodle_exception('errortoken', 'local_corolair');
+}
 // Validate the response.
 
-if (!isset($jsonresponse['url'])) {
+if (
+    !is_array($jsonresponse) ||
+    !isset($jsonresponse['url']) ||
+    !is_string($jsonresponse['url']) ||
+    $jsonresponse['url'] === '' ||
+    !array_key_exists('isDemoDone', $jsonresponse) ||
+    !is_bool($jsonresponse['isDemoDone'])
+) {
     throw new moodle_exception('errortoken', 'local_corolair');
 }
 $isdemodone = $jsonresponse['isDemoDone'];

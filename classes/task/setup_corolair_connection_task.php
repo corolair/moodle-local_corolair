@@ -93,6 +93,8 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         ]);
         $options = [
             "CURLOPT_RETURNTRANSFER" => true,
+            "CURLOPT_CONNECTTIMEOUT" => 15,
+            "CURLOPT_TIMEOUT" => 60,
             'CURLOPT_HTTPHEADER' => [
                 'Content-Type: application/json',
                 'Content-Length: ' . strlen($postdata),
@@ -100,11 +102,23 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         ];
         $response = $curl->post($url, $postdata, $options);
         $errno = $curl->get_errno();
-        if ($response === false || $errno !== 0) {
+        $info = $curl->get_info();
+        $httpstatus = (int)($info['http_code'] ?? 0);
+        if ($response === false || $errno !== 0 || $httpstatus < 200 || $httpstatus >= 300) {
             throw new \moodle_exception('curlerror', 'local_corolair');
         }
-        $jsonresponse = json_decode($response, true);
-        if (!isset($jsonresponse['apiKey'])) {
+        try {
+            $jsonresponse = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            debugging('Invalid JSON received while registering Corolair.', DEBUG_DEVELOPER);
+            throw new \moodle_exception('apikeymissing', 'local_corolair');
+        }
+        if (
+            !is_array($jsonresponse) ||
+            !isset($jsonresponse['apiKey']) ||
+            !is_string($jsonresponse['apiKey']) ||
+            $jsonresponse['apiKey'] === ''
+        ) {
             throw new \moodle_exception('apikeymissing', 'local_corolair');
         }
         set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
