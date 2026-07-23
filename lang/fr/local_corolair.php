@@ -40,6 +40,7 @@ $string['createtutorcapability'] = 'Permet à l\'utilisateur de créer et gérer
 $string['createtutorcapabilitydesc'] = 'L\'utilisateur ne pourra créer des Tuteurs IA qu\'à partir des cours qu\'il peut gérer. Si cette option est à Faux, il pourra créer des Tuteurs IA à partir des ressources des cours où il est simplement inscrit.';
 $string['curlerror'] = 'Une erreur est survenue lors de la communication avec l\'API Raison. Impossible d\'enregistrer votre instance Moodle, veuillez réessayer. Si l\'erreur persiste, veuillez contacter l\'équipe Raison.';
 $string['errortoken'] = 'Erreur lors de la récupération du token';
+$string['eventprivacydeletioncompleted'] = 'Suppression des données privées Raison terminée';
 $string['excludedmods'] = 'Activités exclues';
 $string['excludedmodsdesc'] = 'Utilisez cette liste pour désactiver les assistants dans certains types d\'activités, par exemple afin d\'empêcher les étudiants de les utiliser pendant une évaluation. Listez les noms courts des activités, séparés par des virgules (ex. : "quiz, assign"). Le nom court correspond au dossier visible dans l\'URL de l\'activité après \'/mod/\' (ex : \'/mod/quiz/\' → \'quiz\'). Cela marche aussi avec des plugins d\'activités externes.';
 $string['false'] = 'Chatbot';
@@ -62,6 +63,7 @@ $string['raisonlogindesc'] = 'Le compte Admin Raison est associé à cet email. 
 $string['raisontuto'] = 'Apprenez à utiliser Raison en consultant <a href="https://troubleshoot-moodle.raison.is" target="_blank">ce tutoriel</a>.';
 $string['redirectingmessage'] = 'Si vous n\'êtes pas redirigé automatiquement, veuillez cliquer sur le bouton ci-dessous pour continuer vers Raison.';
 $string['restprotocolenableerror'] = 'Impossible d\'activer le protocole REST.';
+$string['retryregistration'] = 'Réessayer l\'enregistrement Raison';
 $string['roledescription'] = 'Rôle pour la gestion des Tuteurs IA dans Raison';
 $string['rolename'] = 'Manager Raison';
 $string['roleproblem'] = 'Nous avons rencontré un problème lors de la création ou de l\'attribution du nouveau rôle de Manager Raison. Vous pouvez toujours le configurer manuellement en ajoutant la capacité "Raison Local Plugin" à n\'importe quel rôle système. Si vous rencontrez des problèmes, veuillez contacter l\'équipe Raison via contact@raison.is.';

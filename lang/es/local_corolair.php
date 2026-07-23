@@ -40,6 +40,7 @@ $string['createtutorcapability'] = 'Permite a los usuarios crear y gestionar Tut
 $string['createtutorcapabilitydesc'] = 'El usuario no podrá crear Tutores IA en cursos que no pueda gestionar. Si se establece en "Falso", podrá crearlos en cursos donde solo esté inscrito.';
 $string['curlerror'] = 'Se ha producido un error al comunicarse con la API de Raison. No se ha podido registrar su instancia de Moodle, intente nuevamente. Si el problema persiste, póngase en contacto con el equipo de Raison.';
 $string['errortoken'] = 'Error al obtener el token';
+$string['eventprivacydeletioncompleted'] = 'Eliminación de datos privados de Raison completada';
 $string['excludedmods'] = 'Actividades excluidas';
 $string['excludedmodsdesc'] = 'Use esta lista para desactivar los asistentes en tipos específicos de actividades, por ejemplo para evitar que los estudiantes los utilicen durante evaluaciones. Proporcione una lista separada por comas con los nombres cortos de los módulos de actividad (ej.: "quiz, assign"). El nombre corto es la carpeta que aparece en la URL de la actividad después de /mod/ (ej.: /mod/quiz/ → quiz). Esto también funciona con módulos de actividad proporcionados por plugins externos.';
 $string['false'] = 'Chatbot';
@@ -62,6 +63,7 @@ $string['raisonlogindesc'] = 'La cuenta maestra de Raison está asociada a este 
 $string['raisontuto'] = 'Aprenda a utilizar Raison consultando <a href="https://troubleshoot-moodle.raison.is" target="_blank">este tutorial</a>.';
 $string['redirectingmessage'] = 'Si no se redirige automáticamente, haga clic en el botón a continuación para continuar a Raison.';
 $string['restprotocolenableerror'] = 'No se ha podido activar el protocolo REST.';
+$string['retryregistration'] = 'Reintentar el registro de Raison';
 $string['roledescription'] = 'Rol para la gestión de Tutores IA en Raison';
 $string['rolename'] = 'Gestor de Raison';
 $string['roleproblem'] = 'Hemos encontrado un problema al crear o asignar el nuevo rol de Gestor de Raison. Puede configurarlo manualmente permitiendo la capacidad "Plugin Local de Raison" a cualquier rol del sistema. Si tiene alguna dificultad, póngase en contacto con el equipo de Raison a través de contact@raison.is.';

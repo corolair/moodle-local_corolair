@@ -40,6 +40,7 @@ $string['createtutorcapability'] = 'Allows users to create and manage AI Tutors 
 $string['createtutorcapabilitydesc'] = 'The user will not be able to create AI Tutors from courses they cannot manage. If set to False, they can create AI Tutors from courses they are just enrolled in.';
 $string['curlerror'] = 'An error occurred while communicating with the Raison API. Could not register your moodle instance, please try again. If error persists, please contact the Raison team';
 $string['errortoken'] = 'Error getting token';
+$string['eventprivacydeletioncompleted'] = 'Raison privacy deletion completed';
 $string['excludedmods'] = 'Excluded activities';
 $string['excludedmodsdesc'] = 'Use this list to disable assistants in specific activity types, for example to prevent students from using it during assessments. Provide a comma-separated list of activity module short names (e.g. "quiz, assign"). The short name is the folder shown in the activity\'s URL after \'/mod/\' (e.g. \'/mod/quiz/\' → \'quiz\'). This also works for activity modules provided by external plugins.';
 $string['false'] = 'Chatbot';
@@ -62,6 +63,7 @@ $string['raisonlogindesc'] = 'The master Raison account is associated with this 
 $string['raisontuto'] = 'Learn how to use Raison by visiting <a href="https://troubleshoot-moodle.raison.is" target="_blank">this tutorial</a>.';
 $string['redirectingmessage'] = 'If you are not redirected automatically, please click the button below to continue to Raison.';
 $string['restprotocolenableerror']  = 'Could not enable the REST protocol.';
+$string['retryregistration'] = 'Retry Raison registration';
 $string['roledescription'] = 'Role for managing Raison AI Tutors';
 $string['rolename'] = 'Raison Manager';
 $string['roleproblem'] = 'We encountered a problem while creating or assigning the new Raison Manager role. You can still configure it manually by allowing the "Raison Local Plugin" capability to any system role. If you encounter any problems, please contact the Raison Team via contact@raison.is.';
