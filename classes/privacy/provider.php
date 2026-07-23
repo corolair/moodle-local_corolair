@@ -154,8 +154,10 @@ class provider implements
         }
         $identifiers = [];
         foreach ($values as $value) {
-            if ((!is_int($value) && !(is_string($value) && ctype_digit($value))) ||
-                    (int)$value <= 0) {
+            if (
+                (!is_int($value) && !(is_string($value) && ctype_digit($value))) ||
+                (int)$value <= 0
+            ) {
                 throw new \moodle_exception('curlerror', 'local_corolair');
             }
             $identifiers[(int)$value] = (int)$value;
@@ -177,29 +179,37 @@ class provider implements
         ?int $scopeid = null
     ): array {
         $data = self::decode_json_response($response);
-        if (($data['status'] ?? null) !== 'completed' ||
-                !is_string($data['operationId'] ?? null) ||
-                strlen($data['operationId']) < 1 ||
-                strlen($data['operationId']) > 128 ||
-                !is_array($data['scope'] ?? null) ||
-                ($data['scope']['contextLevel'] ?? null) !== $contextlevel ||
-                !is_array($data['affected'] ?? null)) {
+        if (
+            ($data['status'] ?? null) !== 'completed' ||
+            !is_string($data['operationId'] ?? null) ||
+            strlen($data['operationId']) < 1 ||
+            strlen($data['operationId']) > 128 ||
+            !is_array($data['scope'] ?? null) ||
+            ($data['scope']['contextLevel'] ?? null) !== $contextlevel ||
+            !is_array($data['affected'] ?? null)
+        ) {
             throw new \moodle_exception('curlerror', 'local_corolair');
         }
-        if ($contextlevel === 'course' &&
-                (!isset($data['scope']['courseId']) ||
-                (string)$data['scope']['courseId'] !== (string)$scopeid)) {
+        if (
+            $contextlevel === 'course' &&
+            (!isset($data['scope']['courseId']) ||
+            (string)$data['scope']['courseId'] !== (string)$scopeid)
+        ) {
             throw new \moodle_exception('curlerror', 'local_corolair');
         }
-        if ($contextlevel === 'user' &&
-                (!isset($data['scope']['moodleUserId']) ||
-                (int)$data['scope']['moodleUserId'] !== $scopeid)) {
+        if (
+            $contextlevel === 'user' &&
+            (!isset($data['scope']['moodleUserId']) ||
+            (int)$data['scope']['moodleUserId'] !== $scopeid)
+        ) {
             throw new \moodle_exception('curlerror', 'local_corolair');
         }
         foreach (['associations', 'conversations', 'learners', 'users'] as $field) {
-            if (!isset($data['affected'][$field]) ||
-                    !is_int($data['affected'][$field]) ||
-                    $data['affected'][$field] < 0) {
+            if (
+                !isset($data['affected'][$field]) ||
+                !is_int($data['affected'][$field]) ||
+                $data['affected'][$field] < 0
+            ) {
                 throw new \moodle_exception('curlerror', 'local_corolair');
             }
         }
@@ -287,9 +297,11 @@ class provider implements
             throw new \moodle_exception('curlerror', 'local_corolair');
         }
         foreach ($responsedata as $contextdata) {
-            if (!is_array($contextdata) ||
-                    !is_string($contextdata['contextIdentifier'] ?? null) ||
-                    !array_key_exists('payload', $contextdata)) {
+            if (
+                !is_array($contextdata) ||
+                !is_string($contextdata['contextIdentifier'] ?? null) ||
+                !array_key_exists('payload', $contextdata)
+            ) {
                 throw new \moodle_exception('curlerror', 'local_corolair');
             }
             if ($contextdata['contextIdentifier'] === 'CONTEXT_SYSTEM') {
@@ -357,17 +369,21 @@ class provider implements
             $approvedcontexts[$approvedcontext->id] = true;
         }
         foreach ($responsedata as $data) {
-            if (!is_array($data) ||
-                    !is_string($data['contextIdentifier'] ?? null) ||
-                    !is_array($data['payload'] ?? null) ||
-                    !is_array($data['subcontext'] ?? null) ||
-                    count($data['subcontext']) > 20) {
+            if (
+                !is_array($data) ||
+                !is_string($data['contextIdentifier'] ?? null) ||
+                !is_array($data['payload'] ?? null) ||
+                !is_array($data['subcontext'] ?? null) ||
+                count($data['subcontext']) > 20
+            ) {
                 throw new \moodle_exception('curlerror', 'local_corolair');
             }
             foreach ($data['subcontext'] as $subcontextpart) {
-                if (!is_string($subcontextpart) ||
-                        $subcontextpart === '' ||
-                        strlen($subcontextpart) > 255) {
+                if (
+                    !is_string($subcontextpart) ||
+                    $subcontextpart === '' ||
+                    strlen($subcontextpart) > 255
+                ) {
                     throw new \moodle_exception('curlerror', 'local_corolair');
                 }
             }

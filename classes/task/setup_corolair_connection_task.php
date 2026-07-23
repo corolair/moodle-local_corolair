@@ -113,10 +113,12 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
             debugging('Invalid JSON received while registering Corolair.', DEBUG_DEVELOPER);
             throw new \moodle_exception('apikeymissing', 'local_corolair');
         }
-        if (!is_array($jsonresponse) ||
-                !isset($jsonresponse['apiKey']) ||
-                !is_string($jsonresponse['apiKey']) ||
-                $jsonresponse['apiKey'] === '') {
+        if (
+            !is_array($jsonresponse) ||
+            !isset($jsonresponse['apiKey']) ||
+            !is_string($jsonresponse['apiKey']) ||
+            $jsonresponse['apiKey'] === ''
+        ) {
             throw new \moodle_exception('apikeymissing', 'local_corolair');
         }
         set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');

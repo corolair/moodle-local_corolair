@@ -121,10 +121,12 @@ if (
             if ($response !== false && $errno === 0 && $httpstatus >= 200 && $httpstatus < 300) {
                 try {
                     $jsonresponse = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-                    if (is_array($jsonresponse) &&
-                            isset($jsonresponse['apiKey']) &&
-                            is_string($jsonresponse['apiKey']) &&
-                            $jsonresponse['apiKey'] !== '') {
+                    if (
+                        is_array($jsonresponse) &&
+                        isset($jsonresponse['apiKey']) &&
+                        is_string($jsonresponse['apiKey']) &&
+                        $jsonresponse['apiKey'] !== ''
+                    ) {
                         set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
                         $isretrysuccess = true;
                     }
@@ -224,12 +226,14 @@ try {
 }
 // Validate the response.
 
-if (!is_array($jsonresponse) ||
-        !isset($jsonresponse['url']) ||
-        !is_string($jsonresponse['url']) ||
-        $jsonresponse['url'] === '' ||
-        !array_key_exists('isDemoDone', $jsonresponse) ||
-        !is_bool($jsonresponse['isDemoDone'])) {
+if (
+    !is_array($jsonresponse) ||
+    !isset($jsonresponse['url']) ||
+    !is_string($jsonresponse['url']) ||
+    $jsonresponse['url'] === '' ||
+    !array_key_exists('isDemoDone', $jsonresponse) ||
+    !is_bool($jsonresponse['isDemoDone'])
+) {
     throw new moodle_exception('errortoken', 'local_corolair');
 }
 $isdemodone = $jsonresponse['isDemoDone'];
