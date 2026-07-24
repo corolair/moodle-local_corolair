@@ -55,8 +55,8 @@ if ($hassiteconfig) {
             'false' => get_string('capabilityfalse', 'local_corolair'),
         ]
     ));
-    // Add a text input setting for the Raison API key.
-    $settings->add(new admin_setting_configtext(
+    // Add a masked input setting for the Raison API key.
+    $settings->add(new admin_setting_configpasswordunmask(
         'local_corolair/apikey',
         get_string('apikey', 'local_corolair'), // Setting title.
         get_string('apikeydesc', 'local_corolair'), // Setting description.

@@ -29,7 +29,7 @@ defined('MOODLE_INTERNAL') || die();
 
 // Plugin metadata.
 $plugin->component = 'local_corolair';    // Full name of the plugin (used for diagnostics).
-$plugin->version   = 2026072300;          // The current plugin version (Date: YYYYMMDDXX).
+$plugin->version   = 2026072400;          // The current plugin version (Date: YYYYMMDDXX).
 $plugin->requires  = 2023100900;          // Minimum required Moodle version (Moodle 4.4).
 $plugin->maturity  = MATURITY_STABLE;     // Plugin maturity level: MATURITY_ALPHA, MATURITY_BETA, MATURITY_RC, MATURITY_STABLE.
 $plugin->release   = '1.8.29';             // Human-readable version name.
