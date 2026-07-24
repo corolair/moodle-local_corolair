@@ -285,7 +285,7 @@ class provider implements
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
             return $contextlist;
         }
-        $url = 'https://services.corolair.dev/moodle-integration/privacy/users/'
+        $url = 'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
              . $userid . '/contexts';
         $curl = new curl();
         $response = $curl->get($url, [], self::get_curl_options($apikey));
@@ -353,7 +353,7 @@ class provider implements
         }
         $user = $approvedcontextlist->get_user();
         $userid = $user->id;
-        $url = 'https://services.corolair.dev/moodle-integration/privacy/users/'
+        $url = 'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
              . $userid . '/export';
         $curl = new curl();
         $response = $curl->get($url, [], self::get_curl_options($apikey));
@@ -433,7 +433,7 @@ class provider implements
             $urlparams['courseid'] = (int)$context->instanceid;
         }
         $url = new \moodle_url(
-            'https://services.corolair.dev/moodle-integration/privacy/contexts/users',
+            'https://services.corolair.dev/moodle-integration/v2/privacy/contexts/users',
             $urlparams
         );
         $curl = new curl();
@@ -479,7 +479,7 @@ class provider implements
             $urlparams['courseid'] = (int)$context->instanceid;
         }
         $url = new \moodle_url(
-            'https://services.corolair.dev/moodle-integration/privacy/contexts/delete',
+            'https://services.corolair.dev/moodle-integration/v2/privacy/contexts/delete',
             $urlparams
         );
         $curl = new curl();
@@ -514,7 +514,7 @@ class provider implements
         }
         $user = $contextlist->get_user();
         $userid = $user->id;
-        $url = 'https://services.corolair.dev/moodle-integration/privacy/users/'
+        $url = 'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
              . $userid . '/delete';
         $curl = new curl();
         $response = $curl->delete($url, [], self::get_curl_options($apikey));
@@ -543,7 +543,7 @@ class provider implements
         $users = $userlist->get_userids();
         $curl = new curl();
         foreach ($users as $userid) {
-            $url = 'https://services.corolair.dev/moodle-integration/privacy/users/'
+            $url = 'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
                  . $userid . '/delete';
             $response = $curl->delete($url, [], self::get_curl_options($apikey));
             if (!self::request_succeeded($curl, $response)) {
