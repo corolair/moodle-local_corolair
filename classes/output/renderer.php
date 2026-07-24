@@ -68,7 +68,6 @@ class renderer extends plugin_renderer_base {
      * @param string $useremail The email of the user.
      * @param string $userfirstname The first name of the user.
      * @param string $userlastname The last name of the user.
-     * @param string $tokenvalue The token value.
      * @return string The rendered HTML content.
      */
     public function render_installation_troubleshoot(
@@ -80,8 +79,7 @@ class renderer extends plugin_renderer_base {
         $istokenexist,
         $useremail,
         $userfirstname,
-        $userlastname,
-        $tokenvalue
+        $userlastname
     ) {
         $iswebserviceenabledstring = 'false';
         if ($iswebserviceenabled) {
@@ -109,7 +107,6 @@ class renderer extends plugin_renderer_base {
             'userEmail' => $useremail,
             'userFirstname' => $userfirstname,
             'userLastname' => $userlastname,
-            'tokenValue' => $tokenvalue,
         ]);
         $data = [
             'troubleshootUrl' => $troubleshooturl->out(false),

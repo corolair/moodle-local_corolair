@@ -70,13 +70,11 @@ $existingservice = $DB->get_record('external_services', ['shortname' => 'corolai
 $israisonserviceexist = false;
 $istokenexist = false;
 $isretrysuccess = false;
-$tokenvalue = '';
 if ($existingservice) {
     $israisonserviceexist = true;
     $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
     if ($token) {
         $istokenexist = true;
-        $tokenvalue = $token->token;
     }
 }
 
@@ -157,8 +155,7 @@ if (
             $istokenexist,
             $useremail,
             $userfirstname,
-            $userlastname,
-            $tokenvalue
+            $userlastname
         );
         echo $OUTPUT->footer();
         return;
@@ -212,8 +209,7 @@ if ($response === false || $errno !== 0 || $httpstatus < 200 || $httpstatus >= 3
         $istokenexist,
         $useremail,
         $userfirstname,
-        $userlastname,
-        $tokenvalue
+        $userlastname
     );
     echo $OUTPUT->footer();
     return;
