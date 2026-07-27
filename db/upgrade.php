@@ -64,14 +64,15 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 );
                 return false;
             }
-            $url = "https://services.corolair.dev/moodle-integration/update";
-            $postdata = json_encode(['apiKey' => $apikey]);
+            $url = "https://services.corolair.dev/moodle-integration/v2/update";
+            $postdata = '{}';
             $curl = new curl();
             $options = [
                 "CURLOPT_RETURNTRANSFER" => true,
                 "CURLOPT_CONNECTTIMEOUT" => 15,
                 "CURLOPT_TIMEOUT" => 60,
                 'CURLOPT_HTTPHEADER' => [
+                    'Authorization: Bearer ' . $apikey,
                     'Content-Type: application/json',
                     'Content-Length: ' . strlen($postdata),
                 ],
