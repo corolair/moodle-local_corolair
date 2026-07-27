@@ -175,7 +175,6 @@ $plugin = optional_param('corolairplugin', '', PARAM_TEXT);
 // Prepare payload for external authentication request.
 $postdata = json_encode([
     'email' => $USER->email,
-    'apiKey' => $apikey,
     'firstname' => $USER->firstname,
     'lastname' => $USER->lastname,
     'moodleUserId' => $USER->id,
@@ -190,11 +189,12 @@ $options = [
     "CURLOPT_CONNECTTIMEOUT" => 15,
     "CURLOPT_TIMEOUT" => 60,
     'CURLOPT_HTTPHEADER' => [
+        'Authorization: Bearer ' . $apikey,
         'Content-Type: application/json',
         'Content-Length: ' . strlen($postdata),
     ],
 ];
-$authurl = "https://services.corolair.dev/moodle-integration/auth/v2";
+$authurl = "https://services.corolair.dev/moodle-integration/auth/v3";
 
 $response = $curl->post($authurl, $postdata, $options);
 $errno = $curl->get_errno();
