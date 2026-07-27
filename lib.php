@@ -44,11 +44,7 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
         return '';
     }
 
-    if (
-        !isloggedin() ||
-        isguestuser() ||
-        !has_capability('moodle/course:view', $context)
-    ) {
+    if (!isloggedin() ||isguestuser()) {
         return '';
     }
 
