@@ -112,7 +112,15 @@ if (
                     'Content-Length: ' . strlen($postdata),
                 ],
             ];
-            $response = $curl->post($url, $postdata, $options);
+            $response = \local_corolair\local\audited_request::execute(
+                $curl,
+                function () use ($curl, $url, $postdata, $options) {
+                    return $curl->post($url, $postdata, $options);
+                },
+                \local_corolair\local\audited_request::OP_ORGANIZATION_REGISTER,
+                context_system::instance(),
+                (int)$USER->id
+            );
             $errno = $curl->get_errno();
             $info = $curl->get_info();
             $httpstatus = (int)($info['http_code'] ?? 0);
@@ -193,7 +201,15 @@ $options = [
 ];
 $authurl = "https://services.corolair.dev/moodle-integration/auth/v3";
 
-$response = $curl->post($authurl, $postdata, $options);
+$response = \local_corolair\local\audited_request::execute(
+    $curl,
+    function () use ($curl, $authurl, $postdata, $options) {
+        return $curl->post($authurl, $postdata, $options);
+    },
+    \local_corolair\local\audited_request::OP_TRAINER_AUTH,
+    context_system::instance(),
+    (int)$USER->id
+);
 $errno = $curl->get_errno();
 $info = $curl->get_info();
 $httpstatus = (int)($info['http_code'] ?? 0);

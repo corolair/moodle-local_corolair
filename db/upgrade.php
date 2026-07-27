@@ -77,7 +77,14 @@ function xmldb_local_corolair_upgrade($oldversion) {
                     'Content-Length: ' . strlen($postdata),
                 ],
             ];
-            $response = $curl->post($url, $postdata, $options);
+            $response = \local_corolair\local\audited_request::execute(
+                $curl,
+                function () use ($curl, $url, $postdata, $options) {
+                    return $curl->post($url, $postdata, $options);
+                },
+                \local_corolair\local\audited_request::OP_ORGANIZATION_UPDATE,
+                \context_system::instance()
+            );
             $errno = $curl->get_errno();
             $info = $curl->get_info();
             $httpstatus = (int)($info['http_code'] ?? 0);

@@ -78,10 +78,18 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
             'Content-Length: ' . strlen($postdata),
         ],
     ];
-    $response = $curl->post(
-        'https://services.corolair.dev/tutor-handling/widget/moodle/session',
-        $postdata,
-        $options
+    $response = \local_corolair\local\audited_request::execute(
+        $curl,
+        function () use ($curl, $postdata, $options) {
+            return $curl->post(
+                'https://services.corolair.dev/tutor-handling/widget/moodle/session',
+                $postdata,
+                $options
+            );
+        },
+        \local_corolair\local\audited_request::OP_WIDGET_SESSION,
+        $context,
+        (int)$USER->id
     );
     if ($response === false || $curl->get_errno() !== 0) {
         return '';

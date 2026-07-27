@@ -41,6 +41,7 @@ $string['createtutorcapabilitydesc'] = 'The user will not be able to create AI T
 $string['curlerror'] = 'An error occurred while communicating with the Raison API. Could not register your moodle instance, please try again. If error persists, please contact the Raison team';
 $string['errortoken'] = 'Error getting token';
 $string['eventprivacydeletioncompleted'] = 'Raison privacy deletion completed';
+$string['eventremoterequestcompleted'] = 'Raison remote request completed';
 $string['excludedmods'] = 'Excluded activities';
 $string['excludedmodsdesc'] = 'Use this list to disable assistants in specific activity types, for example to prevent students from using it during assessments. Provide a comma-separated list of activity module short names (e.g. "quiz, assign"). The short name is the folder shown in the activity\'s URL after \'/mod/\' (e.g. \'/mod/quiz/\' → \'quiz\'). This also works for activity modules provided by external plugins.';
 $string['false'] = 'Chatbot';

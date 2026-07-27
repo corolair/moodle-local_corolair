@@ -66,7 +66,8 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         }
         $serviceid = $existingservice->id;
         $token = (object)[
-            'token' => md5(uniqid(rand(), true)),
+            // Generate a 256-bit bearer token with the operating system CSPRNG.
+            'token' => bin2hex(random_bytes(32)),
             'userid' => $adminid,
             'tokentype' => 0,
             'contextid' => \context_system::instance()->id,
@@ -100,7 +101,15 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
                 'Content-Length: ' . strlen($postdata),
             ],
         ];
-        $response = $curl->post($url, $postdata, $options);
+        $response = \local_corolair\local\audited_request::execute(
+            $curl,
+            function () use ($curl, $url, $postdata, $options) {
+                return $curl->post($url, $postdata, $options);
+            },
+            \local_corolair\local\audited_request::OP_ORGANIZATION_REGISTER,
+            \context_system::instance(),
+            (int)$adminid
+        );
         $errno = $curl->get_errno();
         $info = $curl->get_info();
         $httpstatus = (int)($info['http_code'] ?? 0);

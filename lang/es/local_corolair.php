@@ -41,6 +41,7 @@ $string['createtutorcapabilitydesc'] = 'El usuario no podrá crear Tutores IA en
 $string['curlerror'] = 'Se ha producido un error al comunicarse con la API de Raison. No se ha podido registrar su instancia de Moodle, intente nuevamente. Si el problema persiste, póngase en contacto con el equipo de Raison.';
 $string['errortoken'] = 'Error al obtener el token';
 $string['eventprivacydeletioncompleted'] = 'Eliminación de datos privados de Raison completada';
+$string['eventremoterequestcompleted'] = 'Solicitud remota de Raison completada';
 $string['excludedmods'] = 'Actividades excluidas';
 $string['excludedmodsdesc'] = 'Use esta lista para desactivar los asistentes en tipos específicos de actividades, por ejemplo para evitar que los estudiantes los utilicen durante evaluaciones. Proporcione una lista separada por comas con los nombres cortos de los módulos de actividad (ej.: "quiz, assign"). El nombre corto es la carpeta que aparece en la URL de la actividad después de /mod/ (ej.: /mod/quiz/ → quiz). Esto también funciona con módulos de actividad proporcionados por plugins externos.';
 $string['false'] = 'Chatbot';

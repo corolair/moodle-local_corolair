@@ -41,6 +41,7 @@ $string['createtutorcapabilitydesc'] = 'L\'utilisateur ne pourra créer des Tute
 $string['curlerror'] = 'Une erreur est survenue lors de la communication avec l\'API Raison. Impossible d\'enregistrer votre instance Moodle, veuillez réessayer. Si l\'erreur persiste, veuillez contacter l\'équipe Raison.';
 $string['errortoken'] = 'Erreur lors de la récupération du token';
 $string['eventprivacydeletioncompleted'] = 'Suppression des données privées Raison terminée';
+$string['eventremoterequestcompleted'] = 'Requête distante Raison terminée';
 $string['excludedmods'] = 'Activités exclues';
 $string['excludedmodsdesc'] = 'Utilisez cette liste pour désactiver les assistants dans certains types d\'activités, par exemple afin d\'empêcher les étudiants de les utiliser pendant une évaluation. Listez les noms courts des activités, séparés par des virgules (ex. : "quiz, assign"). Le nom court correspond au dossier visible dans l\'URL de l\'activité après \'/mod/\' (ex : \'/mod/quiz/\' → \'quiz\'). Cela marche aussi avec des plugins d\'activités externes.';
 $string['false'] = 'Chatbot';
