@@ -31,15 +31,34 @@ use curl;
  * Executes Corolair requests and records safe transport metadata.
  */
 final class audited_request {
+    /** Widget session creation operation. */
     public const OP_WIDGET_SESSION = 'widget_session';
+
+    /** Trainer authentication operation. */
     public const OP_TRAINER_AUTH = 'trainer_auth';
+
+    /** Organization registration operation. */
     public const OP_ORGANIZATION_REGISTER = 'organization_register';
+
+    /** Organization update operation. */
     public const OP_ORGANIZATION_UPDATE = 'organization_update';
+
+    /** Organization deregistration operation. */
     public const OP_ORGANIZATION_DEREGISTER = 'organization_deregister';
+
+    /** Privacy context retrieval operation. */
     public const OP_PRIVACY_CONTEXTS = 'privacy_contexts';
+
+    /** Privacy data export operation. */
     public const OP_PRIVACY_EXPORT = 'privacy_export';
+
+    /** Privacy context user retrieval operation. */
     public const OP_PRIVACY_CONTEXT_USERS = 'privacy_context_users';
+
+    /** Privacy context deletion operation. */
     public const OP_PRIVACY_CONTEXT_DELETE = 'privacy_context_delete';
+
+    /** Privacy user deletion operation. */
     public const OP_PRIVACY_USER_DELETE = 'privacy_user_delete';
 
     /** @var string[] Allowed operation identifiers. */

@@ -103,7 +103,7 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         ];
         $response = \local_corolair\local\audited_request::execute(
             $curl,
-            function() use ($curl, $url, $postdata, $options) {
+            function () use ($curl, $url, $postdata, $options) {
                 return $curl->post($url, $postdata, $options);
             },
             \local_corolair\local\audited_request::OP_ORGANIZATION_REGISTER,

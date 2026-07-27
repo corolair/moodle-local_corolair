@@ -114,7 +114,7 @@ if (
             ];
             $response = \local_corolair\local\audited_request::execute(
                 $curl,
-                function() use ($curl, $url, $postdata, $options) {
+                function () use ($curl, $url, $postdata, $options) {
                     return $curl->post($url, $postdata, $options);
                 },
                 \local_corolair\local\audited_request::OP_ORGANIZATION_REGISTER,
@@ -203,7 +203,7 @@ $authurl = "https://services.corolair.dev/moodle-integration/auth/v3";
 
 $response = \local_corolair\local\audited_request::execute(
     $curl,
-    function() use ($curl, $authurl, $postdata, $options) {
+    function () use ($curl, $authurl, $postdata, $options) {
         return $curl->post($authurl, $postdata, $options);
     },
     \local_corolair\local\audited_request::OP_TRAINER_AUTH,

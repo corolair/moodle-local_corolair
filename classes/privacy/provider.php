@@ -363,7 +363,7 @@ class provider implements
         $options = self::get_curl_options($apikey);
         $response = \local_corolair\local\audited_request::execute(
             $curl,
-            function() use ($curl, $url, $options) {
+            function () use ($curl, $url, $options) {
                 return $curl->get($url, [], $options);
             },
             \local_corolair\local\audited_request::OP_PRIVACY_CONTEXTS,
@@ -449,7 +449,7 @@ class provider implements
             $options = self::get_curl_options($apikey);
             $response = \local_corolair\local\audited_request::execute(
                 $curl,
-                function() use ($curl, $urlout, $options) {
+                function () use ($curl, $urlout, $options) {
                     return $curl->get($urlout, [], $options);
                 },
                 \local_corolair\local\audited_request::OP_PRIVACY_EXPORT,
@@ -532,7 +532,7 @@ class provider implements
         $options = self::get_curl_options($apikey);
         $response = \local_corolair\local\audited_request::execute(
             $curl,
-            function() use ($curl, $urlout, $options) {
+            function () use ($curl, $urlout, $options) {
                 return $curl->get($urlout, [], $options);
             },
             \local_corolair\local\audited_request::OP_PRIVACY_CONTEXT_USERS,
@@ -580,7 +580,7 @@ class provider implements
         $options = self::get_curl_options($apikey);
         $response = \local_corolair\local\audited_request::execute(
             $curl,
-            function() use ($curl, $urlout, $options) {
+            function () use ($curl, $urlout, $options) {
                 return $curl->delete($urlout, [], $options);
             },
             \local_corolair\local\audited_request::OP_PRIVACY_CONTEXT_DELETE,
@@ -627,7 +627,7 @@ class provider implements
         $options = self::get_curl_options($apikey);
         $response = \local_corolair\local\audited_request::execute(
             $curl,
-            function() use ($curl, $urlout, $options) {
+            function () use ($curl, $urlout, $options) {
                 return $curl->delete($urlout, [], $options);
             },
             \local_corolair\local\audited_request::OP_PRIVACY_USER_DELETE,

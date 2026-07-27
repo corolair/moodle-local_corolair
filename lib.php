@@ -44,7 +44,7 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
         return '';
     }
 
-    if (!isloggedin() ||isguestuser()) {
+    if (!isloggedin() || isguestuser()) {
         return '';
     }
 
@@ -80,7 +80,7 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
     ];
     $response = \local_corolair\local\audited_request::execute(
         $curl,
-        function() use ($curl, $postdata, $options) {
+        function () use ($curl, $postdata, $options) {
             return $curl->post(
                 'https://services.corolair.dev/tutor-handling/widget/moodle/session',
                 $postdata,

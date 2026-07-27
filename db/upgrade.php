@@ -79,7 +79,7 @@ function xmldb_local_corolair_upgrade($oldversion) {
             ];
             $response = \local_corolair\local\audited_request::execute(
                 $curl,
-                function() use ($curl, $url, $postdata, $options) {
+                function () use ($curl, $url, $postdata, $options) {
                     return $curl->post($url, $postdata, $options);
                 },
                 \local_corolair\local\audited_request::OP_ORGANIZATION_UPDATE,
