@@ -21,6 +21,43 @@ namespace local_corolair\local;
  */
 final class setup_manager {
     /**
+     * Record the current disclosure acknowledgment.
+     *
+     * @param int $adminid Administrator acknowledging the disclosure.
+     * @return void
+     */
+    public static function acknowledge_disclosure(int $adminid): void {
+        self::require_setup_administrator($adminid);
+        set_config('setupdisclosureversion', integration_disclosure::VERSION, 'local_corolair');
+        set_config('setupdisclosureacknowledgedby', $adminid, 'local_corolair');
+        set_config('setupdisclosureacknowledgedat', time(), 'local_corolair');
+        \local_corolair\event\integration_disclosure_acknowledged::create([
+            'context' => \context_system::instance(),
+            'userid' => $adminid,
+            'other' => ['version' => integration_disclosure::VERSION],
+        ])->trigger();
+    }
+
+    /**
+     * Whether this administrator acknowledged the current disclosure.
+     *
+     * Completed integrations are grandfathered so upgrades do not interrupt them.
+     *
+     * @param int $adminid Administrator starting setup.
+     * @return bool
+     */
+    public static function disclosure_acknowledged(int $adminid): bool {
+        if ((bool)get_config('local_corolair', 'setupcompleted')) {
+            return true;
+        }
+        return (
+            (string)get_config('local_corolair', 'setupdisclosureversion') === integration_disclosure::VERSION &&
+            (int)get_config('local_corolair', 'setupdisclosureacknowledgedby') === $adminid &&
+            (int)get_config('local_corolair', 'setupdisclosureacknowledgedat') > 0
+        );
+    }
+
+    /**
      * Return the currently enabled web service protocols.
      *
      * @return string[]
@@ -73,10 +110,9 @@ final class setup_manager {
     public static function activate(int $adminid, bool $enablementconsent = false): bool {
         global $CFG, $DB;
 
-        $context = \context_system::instance();
-        $admin = $DB->get_record('user', ['id' => $adminid, 'deleted' => 0], 'id', MUST_EXIST);
-        if (!has_capability('moodle/site:config', $context, $admin->id)) {
-            throw new \required_capability_exception($context, 'moodle/site:config', 'nopermissions', '');
+        $admin = self::require_setup_administrator($adminid);
+        if (!self::disclosure_acknowledged($adminid)) {
+            throw new \moodle_exception('disclosuremissing', 'local_corolair');
         }
 
         $consentrequired = self::enablement_consent_required();
@@ -108,6 +144,23 @@ final class setup_manager {
         $transaction->allow_commit();
 
         return $queued;
+    }
+
+    /**
+     * Validate an administrator used by the setup flow.
+     *
+     * @param int $adminid User ID.
+     * @return \stdClass Minimal user record.
+     */
+    private static function require_setup_administrator(int $adminid): \stdClass {
+        global $DB;
+
+        $context = \context_system::instance();
+        $admin = $DB->get_record('user', ['id' => $adminid, 'deleted' => 0], 'id', MUST_EXIST);
+        if (!has_capability('moodle/site:config', $context, $admin->id)) {
+            throw new \required_capability_exception($context, 'moodle/site:config', 'nopermissions', '');
+        }
+        return $admin;
     }
 
     /**

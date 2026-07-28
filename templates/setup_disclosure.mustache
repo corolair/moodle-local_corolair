@@ -1,0 +1,115 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template local_corolair/setup_disclosure
+
+    Versioned disclosure shown before Corolair setup consent.
+}}
+<div class="local-corolair-disclosure">
+    <div class="alert alert-info" role="note">
+        <h2 class="h4">{{#str}}disclosureheading, local_corolair{{/str}}</h2>
+        <p>{{#str}}disclosureintro, local_corolair{{/str}}</p>
+        <p class="mb-0"><strong>{{#str}}disclosureversion, local_corolair{{/str}}:</strong> {{version}}</p>
+    </div>
+
+    <section aria-labelledby="corolair-security-boundary">
+        <h3 id="corolair-security-boundary" class="h5">{{#str}}disclosuresecurityheading, local_corolair{{/str}}</h3>
+        <ul>
+            <li>{{#str}}disclosuretokenowner, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosuretokentransfer, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosureallowlist, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosurerole, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosurestandardised, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosurefiletransfer, local_corolair{{/str}}</li>
+        </ul>
+    </section>
+
+    <section aria-labelledby="corolair-functions">
+        <h3 id="corolair-functions" class="h5">{{#str}}disclosurefunctionsheading, local_corolair{{/str}}</h3>
+        <p>{{#str}}disclosurefunctionsintro, local_corolair{{/str}}</p>
+        {{#groups}}
+            <details class="card mb-2">
+                <summary class="card-header">
+                    <strong>{{title}}</strong>
+                    {{#planned}}<span class="badge badge-warning ml-2">{{plannedlabel}}</span>{{/planned}}
+                </summary>
+                <div class="card-body">
+                    <p>{{description}}</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th scope="col">{{#str}}disclosurefunction, local_corolair{{/str}}</th>
+                                    <th scope="col">{{#str}}disclosureaccess, local_corolair{{/str}}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{#functions}}
+                                    <tr>
+                                        <td><code>{{name}}</code></td>
+                                        <td>
+                                            <span class="badge {{#isread}}badge-info{{/isread}}{{#iswrite}}badge-warning{{/iswrite}}">
+                                                {{access}}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {{/functions}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        {{/groups}}
+    </section>
+
+    <section aria-labelledby="corolair-capabilities">
+        <h3 id="corolair-capabilities" class="h5">{{#str}}disclosurecapabilitiesheading, local_corolair{{/str}}</h3>
+        <p>{{#str}}disclosurecapabilitiesintro, local_corolair{{/str}}</p>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">{{#str}}disclosurecapability, local_corolair{{/str}}</th>
+                        <th scope="col">{{#str}}disclosurepurpose, local_corolair{{/str}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>moodle/course:view</code>, <code>moodle/course:viewhiddencourses</code>, <code>moodle/category:viewhiddencategories</code></td><td>{{#str}}disclosurecapcoursevisibility, local_corolair{{/str}}</td></tr>
+                    <tr><td><code>moodle/course:update</code>, <code>mod/resource:view</code>, <code>mod/lesson:view</code></td><td>{{#str}}disclosurecapcontent, local_corolair{{/str}}</td></tr>
+                    <tr><td><code>moodle/site:accessallgroups</code>, <code>moodle/course:viewparticipants</code></td><td>{{#str}}disclosurecapparticipants, local_corolair{{/str}}</td></tr>
+                    <tr><td><code>moodle/user:viewdetails</code>, <code>moodle/user:viewhiddendetails</code>, <code>moodle/course:useremail</code>, <code>moodle/user:update</code></td><td>{{#str}}disclosurecapidentity, local_corolair{{/str}}</td></tr>
+                    <tr><td><code>report/completion:view</code></td><td>{{#str}}disclosurecapcompletion, local_corolair{{/str}}</td></tr>
+                    <tr><td><code>moodle/role:assign</code></td><td>{{#str}}disclosurecaproleassign, local_corolair{{/str}}</td></tr>
+                    <tr><td><code>moodle/course:manageactivities</code>, <code>mod/lti:addinstance</code></td><td>{{#str}}disclosurecapexam, local_corolair{{/str}}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section aria-labelledby="corolair-data-use">
+        <h3 id="corolair-data-use" class="h5">{{#str}}disclosuredataheading, local_corolair{{/str}}</h3>
+        <ul>
+            <li>{{#str}}disclosuredatasite, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosuredataidentity, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosuredatacourse, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosuredataaccess, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosuredatacompletion, local_corolair{{/str}}</li>
+            <li>{{#str}}disclosuredataexam, local_corolair{{/str}}</li>
+        </ul>
+        <p>
+            {{#str}}disclosureopensource, local_corolair{{/str}}
+            <a href="{{repositoryurl}}" target="_blank" rel="noopener noreferrer">github.com/corolair/moodle-local_corolair</a>
+        </p>
+        <p>{{#str}}disclosureprivacycontact, local_corolair{{/str}}</p>
+    </section>
+
+    <div class="alert alert-secondary" role="note">
+        {{#str}}disclosureacknowledgmentnote, local_corolair{{/str}}
+    </div>
+    <form method="post" action="{{actionurl}}">
+        <input type="hidden" name="sesskey" value="{{sesskey}}">
+        <input type="hidden" name="action" value="acknowledge">
+        <button type="submit" class="btn btn-primary">{{#str}}disclosureacknowledgebutton, local_corolair{{/str}}</button>
+        <a class="btn btn-secondary" href="{{cancelurl}}">{{#str}}cancel{{/str}}</a>
+    </form>
+</div>

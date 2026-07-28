@@ -36,6 +36,16 @@ use plugin_renderer_base;
  */
 class renderer extends plugin_renderer_base {
     /**
+     * Render the versioned pre-consent disclosure.
+     *
+     * @param array $data Disclosure template context.
+     * @return string
+     */
+    public function render_setup_disclosure(array $data): string {
+        return $this->render_from_template('local_corolair/setup_disclosure', $data);
+    }
+
+    /**
      * Renders the embed script template.
      *
      * This method prepares the data and renders the 'local_corolair/embed_script' template.

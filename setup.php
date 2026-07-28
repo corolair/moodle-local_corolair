@@ -29,15 +29,24 @@ $PAGE->set_pagelayout('admin');
 $PAGE->set_title(get_string('setuppagetitle', 'local_corolair'));
 $PAGE->set_heading(get_string('setuppagetitle', 'local_corolair'));
 
-$consentrequired = \local_corolair\local\setup_manager::enablement_consent_required();
-$confirm = optional_param('confirm', 0, PARAM_BOOL);
+$step = optional_param('step', '', PARAM_ALPHA);
+$action = optional_param('action', '', PARAM_ALPHA);
 $enablementconsent = optional_param('enablementconsent', 0, PARAM_BOOL);
-if ($confirm) {
+if ($action !== '') {
     if (!data_submitted()) {
         throw new moodle_exception('invalidrequest', 'error');
     }
     require_sesskey();
 
+    if ($action === 'acknowledge') {
+        \local_corolair\local\setup_manager::acknowledge_disclosure((int)$USER->id);
+        redirect(new moodle_url($setupurl, ['step' => 'consent']));
+    }
+    if ($action !== 'activate') {
+        throw new moodle_exception('invalidrequest', 'error');
+    }
+
+    $consentrequired = \local_corolair\local\setup_manager::enablement_consent_required();
     \local_corolair\local\setup_manager::activate((int)$USER->id, (bool)$enablementconsent);
     redirect(
         $settingsurl,
@@ -47,6 +56,23 @@ if ($confirm) {
     );
 }
 
+$acknowledged = \local_corolair\local\setup_manager::disclosure_acknowledged((int)$USER->id);
+if ($step !== 'consent' || !$acknowledged) {
+    $renderer = $PAGE->get_renderer('local_corolair');
+    echo $OUTPUT->header();
+    echo $renderer->render_setup_disclosure([
+        'version' => \local_corolair\local\integration_disclosure::VERSION,
+        'groups' => \local_corolair\local\integration_disclosure::get_function_groups(),
+        'actionurl' => $setupurl->out(false),
+        'cancelurl' => $settingsurl->out(false),
+        'sesskey' => sesskey(),
+        'repositoryurl' => 'https://github.com/corolair/moodle-local_corolair',
+    ]);
+    echo $OUTPUT->footer();
+    return;
+}
+
+$consentrequired = \local_corolair\local\setup_manager::enablement_consent_required();
 $webservicesenabled = \local_corolair\local\setup_manager::webservices_enabled();
 $restenabled = \local_corolair\local\setup_manager::rest_enabled();
 $status = (object)[
@@ -74,7 +100,7 @@ echo $OUTPUT->notification(
 );
 
 $continueurl = new moodle_url($setupurl, [
-    'confirm' => 1,
+    'action' => 'activate',
     'enablementconsent' => $consentrequired ? 1 : 0,
     'sesskey' => sesskey(),
 ]);

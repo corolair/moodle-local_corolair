@@ -38,6 +38,9 @@ function xmldb_local_corolair_install() {
         set_config('setupcompleted', 0, 'local_corolair');
         unset_config('setupconsentedby', 'local_corolair');
         unset_config('setupconsentedat', 'local_corolair');
+        unset_config('setupdisclosureversion', 'local_corolair');
+        unset_config('setupdisclosureacknowledgedby', 'local_corolair');
+        unset_config('setupdisclosureacknowledgedat', 'local_corolair');
         // Create "Raison Manager" role.
         $roleid = create_role(
             get_string('rolename', 'local_corolair'),
