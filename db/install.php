@@ -17,12 +17,9 @@
 /**
  * Install script for local_corolair plugin.
  *
- * This script performs the following actions:
- * 1. Configures Moodle to enable web services and REST protocols.
- * 2. Creates a custom external service and assigns capabilities.
- * 3. Generates and assigns a token for the service.
- * 4. Creates the "Corolair Manager" role with specific permissions.
- * 5. Registers the Moodle instance with the Raison platform.
+ * This script creates the Corolair role and leaves the integration inactive.
+ * A site administrator must explicitly approve the site-wide web service changes
+ * from setup.php before registration is queued.
  *
  * @package   local_corolair
  * @copyright  2025 Raison
@@ -33,46 +30,14 @@
  * Installation script for the local_corolair plugin.
  */
 function xmldb_local_corolair_install() {
-    global $DB, $CFG, $USER, $SITE;
+    global $DB, $USER;
     try {
-        $moodlerooturl = $CFG->wwwroot;
-        // Check if the Moodle instance is running on localhost.
-        if (strpos($moodlerooturl, 'localhost') !== false || strpos($moodlerooturl, '127.0.0.1') !== false) {
-            \core\notification::add(
-                get_string('localhosterror', 'local_corolair'),
-                \core\output\notification::NOTIFY_ERROR
-            );
-            \core\notification::add(
-                get_string('installtroubleshoot', 'local_corolair'),
-                \core\output\notification::NOTIFY_ERROR
-            );
-            \core\notification::add(
-                get_string('calendlydemo', 'local_corolair'),
-                \core\output\notification::NOTIFY_ERROR
-            );
-            return false;
-        }
-        // Enable web services.
-        $configrecord = $DB->get_record('config', ['name' => 'enablewebservices']);
-        if ($configrecord) {
-            $configrecord->value = 1;
-            $DB->update_record('config', $configrecord);
-        } else {
-            $DB->insert_record('config', (object)['name' => 'enablewebservices', 'value' => 1]);
-        }
-        // Enable REST protocol.
-        $webserviceprotocols = $DB->get_record('config', ['name' => 'webserviceprotocols']);
-        if ($webserviceprotocols) {
-            if (empty($webserviceprotocols->value)) {
-                $webserviceprotocols->value = 'rest';
-                $DB->update_record('config', $webserviceprotocols);
-            } else if (strpos($webserviceprotocols->value, 'rest') === false) {
-                $webserviceprotocols->value .= ',rest';
-                $DB->update_record('config', $webserviceprotocols);
-            }
-        } else {
-            $DB->insert_record('config', (object)['name' => 'webserviceprotocols', 'value' => 'rest']);
-        }
+        // Installation must not make site-wide web service changes without consent.
+        set_config('setupconsented', 0, 'local_corolair');
+        set_config('setupconsentrequired', 0, 'local_corolair');
+        set_config('setupcompleted', 0, 'local_corolair');
+        unset_config('setupconsentedby', 'local_corolair');
+        unset_config('setupconsentedat', 'local_corolair');
         // Create "Raison Manager" role.
         $roleid = create_role(
             get_string('rolename', 'local_corolair'),
@@ -115,36 +80,16 @@ function xmldb_local_corolair_install() {
         role_assign($roleid, $adminid, context_system::instance()->id);
         $adminemail = $USER->email;
         set_config('corolairlogin', $adminemail, 'local_corolair');
-        $adminfirstname = $USER->firstname;
-        $adminlastname = $USER->lastname;
-        $sitename = $SITE->fullname;
-        $task = new \local_corolair\task\setup_corolair_connection_task();
-        $task->set_custom_data((object) [
-            'adminid' => $adminid,
-            'adminemail' => $adminemail,
-            'moodlerooturl' => $moodlerooturl,
-            'adminfirstname' => $adminfirstname,
-            'adminlastname' => $adminlastname,
-            'sitename' => $sitename,
-        ]);
-        \core\task\manager::queue_adhoc_task($task);
-        $adhoctasklink = (new moodle_url('/admin/tasklogs.php'))->out();
-        $trainerpagelink = (new moodle_url('/local/corolair/trainer.php'))->out();
-        $links = (object) [
-            'adhoc_link' => $adhoctasklink,
-            'trainer_page_link' => $trainerpagelink,
-        ];
+        $setuplink = (new moodle_url('/local/corolair/setup.php'))->out();
         \core\notification::add(
-            get_string('adhocqueued', 'local_corolair', $links),
-            \core\output\notification::NOTIFY_SUCCESS
-        );
-        \core\notification::add(
-            get_string('raisontuto', 'local_corolair'),
-            \core\output\notification::NOTIFY_SUCCESS
-        );
-        \core\notification::add(
-            get_string('calendlydemo', 'local_corolair'),
-            \core\output\notification::NOTIFY_SUCCESS
+            get_string(
+                \local_corolair\local\setup_manager::enablement_consent_required()
+                    ? 'setuprequirednotification'
+                    : 'setupreadynotification',
+                'local_corolair',
+                $setuplink
+            ),
+            \core\output\notification::NOTIFY_WARNING
         );
         return true;
     } catch (Exception $e) {

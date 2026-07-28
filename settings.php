@@ -33,6 +33,42 @@ if ($hassiteconfig) {
     $settings = new admin_settingpage('local_corolair', get_string('pluginname', 'local_corolair'));
     // Add the settings page to the "Local plugins" category.
     $ADMIN->add('localplugins', $settings);
+    $setupconsented = (bool)get_config('local_corolair', 'setupconsented');
+    $setupcompleted = (bool)get_config('local_corolair', 'setupcompleted');
+    $setuplink = html_writer::link(
+        new moodle_url('/local/corolair/setup.php'),
+        get_string('setupaction', 'local_corolair')
+    );
+    if (!$setupconsented) {
+        $setupstatus = get_string(
+            \local_corolair\local\setup_manager::enablement_consent_required()
+                ? 'setupstatusrequired'
+                : 'setupstatusready',
+            'local_corolair',
+            $setuplink
+        );
+    } else if (!$setupcompleted) {
+        $setupstatus = get_string('setupstatuspending', 'local_corolair', $setuplink);
+    } else {
+        $setupstatus = get_string('setupstatuscomplete', 'local_corolair');
+    }
+    $rotationstatus = (string)get_config('local_corolair', 'webservicetokenrotationstatus');
+    if ($rotationstatus === 'ROTATION_FAILED') {
+        $rotationdetails = (object)[
+            'expiry' => userdate((int)get_config('local_corolair', 'webservicetokenexpiresat')),
+            'error' => s((string)get_config('local_corolair', 'webservicetokenlasterror')),
+            'retryurl' => (new moodle_url('/local/corolair/token_rotation.php'))->out(false),
+        ];
+        $setupstatus .= html_writer::div(
+            get_string('tokenrotationstatusfailed', 'local_corolair', $rotationdetails),
+            'alert alert-warning mt-3'
+        );
+    }
+    $settings->add(new admin_setting_heading(
+        'local_corolair/setupstatus',
+        get_string('setupstatus', 'local_corolair'),
+        $setupstatus
+    ));
     // Add a dropdown setting for enabling/disabling the side panel.
     $settings->add(new admin_setting_configselect(
         'local_corolair/sidepanel',

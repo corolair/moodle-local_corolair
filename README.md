@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.8.29
+**Version:** 1.8.35
 
-**Last Updated:** 2026/07/27
+**Last Updated:** 2026/07/28
 
 ## Overview
 
@@ -28,8 +28,18 @@ The Raison Moodle Plugin enables seamless integration of **AI Tutors** into Mood
 This plugin requires Moodle 4.4 or later.
 
 1. Install the latest version of the plugin from Moodle Plugins directory
-2. Upon installation, a Raison account with a trial plan will be automatically created for the administrator who installed the plugin.
-3. Assign the _Raison Manager_ role to Trainers to configure access permissions. This role includes the capability to access Raison from Home or Courses. You can also include the corresponding capability to existing roles. Trial accounts will also be automatically set up for all assigned Trainers.
+2. Open **Site administration > Plugins > Local plugins > Raison Local Plugin** and select **Open Corolair setup**.
+3. If Moodle web services or REST are disabled, review and explicitly approve enabling them. When both are already enabled, this consent step is skipped and setup only asks you to start Corolair registration.
+4. Moodle queues the Corolair registration task. A Raison account with a trial plan is created for the administrator who started setup when that task completes successfully.
+5. Assign the _Raison Manager_ role to Trainers to configure access permissions. This role includes the capability to access Raison from Home or Courses. You can also include the corresponding capability to existing roles. Trial accounts will also be automatically set up for all assigned Trainers.
+
+The activation request requires the `moodle/site:config` capability, a POST request, and a valid Moodle session key. Existing enabled web-service protocols are preserved when REST is added. Site-wide enablement consent is requested only when Moodle web services or REST must be enabled.
+
+Trainer authentication redirects are accepted only when they use HTTPS, target an explicitly allowlisted Corolair hostname, and omit a port or use port 443.
+
+### Web-service token lifecycle
+
+Corolair Moodle web-service tokens expire after 15 days. Moodle starts an automatic rotation when seven days remain and reuses the same candidate token and rotation identifier until Corolair validates and activates it. If rotation is still unresolved with five days remaining, the consenting administrator receives a rate-limited warning and can queue an immediate retry from the plugin settings. The prior token remains available only during the overlap and is then removed automatically.
 
 ---
 

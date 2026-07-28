@@ -257,7 +257,7 @@ if (!$isdemodone) {
 }
 
 $targeturlresponse = $jsonresponse['url'];
-$targeturl = new moodle_url($targeturlresponse);
+$targeturl = \local_corolair\local\redirect_url_validator::validate($targeturlresponse);
 $targeturlout = $targeturl->out(false);
 
 echo html_writer::div(
