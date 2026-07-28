@@ -4,6 +4,37 @@
     @template local_corolair/setup_disclosure
 
     Versioned disclosure shown before Corolair setup consent.
+
+    Example context (json):
+    {
+        "version": "1.0",
+        "groups": [
+            {
+                "title": "Course access",
+                "planned": false,
+                "plannedlabel": "Planned",
+                "description": "Functions used to read course information.",
+                "functions": [
+                    {
+                        "name": "core_course_get_courses",
+                        "access": "Read",
+                        "isread": true,
+                        "iswrite": false
+                    },
+                    {
+                        "name": "core_user_update_users",
+                        "access": "Write",
+                        "isread": false,
+                        "iswrite": true
+                    }
+                ]
+            }
+        ],
+        "actionurl": "https://moodle.example.com/local/corolair/setup.php",
+        "cancelurl": "https://moodle.example.com/admin/settings.php",
+        "sesskey": "example-session-key",
+        "repositoryurl": "https://github.com/corolair/moodle-local_corolair"
+    }
 }}
 <div class="local-corolair-disclosure">
     <div class="alert alert-info" role="note">
