@@ -46,6 +46,9 @@ final class audited_request {
     /** Organization deregistration operation. */
     public const OP_ORGANIZATION_DEREGISTER = 'organization_deregister';
 
+    /** Moodle web-service token rotation operation. */
+    public const OP_WEBSERVICE_TOKEN_ROTATION = 'webservice_token_rotation';
+
     /** Privacy context retrieval operation. */
     public const OP_PRIVACY_CONTEXTS = 'privacy_contexts';
 
@@ -68,6 +71,7 @@ final class audited_request {
         self::OP_ORGANIZATION_REGISTER,
         self::OP_ORGANIZATION_UPDATE,
         self::OP_ORGANIZATION_DEREGISTER,
+        self::OP_WEBSERVICE_TOKEN_ROTATION,
         self::OP_PRIVACY_CONTEXTS,
         self::OP_PRIVACY_EXPORT,
         self::OP_PRIVACY_CONTEXT_USERS,
