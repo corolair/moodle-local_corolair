@@ -82,7 +82,7 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
         $curl,
         function () use ($curl, $postdata, $options) {
             return $curl->post(
-                'https://services.corolair.dev/tutor-handling/widget/moodle/session',
+                'https://services.raison.is/tutor-handling/widget/moodle/session',
                 $postdata,
                 $options
             );

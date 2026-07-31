@@ -30,8 +30,8 @@ namespace local_corolair\local;
 final class redirect_url_validator {
     /** Exact hostnames that may receive trainer redirects. */
     private const ALLOWED_HOSTS = [
-        'staging.corolair.dev',
-        'embed.corolair.dev',
+        'app.raison.is',
+        'share.raison.is',
     ];
 
     /**
