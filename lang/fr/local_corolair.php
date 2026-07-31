@@ -83,6 +83,7 @@ $string['disclosureintro'] = 'Avant toute activation de service web ou création
 $string['disclosuremissing'] = 'Les informations actuelles sur l’intégration doivent être reconnues par l’administrateur qui lance la configuration.';
 $string['disclosureopensource'] = 'Le code source du plugin est disponible publiquement pour un audit de sécurité :';
 $string['disclosureplanned'] = 'Usage prévu';
+$string['disclosureposttrialagreements'] = 'Si votre organisation choisit de continuer à utiliser Raison après la période d’essai gratuite, la poursuite du service nécessitera la conclusion d’accords formels entre Raison et votre organisation. Ces accords définiront les responsabilités de chaque partie et garantiront leur alignement en matière de protection des données, de confidentialité, de sécurité et d’exigences réglementaires applicables.';
 $string['disclosureprivacycontact'] = 'Pour toute question sur le traitement externe, la conservation ou la suppression, contactez contact@raison.is.';
 $string['disclosurepurpose'] = 'Finalité';
 $string['disclosurerole'] = 'Le rôle Manager Raison est distinct du jeton. Il accorde local/corolair:createtutor et local/corolair:viewroles aux utilisateurs Moodle interactifs.';
