@@ -39,7 +39,7 @@
 function xmldb_local_corolair_uninstall() {
     global $DB, $CFG;
     // Define API URL for deregistration.
-    $url = "https://services.raison.is/moodle-integration/plugin/organization/deregister";
+    $url = "https://services.raison.is/moodle-integration/v2/plugin/organization/deregister";
     try {
         // Step 1: Remove the custom role 'Corolair Manager'.
         $role = $DB->get_record('role', ['shortname' => 'corolair']);
@@ -68,17 +68,40 @@ function xmldb_local_corolair_uninstall() {
         $moodlebaseurl = $CFG->wwwroot;
         $postdata = json_encode([
             'url' => $moodlebaseurl,
-            'apiKey' => $apikey,
         ]);
         $curl = new curl();
         $options = [
             "CURLOPT_RETURNTRANSFER" => true,
+            "CURLOPT_CONNECTTIMEOUT" => 15,
+            "CURLOPT_TIMEOUT" => 60,
             'CURLOPT_HTTPHEADER' => [
+                'Authorization: Bearer ' . $apikey,
                 'Content-Type: application/json',
                 'Content-Length: ' . strlen($postdata),
             ],
         ];
-        $response = $curl->post($url, $postdata, $options);
+        $response = \local_corolair\local\audited_request::execute(
+            $curl,
+            function () use ($curl, $url, $postdata, $options) {
+                return $curl->post($url, $postdata, $options);
+            },
+            \local_corolair\local\audited_request::OP_ORGANIZATION_DEREGISTER,
+            \context_system::instance()
+        );
+        $errno = $curl->get_errno();
+        $info = $curl->get_info();
+        $httpstatus = (int)($info['http_code'] ?? 0);
+        if ($response === false || $errno !== 0 || $httpstatus < 200 || $httpstatus >= 300) {
+            throw new moodle_exception('curlerror', 'local_corolair');
+        }
+        try {
+            $responsedata = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new moodle_exception('curlerror', 'local_corolair');
+        }
+        if (!is_array($responsedata) || ($responsedata['status'] ?? null) !== 'disconnected') {
+            throw new moodle_exception('curlerror', 'local_corolair');
+        }
         return true;
     } catch (moodle_exception $me) {
         debugging($me->getMessage(), DEBUG_DEVELOPER);

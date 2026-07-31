@@ -1,58 +1,78 @@
 # Raison Moodle Plugin
 
-**Version:** 1.8.28
+**Version:** 1.9.0
 
-**Last Updated:** 2026/07/22
+**Last Updated:** 2026/07/31
 
 ## Overview
 
-The Raison Moodle Plugin enables seamless integration of **AI Tutors** into Moodle courses, enhancing the learning experience for both trainers and learners. This plugin transforms courses into interactive, AI-powered learning assistants tailored to the course content.
+The Raison Moodle Plugin brings **AI Tutors** directly into Moodle. It helps trainers turn existing course content into an interactive learning experience where learners can ask questions, review key concepts, and check their understanding without leaving their course.
+
+Each AI Tutor is created and managed by a trainer or instructional designer. The tutor uses the learning resources selected for it and can be adjusted to match the course, audience, and teaching goals. Trainers remain in control of the tutor's sources and behavior.
 
 ### Key Features
 
 - **For Instructional Designers & Trainers:**
-  - Easily create and customize AI Tutors directly from Moodle courses.
-  - Curate additional resources to enhance AI Tutor responses.
-  - Monitor learner interactions and insights, including trending topics and discussion analytics.
-  - Manage AI Tutor behavior, update sources, and track usage.
+  - Create AI Tutors from Moodle courses without rebuilding course content.
+  - Select Moodle resources and add complementary material for the tutor to use.
+  - Customize each tutor's instructions, behavior, and learning purpose.
+  - Share tutors with the appropriate learners and courses.
+  - Review usage, common questions, and discussion trends to identify where learners may need more support.
 - **For Learners:**
-  - Access AI Tutors embedded natively within Moodle courses.
-  - Ask course-related questions and receive instant, AI-driven answers.
-  - Self-assess understanding using an AI-generated question bank, curated and validated by the trainer.
-  - Enjoy a flexible, stop-and-resume chatbot experience for ongoing discussions and auto-evaluation mode.
+  - Open the AI Tutor from an enrolled Moodle course.
+  - Ask questions and receive answers based on the learning material chosen by the trainer.
+  - Review a topic through a guided conversation at their own pace.
+  - Pause a discussion and return to it later.
+  - Use self-assessment activities prepared and validated by the trainer.
 
 ---
 
 ## Installation
 
-This plugin requires Moodle 4.4 or later.
+The plugin requires Moodle 3.8 or later and must be installed by a Moodle site administrator. Moodle 4.4 or later is recommended if you plan to use the Raison LTI integration, but it is not required for LTI or for the plugin's other features.
 
-1. Install the latest version of the plugin from Moodle Plugins directory
-2. Upon installation, a Raison account with a trial plan will be automatically created for the administrator who installed the plugin.
-3. Assign the _Raison Manager_ role to Trainers to configure access permissions. This role includes the capability to access Raison from Home or Courses. You can also include the corresponding capability to existing roles. Trial accounts will also be automatically set up for all assigned Trainers.
+1. Install the latest version from the Moodle Plugins directory.
+2. Go to **Site administration > Plugins > Local plugins > Raison Local Plugin** and select **Open Corolair setup**.
+3. Review the integration disclosure. It explains what the plugin can access, why that access is needed, and how information is used.
+4. If Moodle web services or REST are not already enabled, approve the required configuration changes. The plugin does not make these site-wide changes without administrator approval.
+5. Start the Raison registration. Once registration is complete, a free-trial account is created for the administrator who began the setup.
+6. Assign the _Raison Manager_ role to the trainers and instructional designers who should create and manage AI Tutors. A trial account is created automatically for each assigned trainer.
+
+Only an authorized Moodle administrator can activate the integration. Existing Moodle web-service settings are preserved, and the setup page clearly identifies any change that requires approval.
+
+### Continuing after the free trial
+
+If your organization chooses to continue using Raison after the free trial, continued service will require formal agreements between Raison and your organization. These agreements will define each party's responsibilities and ensure alignment on data protection, privacy, security, and applicable regulatory requirements.
+
+### Privacy and security
+
+During setup, administrators can review the plugin's exact access permissions, the Moodle functions it uses, and the purpose of each type of data involved. The integration uses restricted, short-lived access credentials that are renewed automatically. Trainer sign-in is limited to approved, secure Raison destinations.
+
+For questions about data processing, retention, deletion, privacy, or security, contact contact@raison.is.
 
 ---
 
 ## Access
 
-### For Trainers & Instructional Designers:
+### For Trainers & Instructional Designers
 
-- **Via Moodle Homepage:** Navigate to **Plus > Raison** to access the Creator tools.
-- **From Course View:** Select **Plus > Raison AI Assistant** to initiate the AI Tutor creation process for a specific course.
+- **From the Moodle homepage:** Go to **Plus > Raison** to open the Creator tools.
+- **From a course:** Go to **Plus > Raison AI Assistant** to create or manage an AI Tutor for that course.
 
-Once in the Creator platform, trainers can:
+In the Creator platform, trainers can:
 
 - Create, share, and monitor AI Tutors.
-- Update sources and adjust behavior.
-- Track discussions and gain insights into key learner queries.
+- Choose and update the learning sources used by a tutor.
+- Adjust tutor instructions and behavior.
+- Review discussions and identify recurring learner questions.
 
 ---
 
-### For Learners:
+### For Learners
 
-- Access Raison directly as an embedded chatbot within their enrolled courses.
-- **Start and Resume Discussions:** Click to interact with AI Tutors anytime, with the ability to pause and return.
-- **Switch Modes:** Seamlessly transition from discussion to self-assessment mode.
+- Open the Raison AI Tutor from a Moodle course where it has been made available by the trainer.
+- Start a conversation, ask questions about course content, and return to previous discussions later.
+- Move between guided discussion and self-assessment when those options are enabled by the trainer.
 
 ---
 
@@ -71,13 +91,13 @@ Once in the Creator platform, trainers can:
 
 ## Contributing
 
-We welcome contributions on the Moodle plugin! Do not hesitate to submit feature requests, bug fixes, or enhancements on [Corolair Plugin Github Repository](https://github.com/corolair/moodle-local_corolair).
+Suggestions and feedback are welcome. You can submit feature requests or report issues through the [Corolair Plugin GitHub repository](https://github.com/corolair/moodle-local_corolair).
 
 ---
 
 ## Support
 
-For support, please contact our team at contact@raison.is.
+For installation help, product questions, or technical support, contact the Raison team at contact@raison.is.
 
 ---
 

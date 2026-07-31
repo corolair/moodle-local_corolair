@@ -29,11 +29,15 @@
  * @param int $courseid The course id to send to Raison.
  * @param context $context The context used to resolve the current user's role.
  * @param string $animate Whether the widget should animate on load.
- * @param string $supertutor Whether to mark this embed as a super tutor embed.
  * @return string The rendered embed script, or an empty string when disabled.
  */
-function local_corolair_render_embed_script($courseid, $context, $animate, $supertutor = '') {
+function local_corolair_render_embed_script($courseid, $context, $animate) {
     global $PAGE, $USER, $CFG;
+
+    // Only course widgets are supported.
+    if (empty($courseid)) {
+        return '';
+    }
 
     $apikey = get_config('local_corolair', 'apikey');
     if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {
@@ -49,73 +53,86 @@ function local_corolair_render_embed_script($courseid, $context, $animate, $supe
     $role = reset($roles);
     $rolename = (!empty($role) && !empty($role->shortname)) ? $role->shortname : '';
 
-    $moodleoptions = [
-        'courseId' => $courseid,
+    $moodlecontext = [
+        'courseId' => (string)$courseid,
         'url' => $CFG->wwwroot,
-        'moodleId' => $USER->id,
+        'moodleId' => (string)$USER->id,
         'email' => $USER->email,
         'firstName' => $USER->firstname,
         'lastName' => $USER->lastname,
         'role' => $rolename,
-        'apiKey' => $apikey,
         'currentMoodlePageUrl' => $pageurlstr,
-        'provider' => 'moodle',
     ];
-    $moodleoptions = json_encode($moodleoptions);
+    $postdata = json_encode($moodlecontext);
+    if ($postdata === false) {
+        return '';
+    }
+    require_once($CFG->libdir . '/filelib.php');
+    $curl = new curl();
+    $options = [
+        'CURLOPT_CONNECTTIMEOUT' => 15,
+        'CURLOPT_TIMEOUT' => 60,
+        'CURLOPT_HTTPHEADER' => [
+            'Authorization: Bearer ' . $apikey,
+            'Content-Type: application/json',
+            'Content-Length: ' . strlen($postdata),
+        ],
+    ];
+    $response = \local_corolair\local\audited_request::execute(
+        $curl,
+        function () use ($curl, $postdata, $options) {
+            return $curl->post(
+                'https://services.corolair.dev/tutor-handling/widget/moodle/session',
+                $postdata,
+                $options
+            );
+        },
+        \local_corolair\local\audited_request::OP_WIDGET_SESSION,
+        $context,
+        (int)$USER->id
+    );
+    if ($response === false || $curl->get_errno() !== 0) {
+        return '';
+    }
+    $info = $curl->get_info();
+    $httpstatus = (int)($info['http_code'] ?? 0);
+    if ($httpstatus < 200 || $httpstatus >= 300) {
+        return '';
+    }
+    try {
+        $responsedata = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException $exception) {
+        return '';
+    }
+    if (
+        !is_array($responsedata) ||
+        !is_string($responsedata['token'] ?? null) ||
+        $responsedata['token'] === '' ||
+        strlen($responsedata['token']) > 8192 ||
+        !is_int($responsedata['expiresIn'] ?? null) ||
+        $responsedata['expiresIn'] <= 0 ||
+        $responsedata['expiresIn'] > 300
+    ) {
+        return '';
+    }
 
     $sidepanel = get_config('local_corolair', 'sidepanel');
     $sidepanel = ($sidepanel === 'true') ? 'true' : 'false';
 
     $output = $PAGE->get_renderer('local_corolair');
-    return $output->render_embed_script($sidepanel, $animate, $moodleoptions, $supertutor);
+    return $output->render_embed_script($sidepanel, $animate, $responsedata['token']);
 }
 
 /**
- * Adds the Raison embed script to non-course pages.
+ * Does not add a widget to non-course pages.
+ *
+ * Organization-wide super widgets and super tutors are retired. Course widgets
+ * are rendered by local_corolair_extend_navigation_course().
  *
  * @return string The rendered embed script, or an empty string when disabled.
  */
 function local_corolair_before_footer() {
-    global $PAGE, $SITE;
-
-    $pageurlstr = $PAGE->url->out();
-    $courseviewid = $PAGE->url->get_param('id');
-    $iscourseviewurl = strpos($pageurlstr, '/course/view.php') !== false;
-    $ismoduleurl = strpos($pageurlstr, '/mod/') !== false;
-
-    if (!empty($PAGE->course) && (int)$PAGE->course->id !== (int)$SITE->id) {
-        return '';
-    }
-
-    if (!empty($PAGE->context)) {
-        $contextlevel = $PAGE->context->contextlevel;
-        if ($contextlevel === CONTEXT_MODULE) {
-            return '';
-        }
-        if ($contextlevel === CONTEXT_COURSE && (int)$PAGE->context->instanceid !== (int)$SITE->id) {
-            return '';
-        }
-    }
-
-    if ($iscourseviewurl && ((int)$courseviewid !== (int)$SITE->id)) {
-        return '';
-    }
-
-    if ($ismoduleurl) {
-        return '';
-    }
-
-    if (strpos($pageurlstr, '/local/corolair/') !== false) {
-        return '';
-    }
-
-    $context = empty($PAGE->context) ? context_system::instance() : $PAGE->context;
-    $courseid = '';
-    if (!empty($PAGE->course) && !empty($PAGE->course->id) && (int)$PAGE->course->id !== (int)$SITE->id) {
-        $courseid = $PAGE->course->id;
-    }
-
-    return local_corolair_render_embed_script($courseid, $context, 'false', 'true');
+    return '';
 }
 
 /**

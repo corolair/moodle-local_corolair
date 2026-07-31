@@ -78,6 +78,248 @@ class provider implements
     \core_privacy\local\request\plugin\provider,
     local_corolair_userlist_provider {
     // phpcs:enable PSR1.Classes.ClassDeclaration.MultipleClasses, Generic.Classes.DuplicateClassName.Found
+
+    /** Maximum time allowed to establish an external connection, in seconds. */
+    private const CONNECTION_TIMEOUT = 15;
+
+    /** Maximum total duration of an external request, in seconds. */
+    private const REQUEST_TIMEOUT = 60;
+
+    /** Maximum number of identifiers accepted in one privacy response. */
+    private const MAX_PRIVACY_IDENTIFIERS = 10000;
+
+    /**
+     * Return the standard options for authenticated calls to the Corolair service.
+     *
+     * @param string $apikey Corolair API key.
+     * @return array
+     */
+    private static function get_curl_options(string $apikey): array {
+        return [
+            'CURLOPT_CONNECTTIMEOUT' => self::CONNECTION_TIMEOUT,
+            'CURLOPT_TIMEOUT' => self::REQUEST_TIMEOUT,
+            'CURLOPT_HTTPHEADER' => [
+                'Authorization: Bearer ' . $apikey,
+            ],
+        ];
+    }
+
+    /**
+     * Decode an external JSON response as an associative array.
+     *
+     * @param string $response Raw response body.
+     * @return array Decoded response.
+     */
+    private static function decode_json_response(string $response): array {
+        try {
+            $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            debugging('Invalid JSON received from the Corolair privacy service.', DEBUG_DEVELOPER);
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+
+        if (!is_array($data)) {
+            debugging('Unexpected JSON structure received from the Corolair privacy service.', DEBUG_DEVELOPER);
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        return $data;
+    }
+
+    /**
+     * Check both the transport result and HTTP status of an external request.
+     *
+     * @param curl $curl Moodle curl client used for the request.
+     * @param mixed $response Response body, or false on a transport failure.
+     * @return bool
+     */
+    private static function request_succeeded(curl $curl, $response): bool {
+        if ($response === false || $curl->get_errno() !== 0) {
+            return false;
+        }
+        $info = $curl->get_info();
+        $status = (int)($info['http_code'] ?? 0);
+        return $status >= 200 && $status < 300;
+    }
+
+    /**
+     * Validate and normalise a bounded list of positive integer identifiers.
+     *
+     * @param mixed $values Values received from the external service.
+     * @return int[]
+     */
+    private static function validate_identifier_list($values): array {
+        if (!is_array($values) || count($values) > self::MAX_PRIVACY_IDENTIFIERS) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        $identifiers = [];
+        foreach ($values as $value) {
+            if (
+                (!is_int($value) && !(is_string($value) && ctype_digit($value))) ||
+                (int)$value <= 0
+            ) {
+                throw new \moodle_exception('curlerror', 'local_corolair');
+            }
+            $identifiers[(int)$value] = (int)$value;
+        }
+        return array_values($identifiers);
+    }
+
+    /**
+     * Validate a completed deletion response and return its safe audit fields.
+     *
+     * @param string $response Raw response body.
+     * @param string $contextlevel Expected scope: system or course.
+     * @param int|null $scopeid Expected course identifier.
+     * @param int|null $contextid Expected Moodle context identifier.
+     * @param int|null $moodleuserid Expected Moodle user identifier.
+     * @return array
+     */
+    private static function validate_deletion_response(
+        string $response,
+        string $contextlevel,
+        ?int $scopeid = null,
+        ?int $contextid = null,
+        ?int $moodleuserid = null
+    ): array {
+        $data = self::decode_json_response($response);
+        if (
+            ($data['status'] ?? null) !== 'completed' ||
+            !is_string($data['operationId'] ?? null) ||
+            strlen($data['operationId']) < 1 ||
+            strlen($data['operationId']) > 128 ||
+            !is_array($data['scope'] ?? null) ||
+            ($data['scope']['contextLevel'] ?? null) !== $contextlevel ||
+            !is_array($data['affected'] ?? null)
+        ) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        if (
+            $contextid !== null &&
+            (!isset($data['scope']['contextId']) ||
+            (string)$data['scope']['contextId'] !== (string)$contextid)
+        ) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        if (
+            $contextlevel === 'course' &&
+            (!isset($data['scope']['courseId']) ||
+            (string)$data['scope']['courseId'] !== (string)$scopeid)
+        ) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        if (
+            $moodleuserid !== null &&
+            (!isset($data['scope']['moodleUserId']) ||
+            (int)$data['scope']['moodleUserId'] !== $moodleuserid)
+        ) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        foreach (['associations', 'conversations', 'learners', 'users'] as $field) {
+            if (
+                !isset($data['affected'][$field]) ||
+                !is_int($data['affected'][$field]) ||
+                $data['affected'][$field] < 0
+            ) {
+                throw new \moodle_exception('curlerror', 'local_corolair');
+            }
+        }
+        return [
+            'operationid' => $data['operationId'],
+            'affected' => $data['affected'],
+        ];
+    }
+
+    /**
+     * Build the remote scope parameters for a supported Moodle context.
+     *
+     * @param context $context Moodle context to scope.
+     * @return array|null Scope parameters, or null for unsupported contexts.
+     */
+    private static function get_context_scope(context $context): ?array {
+        if ($context->contextlevel == CONTEXT_SYSTEM) {
+            return [
+                'contextlevel' => 'system',
+                'contextid' => (int)$context->id,
+            ];
+        }
+        if ($context->contextlevel == CONTEXT_COURSE) {
+            return [
+                'contextlevel' => 'course',
+                'contextid' => (int)$context->id,
+                'courseid' => (int)$context->instanceid,
+            ];
+        }
+        return null;
+    }
+
+    /**
+     * Verify that a remote response was produced for the requested context.
+     *
+     * @param mixed $scope Remote response scope.
+     * @param context $context Requested Moodle context.
+     * @param int|null $moodleuserid Expected user identifier, when applicable.
+     * @return void
+     */
+    private static function validate_response_scope(
+        $scope,
+        context $context,
+        ?int $moodleuserid = null
+    ): void {
+        $expected = self::get_context_scope($context);
+        if (
+            $expected === null ||
+            !is_array($scope) ||
+            ($scope['contextLevel'] ?? null) !== $expected['contextlevel'] ||
+            !isset($scope['contextId']) ||
+            (string)$scope['contextId'] !== (string)$expected['contextid']
+        ) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        if (
+            isset($expected['courseid']) &&
+            (!isset($scope['courseId']) ||
+            (string)$scope['courseId'] !== (string)$expected['courseid'])
+        ) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        if (
+            $moodleuserid !== null &&
+            (!isset($scope['moodleUserId']) ||
+            (int)$scope['moodleUserId'] !== $moodleuserid)
+        ) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+    }
+
+    /**
+     * Trigger a local audit event after a verified privacy deletion.
+     *
+     * @param context $context Moodle context affected by the operation.
+     * @param string $scope Scope returned by Corolair.
+     * @param array $outcome Validated deletion outcome.
+     * @param int|null $relateduserid Related Moodle user, when applicable.
+     * @return void
+     */
+    private static function record_deletion_event(
+        context $context,
+        string $scope,
+        array $outcome,
+        ?int $relateduserid = null
+    ): void {
+        $eventdata = [
+            'context' => $context,
+            'other' => [
+                'scope' => $scope,
+                'operationid' => $outcome['operationid'],
+                'affected' => $outcome['affected'],
+            ],
+        ];
+        if ($relateduserid !== null) {
+            $eventdata['relateduserid'] = $relateduserid;
+        }
+        \local_corolair\event\privacy_deletion_completed::create($eventdata)->trigger();
+    }
+
     /**
      * Returns metadata about the external location link for Raison.
      *
@@ -107,48 +349,68 @@ class provider implements
      * @return contextlist The list of contexts associated with the user.
      */
     public static function get_contexts_for_userid(int $userid): contextlist {
+        global $DB;
+
         $contextlist = new contextlist();
         $apikey = get_config('local_corolair', 'apikey');
         $noapikey = get_string('noapikey', 'local_corolair');
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
             return $contextlist;
         }
-        $url = 'https://services.raison.is/moodle-integration/privacy/users/'
-             . $userid . '/contexts?apikey=' . urlencode($apikey);
+        $url = 'https://services.raison.is/moodle-integration/v2/privacy/users/'
+             . $userid . '/contexts';
         $curl = new curl();
-        $response = $curl->get($url);
-        $errno = $curl->get_errno();
-        if ($response === false || $errno !== 0) {
-            return $contextlist;
+        $options = self::get_curl_options($apikey);
+        $response = \local_corolair\local\audited_request::execute(
+            $curl,
+            function () use ($curl, $url, $options) {
+                return $curl->get($url, [], $options);
+            },
+            \local_corolair\local\audited_request::OP_PRIVACY_CONTEXTS,
+            context_system::instance(),
+            $userid
+        );
+        if (!self::request_succeeded($curl, $response)) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
         }
-        $responsedata = json_decode($response, true);
-        if (is_array($responsedata)) {
-            foreach ($responsedata as $contextdata) {
-                $contextlevelname = $contextdata['contextIdentifier'];
-                $payload = $contextdata['payload'];
-                if ($contextlevelname === 'CONTEXT_COURSE') {
-                    if (!empty($payload) && is_array($payload)) {
-                        foreach ($payload as $instanceid) {
-                            $sql = "SELECT c.id
-                                    FROM {context} c
-                                    WHERE c.contextlevel = :contextlevel
-                                    AND c.instanceid = :instanceid";
-                            $params = [
-                                'instanceid' => $instanceid,
-                                'contextlevel' => CONTEXT_COURSE,
-                            ];
-                            $contextlist->add_from_sql($sql, $params);
-                        }
-                    }
-                } else if ($contextlevelname === 'CONTEXT_SYSTEM') {
-                    $sql = "SELECT c.id
-                            FROM {context} c
-                            WHERE c.contextlevel = :contextlevel";
-                    $params = [
-                        'contextlevel' => CONTEXT_SYSTEM,
-                    ];
-                    $contextlist->add_from_sql($sql, $params);
+        $responsedata = self::decode_json_response($response);
+        if (count($responsedata) > self::MAX_PRIVACY_IDENTIFIERS) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        foreach ($responsedata as $contextdata) {
+            if (
+                !is_array($contextdata) ||
+                !is_string($contextdata['contextIdentifier'] ?? null) ||
+                !array_key_exists('payload', $contextdata)
+            ) {
+                throw new \moodle_exception('curlerror', 'local_corolair');
+            }
+            if ($contextdata['contextIdentifier'] === 'CONTEXT_SYSTEM') {
+                if ($contextdata['payload'] !== null) {
+                    throw new \moodle_exception('curlerror', 'local_corolair');
                 }
+                $contextlist->add_from_sql(
+                    "SELECT id FROM {context} WHERE contextlevel = :contextlevel",
+                    ['contextlevel' => CONTEXT_SYSTEM]
+                );
+            } else if ($contextdata['contextIdentifier'] === 'CONTEXT_COURSE') {
+                $courseids = self::validate_identifier_list($contextdata['payload']);
+                if (!$courseids) {
+                    continue;
+                }
+                [$insql, $params] = $DB->get_in_or_equal(
+                    $courseids,
+                    SQL_PARAMS_NAMED,
+                    'privacycourse'
+                );
+                $params['contextlevel'] = CONTEXT_COURSE;
+                $sql = "SELECT id
+                          FROM {context}
+                         WHERE contextlevel = :contextlevel
+                           AND instanceid {$insql}";
+                $contextlist->add_from_sql($sql, $params);
+            } else {
+                throw new \moodle_exception('curlerror', 'local_corolair');
             }
         }
         return $contextlist;
@@ -172,22 +434,72 @@ class provider implements
         }
         $user = $approvedcontextlist->get_user();
         $userid = $user->id;
-        $url = 'https://services.raison.is/moodle-integration/privacy/users/'
-             . $userid . '/export?apikey=' . urlencode($apikey);
         $curl = new curl();
-        $response = $curl->get($url);
-        $errno = $curl->get_errno();
-        if ($response === false || $errno !== 0) {
-            return;
-        }
-        $responsedata = json_decode($response, true);
-        $context = context_system::instance();
-        if (is_array($responsedata)) {
-            foreach ($responsedata as $data) {
-                $payload = $data['payload'];
-                $subcontext = $data['subcontext'];
-                \core_privacy\local\request\writer::with_context($context)
-                    ->export_data($subcontext, (object) $payload);
+        foreach ($approvedcontextlist->get_contexts() as $approvedcontext) {
+            $scope = self::get_context_scope($approvedcontext);
+            if ($scope === null) {
+                continue;
+            }
+            $url = new \moodle_url(
+                'https://services.raison.is/moodle-integration/v2/privacy/users/'
+                    . $userid . '/export',
+                $scope
+            );
+            $urlout = $url->out(false);
+            $options = self::get_curl_options($apikey);
+            $response = \local_corolair\local\audited_request::execute(
+                $curl,
+                function () use ($curl, $urlout, $options) {
+                    return $curl->get($urlout, [], $options);
+                },
+                \local_corolair\local\audited_request::OP_PRIVACY_EXPORT,
+                $approvedcontext,
+                $userid
+            );
+            if (!self::request_succeeded($curl, $response)) {
+                throw new \moodle_exception('curlerror', 'local_corolair');
+            }
+            $responsedata = self::decode_json_response($response);
+            self::validate_response_scope($responsedata['scope'] ?? null, $approvedcontext);
+            $exports = $responsedata['data'] ?? null;
+            if (!is_array($exports) || count($exports) > self::MAX_PRIVACY_IDENTIFIERS) {
+                throw new \moodle_exception('curlerror', 'local_corolair');
+            }
+            foreach ($exports as $data) {
+                if (
+                    !is_array($data) ||
+                    !is_string($data['contextIdentifier'] ?? null) ||
+                    !is_array($data['payload'] ?? null) ||
+                    !is_array($data['subcontext'] ?? null) ||
+                    count($data['subcontext']) > 20
+                ) {
+                    throw new \moodle_exception('curlerror', 'local_corolair');
+                }
+                foreach ($data['subcontext'] as $subcontextpart) {
+                    if (
+                        !is_string($subcontextpart) ||
+                        $subcontextpart === '' ||
+                        strlen($subcontextpart) > 255
+                    ) {
+                        throw new \moodle_exception('curlerror', 'local_corolair');
+                    }
+                }
+                if (
+                    $scope['contextlevel'] === 'system' &&
+                    ($data['contextIdentifier'] !== 'CONTEXT_SYSTEM' ||
+                    array_key_exists('courseId', $data))
+                ) {
+                    throw new \moodle_exception('curlerror', 'local_corolair');
+                }
+                if (
+                    $scope['contextlevel'] === 'course' &&
+                    ($data['contextIdentifier'] !== 'CONTEXT_COURSE' ||
+                    (string)($data['courseId'] ?? '') !== (string)$scope['courseid'])
+                ) {
+                    throw new \moodle_exception('curlerror', 'local_corolair');
+                }
+                \core_privacy\local\request\writer::with_context($approvedcontext)
+                    ->export_data($data['subcontext'], (object)$data['payload']);
             }
         }
     }
@@ -199,31 +511,46 @@ class provider implements
      * @return void
      */
     public static function get_users_in_context(userlist $userlist) {
+        global $DB;
+
         $apikey = get_config('local_corolair', 'apikey');
         $noapikey = get_string('noapikey', 'local_corolair');
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
             return;
         }
         $context = $userlist->get_context();
-        $contextlevel = '';
-        if ($context->contextlevel == CONTEXT_COURSE) {
-            $contextlevel = 'course';
-        } else if ($context->contextlevel == CONTEXT_SYSTEM) {
-            $contextlevel = 'system';
-        } else {
+        $urlparams = self::get_context_scope($context);
+        if ($urlparams === null) {
             return;
         }
-        $url = 'https://services.raison.is/moodle-integration/privacy/contexts/users?apikey='
-             . urlencode($apikey) . '&contextlevel=' . $contextlevel;
+        $url = new \moodle_url(
+            'https://services.raison.is/moodle-integration/v2/privacy/contexts/users',
+            $urlparams
+        );
         $curl = new curl();
-        $response = $curl->get($url);
-        $errno = $curl->get_errno();
-        if ($response !== false && $errno === 0) {
-            $responsedata = json_decode($response, true);
-            if (isset($responsedata['userIds']) && is_array($responsedata['userIds'])) {
-                $userids = $responsedata['userIds'];
-                $userlist->add_users($userids);
+        $urlout = $url->out(false);
+        $options = self::get_curl_options($apikey);
+        $response = \local_corolair\local\audited_request::execute(
+            $curl,
+            function () use ($curl, $urlout, $options) {
+                return $curl->get($urlout, [], $options);
+            },
+            \local_corolair\local\audited_request::OP_PRIVACY_CONTEXT_USERS,
+            $context
+        );
+        if (self::request_succeeded($curl, $response)) {
+            $responsedata = self::decode_json_response($response);
+            self::validate_response_scope($responsedata['scope'] ?? null, $context);
+            if (!array_key_exists('userIds', $responsedata)) {
+                throw new \moodle_exception('curlerror', 'local_corolair');
             }
+            $userids = self::validate_identifier_list($responsedata['userIds']);
+            if ($userids) {
+                $existingusers = $DB->get_records_list('user', 'id', $userids, '', 'id');
+                $userlist->add_users(array_map('intval', array_keys($existingusers)));
+            }
+        } else {
+            throw new \moodle_exception('curlerror', 'local_corolair');
         }
         return;
     }
@@ -240,19 +567,84 @@ class provider implements
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
             return;
         }
-        $contextlevel = '';
-        if ($context->contextlevel == CONTEXT_COURSE) {
-            $contextlevel = 'course';
-        } else if ($context->contextlevel == CONTEXT_SYSTEM) {
-            $contextlevel = 'system';
-        } else {
+        $urlparams = self::get_context_scope($context);
+        if ($urlparams === null) {
             return;
         }
-        $url = 'https://services.raison.is/moodle-integration/privacy/contexts/delete?apikey='
-             . urlencode($apikey) . '&contextlevel=' . $contextlevel;
+        $url = new \moodle_url(
+            'https://services.raison.is/moodle-integration/v2/privacy/contexts/delete',
+            $urlparams
+        );
         $curl = new curl();
-        $response = $curl->delete($url);
+        $urlout = $url->out(false);
+        $options = self::get_curl_options($apikey);
+        $response = \local_corolair\local\audited_request::execute(
+            $curl,
+            function () use ($curl, $urlout, $options) {
+                return $curl->delete($urlout, [], $options);
+            },
+            \local_corolair\local\audited_request::OP_PRIVACY_CONTEXT_DELETE,
+            $context
+        );
+        if (!self::request_succeeded($curl, $response)) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        $outcome = self::validate_deletion_response(
+            $response,
+            $urlparams['contextlevel'],
+            $urlparams['courseid'] ?? null,
+            $urlparams['contextid']
+        );
+        self::record_deletion_event($context, $urlparams['contextlevel'], $outcome);
         return;
+    }
+
+    /**
+     * Delete one user's remote data within one approved Moodle context.
+     *
+     * @param int $userid Moodle user ID.
+     * @param context $context Approved context.
+     * @param string $apikey Corolair API key.
+     * @param curl $curl Moodle curl client.
+     * @return void
+     */
+    private static function delete_user_in_context(
+        int $userid,
+        context $context,
+        string $apikey,
+        curl $curl
+    ): void {
+        $scope = self::get_context_scope($context);
+        if ($scope === null) {
+            return;
+        }
+        $url = new \moodle_url(
+            'https://services.raison.is/moodle-integration/v2/privacy/users/'
+                . $userid . '/delete',
+            $scope
+        );
+        $urlout = $url->out(false);
+        $options = self::get_curl_options($apikey);
+        $response = \local_corolair\local\audited_request::execute(
+            $curl,
+            function () use ($curl, $urlout, $options) {
+                return $curl->delete($urlout, [], $options);
+            },
+            \local_corolair\local\audited_request::OP_PRIVACY_USER_DELETE,
+            $context,
+            $userid
+        );
+        if (!self::request_succeeded($curl, $response)) {
+            throw new \moodle_exception('curlerror', 'local_corolair');
+        }
+        $outcome = self::validate_deletion_response(
+            $response,
+            $scope['contextlevel'],
+            $scope['courseid'] ?? null,
+            $scope['contextid'],
+            $userid
+        );
+        self::record_deletion_event($context, $scope['contextlevel'], $outcome, $userid);
     }
 
     /**
@@ -273,10 +665,10 @@ class provider implements
         }
         $user = $contextlist->get_user();
         $userid = $user->id;
-        $url = 'https://services.raison.is/moodle-integration/privacy/users/'
-             . $userid . '/delete?apikey=' . urlencode($apikey);
         $curl = new curl();
-        $curl->delete($url);
+        foreach ($contextlist->get_contexts() as $context) {
+            self::delete_user_in_context($userid, $context, $apikey, $curl);
+        }
     }
 
     /**
@@ -296,10 +688,9 @@ class provider implements
         }
         $users = $userlist->get_userids();
         $curl = new curl();
+        $context = $userlist->get_context();
         foreach ($users as $userid) {
-            $url = 'https://services.raison.is/moodle-integration/privacy/users/'
-                 . $userid . '/delete?apikey=' . urlencode($apikey);
-            $curl->delete($url);
+            self::delete_user_in_context((int)$userid, $context, $apikey, $curl);
         }
     }
 }
