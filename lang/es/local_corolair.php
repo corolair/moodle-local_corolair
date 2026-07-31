@@ -83,6 +83,7 @@ $string['disclosureintro'] = 'Antes de habilitar servicios web o crear un token,
 $string['disclosuremissing'] = 'El administrador que inicia la configuración debe confirmar la versión actual de la información de integración.';
 $string['disclosureopensource'] = 'El código fuente del plugin está disponible públicamente para revisión de seguridad:';
 $string['disclosureplanned'] = 'Uso previsto';
+$string['disclosureposttrialagreements'] = 'Si su organización decide continuar utilizando Raison después del periodo de prueba gratuito, la continuidad del servicio requerirá la formalización de acuerdos entre Raison y su organización. Estos acuerdos definirán las responsabilidades de cada parte y garantizarán su alineación en materia de protección de datos, privacidad, seguridad y requisitos normativos aplicables.';
 $string['disclosureprivacycontact'] = 'Para consultas sobre tratamiento externo, conservación o eliminación, contacte con contact@raison.is.';
 $string['disclosurepurpose'] = 'Finalidad';
 $string['disclosurerole'] = 'El rol Gestor de Raison es independiente del token. Concede local/corolair:createtutor y local/corolair:viewroles a usuarios interactivos de Moodle.';
