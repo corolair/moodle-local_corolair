@@ -99,15 +99,6 @@ if ($hassiteconfig) {
         get_string('noapikey', 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-    // Add a text input setting for the Raison login identifier.
-    $settings->add(new admin_setting_configtext(
-        'local_corolair/corolairlogin',
-        get_string('raisonlogin', 'local_corolair'), // Setting title.
-        get_string('raisonlogindesc', 'local_corolair'), // Setting description.
-        get_string('noraisonlogin', 'local_corolair'), // Default value.
-        PARAM_TEXT // Validation type.
-    ));
-
     // Add a text input setting for excluded activity modules.
     // Example value: "quiz, lesson, forum".
     $settings->add(new admin_setting_configtext(

@@ -81,8 +81,6 @@ function xmldb_local_corolair_install() {
         }
         $adminid = $USER->id;
         role_assign($roleid, $adminid, context_system::instance()->id);
-        $adminemail = $USER->email;
-        set_config('corolairlogin', $adminemail, 'local_corolair');
         $setuplink = (new moodle_url('/local/corolair/setup.php'))->out();
         \core\notification::add(
             get_string(
