@@ -123,8 +123,8 @@ $string['privacy:metadata:raison:userrolename'] = 'Your role name is sent to man
 $string['privacy:setupsubcontext'] = 'Raison integration setup';
 $string['raisontuto'] = 'Learn how to use Raison by visiting <a href="https://troubleshoot-moodle.raison.is" target="_blank">this tutorial</a>.';
 $string['redirectingmessage'] = 'If you are not redirected automatically, please click the button below to continue to Raison.';
-$string['restprotocolenableerror']  = 'Could not enable the REST protocol.';
 $string['reloadpage'] = 'Reload the page';
+$string['restprotocolenableerror']  = 'Could not enable the REST protocol.';
 $string['retryregistration'] = 'Retry Raison registration';
 $string['retryseparator'] = 'or';
 $string['roledescription'] = 'Role for managing Raison AI Tutors';

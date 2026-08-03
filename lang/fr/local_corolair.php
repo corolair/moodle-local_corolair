@@ -123,8 +123,8 @@ $string['privacy:metadata:raison:userrolename'] = 'Votre rôle est envoyé pour 
 $string['privacy:setupsubcontext'] = 'Configuration de l\'intégration Raison';
 $string['raisontuto'] = 'Apprenez à utiliser Raison en consultant <a href="https://troubleshoot-moodle.raison.is" target="_blank">ce tutoriel</a>.';
 $string['redirectingmessage'] = 'Si vous n\'êtes pas redirigé automatiquement, veuillez cliquer sur le bouton ci-dessous pour continuer vers Raison.';
-$string['restprotocolenableerror'] = 'Impossible d\'activer le protocole REST.';
 $string['reloadpage'] = 'Recharger la page';
+$string['restprotocolenableerror'] = 'Impossible d\'activer le protocole REST.';
 $string['retryregistration'] = 'Réessayer l\'enregistrement Raison';
 $string['retryseparator'] = 'ou';
 $string['roledescription'] = 'Rôle pour la gestion des Tuteurs IA dans Raison';
