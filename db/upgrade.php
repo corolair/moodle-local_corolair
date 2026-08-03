@@ -133,6 +133,13 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 }
             }
         }
+        // Step 4: Retire credentials inherited from pre-1.9.0 installs (COR-SEC-004) and drop the
+        // unused local copy of the administrator email (COR-PRIV-004). The credential rotation
+        // itself is deferred to an adhoc task so it runs against a live site.
+        if ($result && $oldversion < 2026080300) {
+            unset_config('corolairlogin', 'local_corolair');
+            \local_corolair\local\upgrade_migrator::schedule_if_required();
+        }
     } catch (moodle_exception $me) {
         debugging($me->getMessage(), DEBUG_DEVELOPER);
         \core\notification::add(

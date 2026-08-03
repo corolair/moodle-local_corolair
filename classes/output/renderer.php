@@ -67,27 +67,22 @@ class renderer extends plugin_renderer_base {
     /**
      * Renders the installation troubleshoot template with the provided site data.
      *
-     * @param string $siteurl The URL of the site.
-     * @param string $sitename The name of the site.
+     * Only non-personal technical status flags are forwarded to the external diagnostic
+     * page. Personal data (operator email/name) and site identifiers are intentionally
+     * excluded from the cross-origin URL to avoid leaking them into browser history,
+     * proxies, and provider logs.
+     *
      * @param bool $iswebserviceenabled Whether the web service is enabled.
      * @param bool $isrestprotocolenabled Whether the REST protocol is enabled.
      * @param bool $israisonserviceexist Whether the Raison service exists.
      * @param bool $istokenexist Whether the token exists.
-     * @param string $useremail The email of the user.
-     * @param string $userfirstname The first name of the user.
-     * @param string $userlastname The last name of the user.
      * @return string The rendered HTML content.
      */
     public function render_installation_troubleshoot(
-        $siteurl,
-        $sitename,
         $iswebserviceenabled,
         $isrestprotocolenabled,
         $israisonserviceexist,
-        $istokenexist,
-        $useremail,
-        $userfirstname,
-        $userlastname
+        $istokenexist
     ) {
         $iswebserviceenabledstring = 'false';
         if ($iswebserviceenabled) {
@@ -106,15 +101,10 @@ class renderer extends plugin_renderer_base {
             $istokenexiststring = 'true';
         }
         $troubleshooturl = new \moodle_url('https://embed.corolair.dev/troubleshoot/moodle', [
-            'siteUrl' => $siteurl,
-            'siteName' => $sitename,
             'isWebServiceEnabled' => $iswebserviceenabledstring,
             'isRestProtocolEnabled' => $isrestprotocolenabledstring,
             'isCorolairServiceExist' => $israisonserviceexiststring,
             'isTokenExist' => $istokenexiststring,
-            'userEmail' => $useremail,
-            'userFirstname' => $userfirstname,
-            'userLastname' => $userlastname,
         ]);
         $data = [
             'troubleshootUrl' => $troubleshooturl->out(false),
