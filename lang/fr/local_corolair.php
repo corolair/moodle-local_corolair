@@ -28,6 +28,11 @@ $string['adhocqueued'] = 'La synchronisation avec les services Raison aurait dû
 $string['apikey'] = 'Clé API Raison';
 $string['apikeydesc'] = 'Cette clé est générée lors de l\'installation du plugin. Veuillez la garder secrète. Elle peut être demandée par l\'équipe support de Raison.';
 $string['apikeymissing'] = 'Clé API non trouvée dans la réponse de l\'API Raison.';
+$string['apikeyrotate'] = 'Renouveler la clé API';
+$string['apikeyrotateconfirm'] = 'Cette action génère une nouvelle clé API Raison et invalide immédiatement la clé actuelle. Continuer ?';
+$string['apikeyrotatefailed'] = 'Le renouvellement de la clé API Raison a échoué. Vérifiez les services web et la connectivité, puis réessayez.';
+$string['apikeyrotatenotoken'] = 'Aucun jeton de service web Raison n\'a été trouvé. Terminez la configuration du plugin avant de renouveler la clé API.';
+$string['apikeyrotatesuccess'] = 'Une nouvelle clé API Raison a été générée. La clé précédente est désormais invalide.';
 $string['apikeyset'] = 'La clé API a été définie avec succès.';
 $string['calendlydemo'] = 'Pour que nous puissions vous aider au mieux, nous vous invitons à nous présenter votre cas d\'usage lors d\'un appel découverte avec l\'équipe Raison. Après cela, nos développeurs pourront se concentrer sur la résolution des problèmes de connexion avec votre instance Moodle. Vous pouvez réserver un échange <strong> <a href="https://discoverycall.raison.is/" target="_blank">ici</a> </strong>.';
 $string['capabilityassignerror'] = 'Impossible d\'attribuer la capacité "{$a}" au rôle.';

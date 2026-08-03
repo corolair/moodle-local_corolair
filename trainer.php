@@ -103,52 +103,19 @@ if (
         $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
         if ($token) {
             // Attempt to register the moodle instance again.
-            $curl = new \curl();
-            $url = "https://services.corolair.dev/moodle-integration/plugin/organization/register";
-            $postdata = json_encode([
-                'url' => $moodlerooturl,
-                'webserviceToken' => $token->token,
-                'email' => $useremail,
-                'firstname' => $userfirstname,
-                'lastname' => $userlastname,
-                'siteName' => $sitename,
-            ]);
-            $options = [
-                "CURLOPT_RETURNTRANSFER" => true,
-                "CURLOPT_CONNECTTIMEOUT" => 15,
-                "CURLOPT_TIMEOUT" => 60,
-                'CURLOPT_HTTPHEADER' => [
-                    'Content-Type: application/json',
-                    'Content-Length: ' . strlen($postdata),
-                ],
-            ];
-            $response = \local_corolair\local\audited_request::execute(
-                $curl,
-                function () use ($curl, $url, $postdata, $options) {
-                    return $curl->post($url, $postdata, $options);
-                },
-                \local_corolair\local\audited_request::OP_ORGANIZATION_REGISTER,
+            $newapikey = \local_corolair\local\registration_client::register(
+                $moodlerooturl,
+                $token->token,
+                $useremail,
+                $userfirstname,
+                $userlastname,
+                $sitename,
                 context_system::instance(),
                 (int)$USER->id
             );
-            $errno = $curl->get_errno();
-            $info = $curl->get_info();
-            $httpstatus = (int)($info['http_code'] ?? 0);
-            if ($response !== false && $errno === 0 && $httpstatus >= 200 && $httpstatus < 300) {
-                try {
-                    $jsonresponse = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-                    if (
-                        is_array($jsonresponse) &&
-                        isset($jsonresponse['apiKey']) &&
-                        is_string($jsonresponse['apiKey']) &&
-                        $jsonresponse['apiKey'] !== ''
-                    ) {
-                        set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
-                        $isretrysuccess = true;
-                    }
-                } catch (JsonException $exception) {
-                    debugging('Invalid JSON received while registering Corolair.', DEBUG_DEVELOPER);
-                }
+            if ($newapikey !== null) {
+                set_config('apikey', $newapikey, 'local_corolair');
+                $isretrysuccess = true;
             }
         }
     }

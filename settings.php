@@ -91,11 +91,18 @@ if ($hassiteconfig) {
             'false' => get_string('capabilityfalse', 'local_corolair'),
         ]
     ));
-    // Add a masked input setting for the Raison API key.
+    // Add a masked input setting for the Raison API key. The rotation action is
+    // appended to the field description so it sits right next to the key itself.
+    $rotatelink = html_writer::link(
+        new moodle_url('/local/corolair/apikey_rotation.php'),
+        get_string('apikeyrotate', 'local_corolair')
+    );
+    $apikeydescription = get_string('apikeydesc', 'local_corolair') .
+        html_writer::empty_tag('br') . $rotatelink;
     $settings->add(new admin_setting_configpasswordunmask(
         'local_corolair/apikey',
         get_string('apikey', 'local_corolair'), // Setting title.
-        get_string('apikeydesc', 'local_corolair'), // Setting description.
+        $apikeydescription, // Setting description with rotation link.
         get_string('noapikey', 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));

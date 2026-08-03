@@ -28,6 +28,11 @@ $string['adhocqueued'] = 'Synchronization with Raison services should have start
 $string['apikey'] = 'Raison Api Key';
 $string['apikeydesc'] = 'This key is generated during plugin installation. Please keep it secret. It may be requested by the Raison support team.';
 $string['apikeymissing'] = 'API key not found in the response from the Raison API.';
+$string['apikeyrotate'] = 'Rotate API key';
+$string['apikeyrotateconfirm'] = 'This generates a new Raison API key and immediately invalidates the current one. Continue?';
+$string['apikeyrotatefailed'] = 'The Raison API key rotation failed. Check web services and connectivity, then try again.';
+$string['apikeyrotatenotoken'] = 'No Raison web-service token was found. Complete plugin setup before rotating the API key.';
+$string['apikeyrotatesuccess'] = 'A new Raison API key was generated. The previous key is now invalid.';
 $string['apikeyset'] = 'The API key was set successfully.';
 $string['calendlydemo'] = 'To help us assist you effectively, please first describe your use case and needs in a discovery call with the Raison Team. Once we understand your requirements, our developers will prioritize resolving the connection issues with your Moodle instance. Schedule your call <strong> <a href="https://discoverycall.raison.is/" target="_blank">here</a> </strong>.';
 $string['capabilityassignerror'] = 'Could not assign the capability "{$a}" to the role.';
