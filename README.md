@@ -50,6 +50,12 @@ During setup, administrators can review the plugin's exact access permissions, t
 
 For questions about data processing, retention, deletion, privacy, or security, contact contact@raison.is.
 
+### Uninstallation and remote deletion
+
+Uninstalling the plugin revokes the Raison Moodle web-service access and removes the local service, token, role, API key, and plugin configuration. Before local cleanup, the plugin makes up to three synchronous attempts to deregister the organization from Raison and requires an explicit `disconnected` response.
+
+Revoking the Moodle token prevents future access to the Moodle instance; it does not by itself prove deletion of data previously transferred to Raison. If remote deregistration cannot be confirmed, Moodle still completes local cleanup and warns the administrator to contact contact@raison.is under the applicable service or data processing agreement. The request must include the Moodle site URL so Raison can identify the organization and complete the deletion process.
+
 ---
 
 ## Access
