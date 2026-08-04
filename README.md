@@ -48,6 +48,21 @@ If your organization chooses to continue using Raison after the free trial, cont
 
 During setup, administrators can review the plugin's exact access permissions, the Moodle functions it uses, and the purpose of each type of data involved. The integration uses restricted, short-lived access credentials that are renewed automatically. Trainer sign-in is limited to approved, secure Raison destinations.
 
+#### Local consent and accountability records
+
+The plugin stores the following records in Moodle's `config_plugins` table under the `local_corolair` component:
+
+- `setupconsentedby`: the Moodle user ID of the administrator who authorized activation of the integration.
+- `setupconsentedat`: the date and time when activation was authorized.
+- `setupdisclosureacknowledgedby`: the Moodle user ID of the administrator who acknowledged the integration disclosure.
+- `setupdisclosureacknowledgedat`: the date and time when the disclosure was acknowledged.
+
+These records apply only to administrators who activate the integration or acknowledge its disclosure. They are used to demonstrate authorization and maintain operational accountability. They remain within the Moodle installation and are separate from data processed by the external Raison service.
+
+The records are available for discovery and export through Moodle's Privacy API. They are not automatically removed by an individual erasure request because they identify the accountable owner of the active integration. The Moodle operator is responsible for determining and documenting the applicable lawful basis and retention requirements. Access must be limited to authorized Moodle administrators and other personnel who require it for privacy, audit, or operational purposes.
+
+Uninstalling the plugin removes these records with the rest of the plugin configuration.
+
 For questions about data processing, retention, deletion, privacy, or security, contact contact@raison.is.
 
 ### Uninstallation and remote deletion
