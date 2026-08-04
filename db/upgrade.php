@@ -133,35 +133,72 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 }
             }
         }
-        // Step 4: Retire credentials inherited from pre-1.9.0 installs (COR-SEC-004) and drop the
-        // unused local copy of the administrator email (COR-PRIV-004). The credential rotation
-        // itself is deferred to an adhoc task so it runs against a live site.
+        // Step 4: Drop the unused local copy of the administrator email (COR-PRIV-004).
         if ($result && $oldversion < 2026080300) {
             unset_config('corolairlogin', 'local_corolair');
-            \local_corolair\local\upgrade_migrator::schedule_if_required();
+        }
+        // Replace broad arbitrary-role assignment with the plugin-scoped manager-role function.
+        if ($result && $oldversion < 2026080302) {
+            $context = \context_system::instance();
+            $role = $DB->get_record('role', ['shortname' => 'corolair'], 'id');
+            if ($role) {
+                $capabilityrecord = $DB->get_record('role_capabilities', [
+                    'roleid' => (int)$role->id,
+                    'contextid' => $context->id,
+                    'capability' => 'local/corolair:assignmanagerrole',
+                ]);
+                if ($capabilityrecord) {
+                    $capabilityrecord->permission = CAP_ALLOW;
+                    $capabilityrecord->timemodified = time();
+                    $DB->update_record('role_capabilities', $capabilityrecord);
+                } else {
+                    $DB->insert_record('role_capabilities', (object)[
+                        'roleid' => (int)$role->id,
+                        'contextid' => $context->id,
+                        'capability' => 'local/corolair:assignmanagerrole',
+                        'permission' => CAP_ALLOW,
+                        'timemodified' => time(),
+                    ]);
+                }
+            }
+
+            $service = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
+            if ($service) {
+                $DB->delete_records('external_services_functions', [
+                    'externalserviceid' => $service->id,
+                    'functionname' => 'core_role_assign_roles',
+                ]);
+                if (!$DB->record_exists('external_services_functions', [
+                    'externalserviceid' => $service->id,
+                    'functionname' => 'local_corolair_assign_manager_role',
+                ])) {
+                    $DB->insert_record('external_services_functions', (object)[
+                        'externalserviceid' => $service->id,
+                        'functionname' => 'local_corolair_assign_manager_role',
+                    ]);
+                }
+            }
+            upgrade_plugin_savepoint(true, 2026080302, 'local', 'corolair');
+        }
+        // Queue post-upgrade invalidation of credentials inherited from the pre-1.9 lifecycle.
+        // Raison must call back into Moodle to verify the replacement token, which cannot be
+        // guaranteed while Moodle is still running this upgrade request.
+        if ($result && $oldversion < 2026080303) {
+            \local_corolair\local\upgrade_migrator::migrate_if_required();
+            upgrade_plugin_savepoint(true, 2026080303, 'local', 'corolair');
         }
     } catch (moodle_exception $me) {
         debugging($me->getMessage(), DEBUG_DEVELOPER);
-        \core\notification::add(
-            get_string('unexpectederror', 'local_corolair'),
-            \core\output\notification::NOTIFY_ERROR
-        );
-        \core\notification::add(
-            get_string('calendlydemo', 'local_corolair'),
-            \core\output\notification::NOTIFY_ERROR
-        );
-        return false;
+        throw $me;
     } catch (Exception $e) {
         debugging($e->getMessage(), DEBUG_DEVELOPER);
-        \core\notification::add(
-            get_string('unexpectederror', 'local_corolair'),
-            \core\output\notification::NOTIFY_ERROR
+        throw new moodle_exception(
+            'legacycredentialmigrationfailed',
+            'local_corolair',
+            '',
+            null,
+            $e->getMessage()
         );
-        \core\notification::add(
-            get_string('calendlydemo', 'local_corolair'),
-            \core\output\notification::NOTIFY_ERROR
-        );
-        return false;
     }
     return true;
 }
