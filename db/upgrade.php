@@ -192,6 +192,13 @@ function xmldb_local_corolair_upgrade($oldversion) {
             \local_corolair\local\upgrade_migrator::migrate_if_required();
             upgrade_plugin_savepoint(true, 2026080303, 'local', 'corolair');
         }
+        // Corrective migration: an active token alone did not prove that the API key exposed by
+        // an older plugin version had been replaced. Queue a verifiable replacement unless a
+        // completed migration (or fresh registration) has recorded explicit provenance.
+        if ($oldversion < 2026080305) {
+            \local_corolair\local\upgrade_migrator::migrate_if_required();
+            upgrade_plugin_savepoint(true, 2026080305, 'local', 'corolair');
+        }
     } catch (moodle_exception $me) {
         debugging($me->getMessage(), DEBUG_DEVELOPER);
         throw $me;

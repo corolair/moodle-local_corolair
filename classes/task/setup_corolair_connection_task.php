@@ -90,22 +90,36 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
             strpos($apikey, 'Aucune Clé API Raison') !== 0 &&
             strpos($apikey, 'No hay clave API de Raison') !== 0
         ) {
-            if ((int)get_config('local_corolair', 'webservicetokenid') <= 0) {
-                $tokens = $DB->get_records(
-                    'external_tokens',
-                    ['externalserviceid' => $serviceid, 'userid' => $adminid, 'tokentype' => 0],
-                    'timecreated DESC',
-                    '*',
-                    0,
-                    1
-                );
-                $existingtoken = reset($tokens);
-                if ($existingtoken) {
-                    \local_corolair\local\webservice_token_manager::record_initial_token($existingtoken);
-                }
+            if ((bool)get_config('local_corolair', 'legacycredentialmigrationpending')) {
+                set_config('setupcompleted', 0, 'local_corolair');
+                return;
             }
-            set_config('setupcompleted', 1, 'local_corolair');
-            return;
+            if ((int)get_config('local_corolair', 'legacycredentialmigrationcompletedat') <= 0) {
+                \local_corolair\local\upgrade_migrator::migrate_if_required();
+                if ((bool)get_config('local_corolair', 'legacycredentialmigrationpending')) {
+                    set_config('setupcompleted', 0, 'local_corolair');
+                    return;
+                }
+                // No migratable service token exists. Continue with registration, which
+                // atomically reissues the API key and verifies a fresh token remotely.
+            } else {
+                if ((int)get_config('local_corolair', 'webservicetokenid') <= 0) {
+                    $tokens = $DB->get_records(
+                        'external_tokens',
+                        ['externalserviceid' => $serviceid, 'userid' => $adminid, 'tokentype' => 0],
+                        'timecreated DESC',
+                        '*',
+                        0,
+                        1
+                    );
+                    $existingtoken = reset($tokens);
+                    if ($existingtoken) {
+                        \local_corolair\local\webservice_token_manager::record_initial_token($existingtoken);
+                    }
+                }
+                set_config('setupcompleted', 1, 'local_corolair');
+                return;
+            }
         }
         $tokens = $DB->get_records(
             'external_tokens',
@@ -175,6 +189,7 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         }
         set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
         \local_corolair\local\webservice_token_manager::record_initial_token($token);
+        set_config('legacycredentialmigrationcompletedat', time(), 'local_corolair');
         set_config('setupcompleted', 1, 'local_corolair');
     }
 }

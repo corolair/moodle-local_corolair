@@ -36,6 +36,8 @@ function xmldb_local_corolair_install() {
         set_config('setupconsented', 0, 'local_corolair');
         set_config('setupconsentrequired', 0, 'local_corolair');
         set_config('setupcompleted', 0, 'local_corolair');
+        unset_config('legacycredentialmigrationcompletedat', 'local_corolair');
+        unset_config('legacycredentialmigrationpending', 'local_corolair');
         unset_config('setupconsentedby', 'local_corolair');
         unset_config('setupconsentedat', 'local_corolair');
         unset_config('setupdisclosureversion', 'local_corolair');

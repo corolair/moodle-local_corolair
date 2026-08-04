@@ -73,9 +73,12 @@ final class upgrade_migrator {
         if (!$tokens) {
             return;
         }
-        $activeid = (int)get_config('local_corolair', 'webservicetokenid');
-        if ($activeid > 0 && isset($tokens[$activeid]) && (int)$tokens[$activeid]->validuntil > time()) {
-            return;
+        $completedat = (int)get_config('local_corolair', 'legacycredentialmigrationcompletedat');
+        if ($completedat > 0) {
+            $activeid = (int)get_config('local_corolair', 'webservicetokenid');
+            if ($activeid > 0 && isset($tokens[$activeid]) && (int)$tokens[$activeid]->validuntil > time()) {
+                return;
+            }
         }
         $adminid = self::resolve_admin_id((int)$service->id);
         if ($adminid <= 0) {
@@ -142,6 +145,7 @@ final class upgrade_migrator {
         self::delete_legacy_tokens($serviceid, (int)$newtoken->id);
         self::assert_migration_complete($serviceid, $newtoken);
         set_config('setupcompleted', 1, 'local_corolair');
+        set_config('legacycredentialmigrationcompletedat', time(), 'local_corolair');
         unset_config('legacymigrationtokenid', 'local_corolair');
         unset_config('legacycredentialmigrationid', 'local_corolair');
         unset_config('legacycredentialmigrationattempted', 'local_corolair');

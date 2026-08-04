@@ -48,6 +48,14 @@ If your organization chooses to continue using Raison after the free trial, cont
 
 During setup, administrators can review the plugin's exact access permissions, the Moodle functions it uses, and the purpose of each type of data involved. The integration uses restricted, short-lived access credentials that are renewed automatically. Trainer sign-in is limited to approved, secure Raison destinations.
 
+#### Credential replacement after an upgrade
+
+When upgrading an existing installation that uses legacy credentials, the plugin schedules their replacement as a Moodle ad-hoc task instead of performing it inside the upgrade request. Raison must verify the replacement token by calling back to Moodle, but Moodle web services may not be available or reliably reachable while an upgrade is in progress. Deferring this network-dependent step allows Moodle to finish the upgrade before the plugin creates and verifies the replacement credentials.
+
+The compatible Raison migration endpoint must be deployed before this plugin upgrade so it can replace credentials for installations that already use an active, expiring Moodle token.
+
+Moodle cron runs the queued task after the upgrade. The task replaces the legacy API key and web-service token, verifies the new credentials, and retries safely if the remote verification cannot be completed. The legacy credentials remain active until the replacement has been verified successfully, so administrators should ensure that cron is running and that Moodle can communicate with Raison after upgrading.
+
 #### Local consent and accountability records
 
 The plugin stores the following records in Moodle's `config_plugins` table under the `local_corolair` component:
