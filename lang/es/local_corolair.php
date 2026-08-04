@@ -47,8 +47,6 @@ $string['createtutorcapability'] = 'Permite a los usuarios crear y gestionar Tut
 $string['createtutorcapabilitydesc'] = 'El usuario no podrá crear Tutores IA en cursos que no pueda gestionar. Si se establece en "Falso", podrá crearlos en cursos donde solo esté inscrito.';
 $string['curlerror'] = 'Se ha producido un error al comunicarse con la API de Raison. No se ha podido registrar su instancia de Moodle, intente nuevamente. Si el problema persiste, póngase en contacto con el equipo de Raison.';
 $string['deregisterfailed'] = 'Raison no pudo confirmar que su organización fue dada de baja del servicio externo. Los datos locales del plugin se han eliminado de todos modos. Póngase en contacto con el equipo de soporte de Raison para asegurarse de que se eliminen los datos que Raison aún conserve.';
-$string['legacycredentialmigrationadminmissing'] = 'Las credenciales heredadas de Raison no pueden reemplazarse porque ningún administrador válido del sitio es propietario de la integración.';
-$string['legacycredentialmigrationfailed'] = 'Las credenciales heredadas de Raison no pudieron reemplazarse de forma verificable. Moodle volverá a intentar la migración automáticamente mediante su ejecutor de tareas ad hoc.';
 $string['disclosureaccess'] = 'Acceso';
 $string['disclosureaccessread'] = 'Lectura';
 $string['disclosureaccesswrite'] = 'Escritura';
@@ -113,6 +111,8 @@ $string['false'] = 'Chatbot';
 $string['frontpagenodetitle'] = 'Raison';
 $string['installtroubleshoot'] = 'Si encuentra algún problema durante la instalación, consulte la <a href="https://troubleshoot-moodle.raison.is" target="_blank">guía de solución de problemas</a>.';
 $string['invalidredirecturl'] = 'Raison devolvió un destino de redirección no confiable.';
+$string['legacycredentialmigrationadminmissing'] = 'Las credenciales heredadas de Raison no pueden reemplazarse porque ningún administrador válido del sitio es propietario de la integración.';
+$string['legacycredentialmigrationfailed'] = 'Las credenciales heredadas de Raison no pudieron reemplazarse de forma verificable. Moodle volverá a intentar la migración automáticamente mediante su ejecutor de tareas ad hoc.';
 $string['localhosterror'] = 'No es posible registrar la instancia de Moodle en Raison porque el sitio se está ejecutando en localhost.';
 $string['missingcapability'] = 'No tiene permisos para acceder a esta página';
 $string['noapikey'] = 'No hay clave API de Raison';

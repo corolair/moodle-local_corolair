@@ -47,8 +47,6 @@ $string['createtutorcapability'] = 'Permet à l\'utilisateur de créer et gérer
 $string['createtutorcapabilitydesc'] = 'L\'utilisateur ne pourra créer des Tuteurs IA qu\'à partir des cours qu\'il peut gérer. Si cette option est à Faux, il pourra créer des Tuteurs IA à partir des ressources des cours où il est simplement inscrit.';
 $string['curlerror'] = 'Une erreur est survenue lors de la communication avec l\'API Raison. Impossible d\'enregistrer votre instance Moodle, veuillez réessayer. Si l\'erreur persiste, veuillez contacter l\'équipe Raison.';
 $string['deregisterfailed'] = 'Raison n\'a pas pu confirmer la désinscription de votre organisation du service externe. Les données locales du plugin ont tout de même été supprimées. Veuillez contacter l\'équipe de support Raison pour vous assurer que les données éventuellement conservées par Raison soient supprimées.';
-$string['legacycredentialmigrationadminmissing'] = 'Les identifiants Raison hérités ne peuvent pas être remplacés, car aucun administrateur de site valide n’est propriétaire de l’intégration.';
-$string['legacycredentialmigrationfailed'] = 'Les identifiants Raison hérités n’ont pas pu être remplacés de manière vérifiable. Moodle réessaiera automatiquement la migration à l’aide de son exécuteur de tâches ad hoc.';
 $string['disclosureaccess'] = 'Accès';
 $string['disclosureaccessread'] = 'Lecture';
 $string['disclosureaccesswrite'] = 'Écriture';
@@ -113,6 +111,8 @@ $string['false'] = 'Chatbot';
 $string['frontpagenodetitle'] = 'Raison';
 $string['installtroubleshoot'] = 'Si vous rencontrez des problèmes lors de l\'installation, veuillez vous référer au <a href="https://troubleshoot-moodle.raison.is" target="_blank"> guide de dépannage manuel</a>';
 $string['invalidredirecturl'] = 'Raison a renvoyé une destination de redirection non fiable.';
+$string['legacycredentialmigrationadminmissing'] = 'Les identifiants Raison hérités ne peuvent pas être remplacés, car aucun administrateur de site valide n’est propriétaire de l’intégration.';
+$string['legacycredentialmigrationfailed'] = 'Les identifiants Raison hérités n’ont pas pu être remplacés de manière vérifiable. Moodle réessaiera automatiquement la migration à l’aide de son exécuteur de tâches ad hoc.';
 $string['localhosterror'] = 'Impossible d\'enregistrer l\'instance Moodle avec Raison car le site fonctionne en localhost.';
 $string['missingcapability'] = 'Vous ne pouvez pas accéder à cette page';
 $string['noapikey'] = 'Aucune Clé API Raison';
