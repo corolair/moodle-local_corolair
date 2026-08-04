@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Adhoc task that rotates legacy Corolair credentials after an upgrade.
+ * Ad-hoc task that rotates legacy credentials after an upgrade.
  *
  * @package   local_corolair
  * @copyright 2025 Raison
@@ -27,9 +27,9 @@ namespace local_corolair\task;
 /**
  * Runs the deferred legacy-credential rotation queued by the upgrade step.
  *
- * The network re-registration is performed here (rather than inline in db/upgrade.php) so it
- * executes against a live site. Throwing on failure lets Moodle retry the task with backoff
- * until Raison is reachable; the legacy credentials are retained until it succeeds.
+ * The remote migration runs here rather than in db/upgrade.php so Raison can verify the new token
+ * against a live Moodle site. Exceptions are allowed to escape so Moodle retries the task while
+ * the inherited credentials remain untouched.
  */
 class migrate_legacy_credentials_task extends \core\task\adhoc_task {
     /**

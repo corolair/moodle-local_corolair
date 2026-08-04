@@ -70,7 +70,13 @@ function xmldb_local_corolair_install() {
                 'contextlevel' => $contextlevel,
             ]);
         }
-        foreach (['local/corolair:createtutor', 'local/corolair:viewroles'] as $capability) {
+        foreach (
+            [
+                'local/corolair:createtutor',
+                'local/corolair:viewroles',
+                'local/corolair:assignmanagerrole',
+            ] as $capability
+        ) {
             $DB->insert_record('role_capabilities', (object)[
                 'roleid' => $roleid,
                 'contextid' => context_system::instance()->id,
