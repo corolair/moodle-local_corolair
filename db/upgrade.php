@@ -31,19 +31,19 @@
  */
 function xmldb_local_corolair_upgrade($oldversion) {
     global $DB;
-    $result = true;
     try {
         // Step 1: Remove the "Corolair" menu item if present in custommenuitems.
-        if ($result && $oldversion < 2024091600) {
+        if ($oldversion < 2024091600) {
             $custommenuitems = $DB->get_record('config', ['name' => 'custommenuitems']);
             $newmenuitem = "Corolair|/local/corolair/trainer.php";
             if ($custommenuitems && strpos($custommenuitems->value, $newmenuitem) !== false) {
                 $custommenuitems->value = str_replace($newmenuitem, '', $custommenuitems->value);
                 $DB->update_record('config', $custommenuitems);
             }
+            upgrade_plugin_savepoint(true, 2024091600, 'local', 'corolair');
         }
         // Step 2: Notify external Raison service of the update.
-        if ($result && $oldversion < 2024100701) {
+        if ($oldversion < 2024100701) {
             $apikey = get_config('local_corolair', 'apikey');
             if (
                 empty($apikey) ||
@@ -110,9 +110,10 @@ function xmldb_local_corolair_upgrade($oldversion) {
                 debugging('Unexpected response received from the Corolair update endpoint.', DEBUG_DEVELOPER);
                 return false;
             }
+            upgrade_plugin_savepoint(true, 2024100701, 'local', 'corolair');
         }
         // Step 3: Add required capabilities to the external "Corolair REST" service.
-        if ($result && $oldversion < 2024101100) {
+        if ($oldversion < 2024101100) {
             $service = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
             if ($service) {
                 $capabilities = [
@@ -132,13 +133,15 @@ function xmldb_local_corolair_upgrade($oldversion) {
                     }
                 }
             }
+            upgrade_plugin_savepoint(true, 2024101100, 'local', 'corolair');
         }
         // Step 4: Drop the unused local copy of the administrator email (COR-PRIV-004).
-        if ($result && $oldversion < 2026080300) {
+        if ($oldversion < 2026080300) {
             unset_config('corolairlogin', 'local_corolair');
+            upgrade_plugin_savepoint(true, 2026080300, 'local', 'corolair');
         }
         // Replace broad arbitrary-role assignment with the plugin-scoped manager-role function.
-        if ($result && $oldversion < 2026080302) {
+        if ($oldversion < 2026080302) {
             $context = \context_system::instance();
             $role = $DB->get_record('role', ['shortname' => 'corolair'], 'id');
             if ($role) {
@@ -185,7 +188,7 @@ function xmldb_local_corolair_upgrade($oldversion) {
         // Queue post-upgrade invalidation of credentials inherited from the pre-1.9 lifecycle.
         // Raison must call back into Moodle to verify the replacement token, which cannot be
         // guaranteed while Moodle is still running this upgrade request.
-        if ($result && $oldversion < 2026080303) {
+        if ($oldversion < 2026080303) {
             \local_corolair\local\upgrade_migrator::migrate_if_required();
             upgrade_plugin_savepoint(true, 2026080303, 'local', 'corolair');
         }
