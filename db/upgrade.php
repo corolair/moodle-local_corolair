@@ -168,10 +168,12 @@ function xmldb_local_corolair_upgrade($oldversion) {
                     'externalserviceid' => $service->id,
                     'functionname' => 'core_role_assign_roles',
                 ]);
-                if (!$DB->record_exists('external_services_functions', [
-                    'externalserviceid' => $service->id,
-                    'functionname' => 'local_corolair_assign_manager_role',
-                ])) {
+                if (
+                    !$DB->record_exists('external_services_functions', [
+                        'externalserviceid' => $service->id,
+                        'functionname' => 'local_corolair_assign_manager_role',
+                    ])
+                ) {
                     $DB->insert_record('external_services_functions', (object)[
                         'externalserviceid' => $service->id,
                         'functionname' => 'local_corolair_assign_manager_role',

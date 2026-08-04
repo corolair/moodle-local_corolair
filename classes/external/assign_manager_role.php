@@ -5,6 +5,14 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
  * Scoped external service for assigning the fixed Raison Manager role.
@@ -42,7 +50,11 @@ use core_external\external_value;
  * Assigns the plugin-owned manager role without exposing arbitrary role or context selection.
  */
 class assign_manager_role extends external_api {
-    /** @return external_function_parameters */
+    /**
+     * Describe the parameters accepted by the external function.
+     *
+     * @return external_function_parameters Parameter definition.
+     */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'userids' => new external_multiple_structure(
@@ -53,6 +65,8 @@ class assign_manager_role extends external_api {
     }
 
     /**
+     * Assign the fixed Raison Manager role to Moodle users.
+     *
      * @param int[] $userids Moodle user ids.
      * @return int[] Assigned user ids.
      */
@@ -86,7 +100,11 @@ class assign_manager_role extends external_api {
         return $userids;
     }
 
-    /** @return external_multiple_structure */
+    /**
+     * Describe the value returned by the external function.
+     *
+     * @return external_multiple_structure Return-value definition.
+     */
     public static function execute_returns(): external_multiple_structure {
         return new external_multiple_structure(
             new external_value(PARAM_INT, 'User id assigned the Raison Manager role')

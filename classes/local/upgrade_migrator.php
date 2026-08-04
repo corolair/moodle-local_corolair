@@ -246,7 +246,11 @@ final class upgrade_migrator {
         return $token;
     }
 
-    /** Return a stable RFC 4122 version-4 identifier for retries. */
+    /**
+     * Return a stable RFC 4122 version-4 identifier for retries.
+     *
+     * @return string Migration identifier.
+     */
     private static function get_or_create_migration_id(): string {
         $migrationid = (string)get_config('local_corolair', 'legacycredentialmigrationid');
         if ($migrationid !== '') {
@@ -268,7 +272,11 @@ final class upgrade_migrator {
         return $migrationid;
     }
 
-    /** Return the stable plugin-generated replacement API-key secret. */
+    /**
+     * Return the stable plugin-generated replacement API-key secret.
+     *
+     * @return string Replacement secret.
+     */
     private static function get_or_create_replacement_api_secret(): string {
         $secret = (string)get_config('local_corolair', 'legacyreplacementapikeysecret');
         if ($secret !== '') {
@@ -351,7 +359,14 @@ final class upgrade_migrator {
         }
     }
 
-    /** Send one authenticated migration attempt. */
+    /**
+     * Send one authenticated migration attempt.
+     *
+     * @param \curl $curl Moodle curl client.
+     * @param string $postdata Encoded request body.
+     * @param string $apikey API key used to authenticate the request.
+     * @return array Response body, HTTP status, and curl error number.
+     */
     private static function send_migration_request(\curl $curl, string $postdata, string $apikey): array {
         $options = [
             "CURLOPT_RETURNTRANSFER" => true,
@@ -376,7 +391,12 @@ final class upgrade_migrator {
         return [$response, (int)($info['http_code'] ?? 0), $errno];
     }
 
-    /** Extract a bounded non-sensitive error description from a backend response. */
+    /**
+     * Extract a bounded non-sensitive error description from a backend response.
+     *
+     * @param mixed $response Backend response body.
+     * @return string Safe error description.
+     */
     private static function safe_backend_error($response): string {
         if (!is_string($response) || $response === '') {
             return 'empty_response';
@@ -414,7 +434,13 @@ final class upgrade_migrator {
         }
     }
 
-    /** Confirm the local post-migration invariants before allowing the upgrade to complete. */
+    /**
+     * Confirm the local post-migration invariants before allowing the upgrade to complete.
+     *
+     * @param int $serviceid External service ID.
+     * @param \stdClass $token Activated token record.
+     * @return void
+     */
     private static function assert_migration_complete(int $serviceid, \stdClass $token): void {
         global $DB;
 
