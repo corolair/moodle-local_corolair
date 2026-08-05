@@ -52,6 +52,14 @@ if ($hassiteconfig) {
     } else {
         $setupstatus = get_string('setupstatuscomplete', 'local_corolair');
     }
+    if ((bool)get_config('local_corolair', 'legacycredentialmigrationblocked')) {
+        // The upgrade could not queue the credential migration, most often because no
+        // site administrator was able to own the integration. The hourly task retries.
+        $setupstatus .= html_writer::div(
+            get_string('legacycredentialmigrationblockednotice', 'local_corolair'),
+            'alert alert-warning mt-3'
+        );
+    }
     $rotationstatus = (string)get_config('local_corolair', 'webservicetokenrotationstatus');
     if ($rotationstatus === 'ROTATION_FAILED') {
         $rotationdetails = (object)[

@@ -59,11 +59,15 @@ final class upgrade_migrator {
 
         // Only connected installs (a live API key + an existing service token) carry exposed
         // credentials worth rotating. Unconfigured installs have nothing to migrate.
+        // Each of these exits also clears the blocked flag: there is nothing left to retry,
+        // so a stale flag would keep warning the administrator about work that cannot run.
         if (self::get_api_key() === null) {
+            self::clear_blocked();
             return;
         }
         $service = $DB->get_record('external_services', ['shortname' => self::SERVICE_SHORTNAME]);
         if (!$service) {
+            self::clear_blocked();
             return;
         }
         $tokens = $DB->get_records('external_tokens', [
@@ -71,19 +75,27 @@ final class upgrade_migrator {
             'tokentype' => 0,
         ]);
         if (!$tokens) {
+            self::clear_blocked();
             return;
         }
         $completedat = (int)get_config('local_corolair', 'legacycredentialmigrationcompletedat');
         if ($completedat > 0) {
             $activeid = (int)get_config('local_corolair', 'webservicetokenid');
             if ($activeid > 0 && isset($tokens[$activeid]) && (int)$tokens[$activeid]->validuntil > time()) {
+                self::clear_blocked();
                 return;
             }
         }
         $adminid = self::resolve_admin_id((int)$service->id);
         if ($adminid <= 0) {
-            throw new \moodle_exception('legacycredentialmigrationadminmissing', 'local_corolair');
+            // Called from db/upgrade.php, throwing here would abort the upgrade for the
+            // whole site. That does not protect the inherited credentials -- they stay
+            // exactly as exposed either way -- so record the state, let the upgrade
+            // finish, and let retry_if_blocked() pick it up once an admin exists.
+            set_config('legacycredentialmigrationblocked', 1, 'local_corolair');
+            return;
         }
+        self::clear_blocked();
 
         self::grandfather_consent($adminid);
         set_config('legacycredentialmigrationpending', 1, 'local_corolair');
@@ -100,6 +112,31 @@ final class upgrade_migrator {
      */
     public static function schedule_if_required(): void {
         self::migrate_if_required();
+    }
+
+    /**
+     * Retry a migration that could not be queued during the upgrade.
+     *
+     * Called hourly from the scheduled token task. The blocked flag is set when
+     * migrate_if_required() ran while the site had no administrator able to own the
+     * integration; once one exists the migration queues itself and the flag clears.
+     *
+     * @return void
+     */
+    public static function retry_if_blocked(): void {
+        if (!(bool)get_config('local_corolair', 'legacycredentialmigrationblocked')) {
+            return;
+        }
+        self::migrate_if_required();
+    }
+
+    /**
+     * Clear the "migration could not be queued" flag.
+     *
+     * @return void
+     */
+    private static function clear_blocked(): void {
+        unset_config('legacycredentialmigrationblocked', 'local_corolair');
     }
 
     /**
@@ -467,18 +504,6 @@ final class upgrade_migrator {
      * @return string|null
      */
     private static function get_api_key(): ?string {
-        $apikey = (string)get_config('local_corolair', 'apikey');
-        if (
-            $apikey === '' ||
-            strpos($apikey, 'No Corolair Api Key') === 0 ||
-            strpos($apikey, 'Aucune Clé API Corolair') === 0 ||
-            strpos($apikey, 'No hay clave API de Corolair') === 0 ||
-            strpos($apikey, 'No Raison Api Key') === 0 ||
-            strpos($apikey, 'Aucune Clé API Raison') === 0 ||
-            strpos($apikey, 'No hay clave API de Raison') === 0
-        ) {
-            return null;
-        }
-        return $apikey;
+        return api_key::get();
     }
 }
