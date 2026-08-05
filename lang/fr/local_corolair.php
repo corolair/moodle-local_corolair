@@ -171,6 +171,7 @@ $string['sidepanel'] = 'Positionnement du Tuteur IA à l\'écran';
 $string['sidepaneldesc'] = 'Choisissez si vous préférez afficher les Tuteurs IA sur le côté droit des cours sous forme de panneau latéral (recommandé) ou dans le coin inférieur droit comme un chatbot classique.';
 $string['taskrotatewebservicetoken'] = 'Renouveler le jeton de service web Moodle de Raison';
 $string['tokencreationerror'] = 'Impossible de créer le jeton REST Raison.';
+$string['tokenexpiryunknown'] = 'une date inconnue';
 $string['tokenexpirywarningbody'] = 'Raison n\'a pas pu renouveler son jeton de service web Moodle. Le jeton actuel expire le {$a->expiry}. Code d\'erreur sûr : {$a->error}. Vérifiez le cron et la connectivité dans les paramètres Raison.';
 $string['tokenexpirywarningsubject'] = 'Le renouvellement du jeton Raison nécessite votre attention';
 $string['tokenmissing'] = 'Le jeton de service web Raison actuel est introuvable.';

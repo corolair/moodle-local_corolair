@@ -68,7 +68,12 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
 
         $adminemail = $admin->email;
         $moodlerooturl = $CFG->wwwroot;
-        $moodlehost = (string)parse_url($moodlerooturl, PHP_URL_HOST);
+        // PHP's parse_url() returns an IPv6 host in bracketed form, so "http://[::1]/" gives
+        // "[::1]" and the '::1' comparison below never matched. Such a site fell through
+        // to a real registration attempt that Raison could never call back, failing with
+        // an opaque transport error instead of the actionable message here. Strip the
+        // brackets and normalise the case before comparing.
+        $moodlehost = strtolower(trim((string)parse_url($moodlerooturl, PHP_URL_HOST), '[]'));
         if ($moodlehost === 'localhost' || $moodlehost === '127.0.0.1' || $moodlehost === '::1') {
             throw new \moodle_exception('localhosterror', 'local_corolair');
         }

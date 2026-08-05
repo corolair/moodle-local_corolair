@@ -171,6 +171,7 @@ $string['sidepanel'] = 'AI Tutor positioning on screen';
 $string['sidepaneldesc'] = 'Choose whether you prefer to display AI Tutors on the right-hand side of courses as a Side Panel (recommended) or in the bottom-right corner like a classic Chatbot.';
 $string['taskrotatewebservicetoken'] = 'Rotate the Raison Moodle web-service token';
 $string['tokencreationerror'] = 'Could not create the Raison REST token.';
+$string['tokenexpiryunknown'] = 'an unknown date';
 $string['tokenexpirywarningbody'] = 'Raison could not rotate its Moodle web-service token. The current token expires on {$a->expiry}. Safe error code: {$a->error}. Open the Raison plugin settings and verify cron and connectivity.';
 $string['tokenexpirywarningsubject'] = 'Raison token rotation requires attention';
 $string['tokenmissing'] = 'The current Raison web-service token could not be found.';
