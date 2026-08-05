@@ -24,72 +24,76 @@
 
 
 /**
- * Uninstall function for the local_corolair plugin.
+ * Remove the state that only this plugin knows about.
  *
- * Remote deregistration is attempted FIRST, while the API key and configuration are
- * still present, so the external provider is asked to remove the organization's data
- * before the local deletion path is destroyed. Local cleanup then proceeds regardless of
- * the remote outcome (Moodle removes the plugin either way); if deregistration could not
- * be confirmed, the administrator is warned to complete it manually.
+ * Deliberately narrow. Core's uninstall_plugin() runs immediately after this function
+ * and already removes the web-service tokens and service (delete_service_descriptions),
+ * every local_corolair configuration value (unset_all_config_for_plugin), pending ad-hoc
+ * tasks (task_adhoc by component) and the capability grants (capabilities_cleanup).
+ * Repeating any of that here would only create a second contract to keep correct. What
+ * core cannot do is deregister the organization remotely, and delete a role created with
+ * create_role(), which carries nothing tying it back to this component.
  *
- * Steps:
- * 1. Send and validate the deregistration request, with bounded retries (credentials intact).
- * 2. Revoke the external service and remove its tokens and functions.
- * 3. Remove the custom role 'Raison Manager'.
- * 4. Remove all Raison-specific config settings using Moodle's configuration API.
+ * NOTHING HERE MAY THROW. Core calls this function unguarded -- "Do not verify result,
+ * let plugin complain if necessary" in lib/adminlib.php -- so an escaping exception
+ * aborts the uninstall before any of that core cleanup runs, leaving live tokens and the
+ * full configuration behind. The two steps are isolated from each other for the same
+ * reason: failing to deregister must not stop the role from being removed.
  *
- * @return bool True on success.
- * @throws moodle_exception If an error occurs during the uninstallation process.
+ * Deregistration runs first, while the credentials it needs still exist.
+ *
+ * @return bool Always true.
  */
 function xmldb_local_corolair_uninstall() {
-    global $DB, $CFG;
-    try {
-        // Step 1: Attempt remote deregistration before erasing any local state.
-        $apikey = (string) (get_config('local_corolair', 'apikey') ?? '');
-        $deregistered = \local_corolair\local\organization_deregistration::execute($apikey, $CFG->wwwroot);
-        $deregisterwarning = $deregistered ? '' : get_string('deregisterfailed', 'local_corolair');
+    $deregistered = local_corolair_uninstall_deregister();
+    local_corolair_uninstall_remove_role();
 
-        // Step 2: Revoke the external service and remove associated tokens and functions.
-        $service = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
-        if ($service) {
-            $DB->delete_records('external_tokens', ['externalserviceid' => $service->id]);
-            $DB->delete_records('external_services_functions', ['externalserviceid' => $service->id]);
-            $DB->delete_records('external_services', ['id' => $service->id]);
-        }
-        // Step 3: Remove the custom role 'Corolair Manager'.
-        $role = $DB->get_record('role', ['shortname' => 'corolair']);
-        if ($role) {
-            // Unassign role from users and delete the role.
-            role_unassign_all(['roleid' => $role->id]);
-            $DB->delete_records('role', ['id' => $role->id]);
-            $DB->delete_records('role_context_levels', ['roleid' => $role->id]);
-            $DB->delete_records('role_capabilities', ['roleid' => $role->id]);
-        }
-        // Step 4: Remove all Raison-specific config settings via the configuration API.
-        $pluginconfig = (array) get_config('local_corolair');
-        foreach (array_keys($pluginconfig) as $configname) {
-            unset_config($configname, 'local_corolair');
-        }
-        if ($deregisterwarning !== '') {
-            \core\notification::add(
-                $deregisterwarning,
-                \core\output\notification::NOTIFY_WARNING
-            );
-        }
-        return true;
-    } catch (moodle_exception $me) {
-        debugging($me->getMessage(), DEBUG_DEVELOPER);
+    if (!$deregistered) {
         \core\notification::add(
-            get_string('unexpectederror', 'local_corolair'),
-            \core\output\notification::NOTIFY_ERROR
+            get_string('deregisterfailed', 'local_corolair'),
+            \core\output\notification::NOTIFY_WARNING
         );
+    }
+    return true;
+}
+
+/**
+ * Ask Raison to remove the organization's data.
+ *
+ * @return bool True when deregistration was confirmed, or when there was nothing to
+ *              deregister. False only when a real credential failed to be released.
+ */
+function local_corolair_uninstall_deregister(): bool {
+    global $CFG;
+
+    try {
+        $apikey = \local_corolair\local\api_key::get();
+        if ($apikey === null) {
+            // The site never registered, so there is no organization to remove and no
+            // reason to warn. Reading the raw setting instead would send the translated
+            // "no API key" placeholder as a bearer token, which fails every time.
+            return true;
+        }
+        return \local_corolair\local\organization_deregistration::execute($apikey, $CFG->wwwroot);
+    } catch (\Throwable $e) {
+        debugging($e->getMessage(), DEBUG_DEVELOPER);
         return false;
-    } catch (Exception $e) {
+    }
+}
+
+/**
+ * Delete the "Raison Manager" role.
+ *
+ * @return void
+ */
+function local_corolair_uninstall_remove_role(): void {
+    try {
+        \local_corolair\local\role_provisioner::remove_role();
+    } catch (\Throwable $e) {
         debugging($e->getMessage(), DEBUG_DEVELOPER);
         \core\notification::add(
-            get_string('unexpectederror', 'local_corolair'),
-            \core\output\notification::NOTIFY_ERROR
+            get_string('uninstallroleremovalfailed', 'local_corolair', $e->getMessage()),
+            \core\output\notification::NOTIFY_WARNING
         );
-        return false;
     }
 }

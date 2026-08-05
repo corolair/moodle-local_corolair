@@ -184,5 +184,6 @@ $string['tokenrotationstatusfailed'] = 'Le renouvellement du jeton n\'a pas abou
 $string['trainerpage'] = 'Raison';
 $string['true'] = 'Panneau Latéral';
 $string['unexpectederror'] = 'Une erreur inattendue s\'est produite. Veuillez réessayer. Si l\'erreur persiste, veuillez contacter l\'équipe Raison.';
+$string['uninstallroleremovalfailed'] = 'Le rôle Gestionnaire Raison n\'a pas pu être supprimé lors de la désinstallation et existe peut-être encore dans Administration du site > Utilisateurs > Permissions > Définition des rôles. Vous pouvez le supprimer manuellement. Détails : {$a}';
 $string['viewrolescapability'] = 'Permet aux utilisateurs de récupérer les rôles Moodle via le service web Raison';
 $string['webservicesenableerror'] = 'Impossible d\'activer les services web.';

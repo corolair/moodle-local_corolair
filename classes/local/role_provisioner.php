@@ -90,6 +90,32 @@ final class role_provisioner {
     }
 
     /**
+     * Remove the role, if it still exists.
+     *
+     * The teardown counterpart to ensure_role(), and convergent in the same way: a role
+     * that is already gone is not an error. Core cannot do this itself, because a role
+     * made with create_role() carries nothing that ties it back to this component.
+     *
+     * delete_role() rather than direct deletes: it also clears role_assignments,
+     * role_capabilities, role_names, role_context_levels and both directions of
+     * role_allow_assign / role_allow_override, emits a role_deleted event, and
+     * invalidates the access caches.
+     *
+     * @return void
+     */
+    public static function remove_role(): void {
+        global $DB;
+
+        $role = $DB->get_record('role', ['shortname' => self::SHORTNAME], 'id');
+        if (!$role) {
+            return;
+        }
+        // The lookup above is required: delete_role() reads the role record to build its
+        // event and fatals on a missing role.
+        delete_role((int)$role->id);
+    }
+
+    /**
      * Grant one capability to the role at the given context, repairing any existing row.
      *
      * Deliberately writes role_capabilities directly instead of calling

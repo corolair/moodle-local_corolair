@@ -184,5 +184,6 @@ $string['tokenrotationstatusfailed'] = 'Token rotation has not succeeded. The cu
 $string['trainerpage'] = 'Raison';
 $string['true'] = 'Side Panel';
 $string['unexpectederror'] = 'An unexpected error occurred. Please try again. If the error persists, please contact the Raison Team.';
+$string['uninstallroleremovalfailed'] = 'The Raison Manager role could not be removed during uninstallation and may still exist in Site administration > Users > Permissions > Define roles. You can delete it manually. Details: {$a}';
 $string['viewrolescapability'] = 'Allows users to retrieve Moodle roles through the Raison web service';
 $string['webservicesenableerror'] = 'Could not enable web services.';

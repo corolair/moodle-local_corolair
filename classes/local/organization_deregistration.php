@@ -100,10 +100,14 @@ final class organization_deregistration {
         }
 
         $curl = new \curl();
+        // Tighter than the 15/60 used elsewhere in the plugin, on purpose. This runs
+        // synchronously during uninstall, three times, and blocks core's own cleanup
+        // until it returns -- 15/60 puts the worst case near three minutes inside a web
+        // request. An endpoint silent for 15 seconds will not answer within 60.
         $options = [
             'CURLOPT_RETURNTRANSFER' => true,
-            'CURLOPT_CONNECTTIMEOUT' => 15,
-            'CURLOPT_TIMEOUT' => 60,
+            'CURLOPT_CONNECTTIMEOUT' => 5,
+            'CURLOPT_TIMEOUT' => 15,
             'CURLOPT_HTTPHEADER' => [
                 'Authorization: Bearer ' . $apikey,
                 'Content-Type: application/json',

@@ -184,5 +184,6 @@ $string['tokenrotationstatusfailed'] = 'La rotación del token no ha finalizado.
 $string['trainerpage'] = 'Raison';
 $string['true'] = 'Panel lateral';
 $string['unexpectederror'] = 'Se ha producido un error inesperado. Intente de nuevo. Si el problema persiste, póngase en contacto con el equipo de Raison.';
+$string['uninstallroleremovalfailed'] = 'El rol Gestor de Raison no se pudo eliminar durante la desinstalación y puede seguir existiendo en Administración del sitio > Usuarios > Permisos > Definir roles. Puede eliminarlo manualmente. Detalles: {$a}';
 $string['viewrolescapability'] = 'Permite a los usuarios recuperar los roles de Moodle a través del servicio web de Raison';
 $string['webservicesenableerror'] = 'No se han podido activar los servicios web.';
