@@ -89,16 +89,8 @@ if ($existingservice) {
 }
 
 // Retrieve plugin configuration settings.
-$apikey = get_config('local_corolair', 'apikey');
-if (
-    empty($apikey) ||
-    strpos($apikey, 'No Corolair Api Key') === 0 ||
-    strpos($apikey, 'Aucune Clé API Corolair') === 0 ||
-    strpos($apikey, 'No hay clave API de Corolair') === 0 ||
-    strpos($apikey, 'No Raison Api Key') === 0 ||
-    strpos($apikey, 'Aucune Clé API Raison') === 0 ||
-    strpos($apikey, 'No hay clave API de Raison') === 0
-) {
+$apikey = \local_corolair\local\api_key::get();
+if ($apikey === null) {
     if ($retryregistration && $existingservice) {
         $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
         if ($token) {

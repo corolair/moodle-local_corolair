@@ -80,16 +80,7 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
             throw new \moodle_exception('servicecreationerror', 'local_corolair');
         }
         $serviceid = (int)$existingservice->id;
-        $apikey = get_config('local_corolair', 'apikey');
-        if (
-            !empty($apikey) &&
-            strpos($apikey, 'No Corolair Api Key') !== 0 &&
-            strpos($apikey, 'Aucune Clé API Corolair') !== 0 &&
-            strpos($apikey, 'No hay clave API de Corolair') !== 0 &&
-            strpos($apikey, 'No Raison Api Key') !== 0 &&
-            strpos($apikey, 'Aucune Clé API Raison') !== 0 &&
-            strpos($apikey, 'No hay clave API de Raison') !== 0
-        ) {
+        if (\local_corolair\local\api_key::is_configured()) {
             if ((bool)get_config('local_corolair', 'legacycredentialmigrationpending')) {
                 set_config('setupcompleted', 0, 'local_corolair');
                 return;
