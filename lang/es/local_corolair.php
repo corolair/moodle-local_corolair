@@ -171,6 +171,7 @@ $string['sidepanel'] = 'Posición del Tutor IA en la pantalla';
 $string['sidepaneldesc'] = 'Elija si prefiere mostrar los Tutores IA en el lado derecho de los cursos como un Panel lateral (recomendado) o en la esquina inferior derecha como un Chatbot clásico.';
 $string['taskrotatewebservicetoken'] = 'Rotar el token de servicio web de Moodle de Raison';
 $string['tokencreationerror'] = 'No se ha podido generar el token REST de Raison.';
+$string['tokenexpiryunknown'] = 'una fecha desconocida';
 $string['tokenexpirywarningbody'] = 'Raison no pudo rotar su token de servicio web de Moodle. El token actual caduca el {$a->expiry}. Código de error seguro: {$a->error}. Revise el cron y la conectividad en la configuración de Raison.';
 $string['tokenexpirywarningsubject'] = 'La rotación del token de Raison requiere atención';
 $string['tokenmissing'] = 'No se encontró el token de servicio web actual de Raison.';
