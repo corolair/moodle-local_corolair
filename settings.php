@@ -52,6 +52,14 @@ if ($hassiteconfig) {
     } else {
         $setupstatus = get_string('setupstatuscomplete', 'local_corolair');
     }
+    if ((bool)get_config('local_corolair', 'legacycredentialmigrationblocked')) {
+        // The upgrade could not queue the credential migration, most often because no
+        // site administrator was able to own the integration. The hourly task retries.
+        $setupstatus .= html_writer::div(
+            get_string('legacycredentialmigrationblockednotice', 'local_corolair'),
+            'alert alert-warning mt-3'
+        );
+    }
     $rotationstatus = (string)get_config('local_corolair', 'webservicetokenrotationstatus');
     if ($rotationstatus === 'ROTATION_FAILED') {
         $rotationdetails = (object)[
@@ -91,23 +99,21 @@ if ($hassiteconfig) {
             'false' => get_string('capabilityfalse', 'local_corolair'),
         ]
     ));
-    // Add a masked input setting for the Raison API key.
+    // Add a masked input setting for the Raison API key. The rotation action is
+    // appended to the field description so it sits right next to the key itself.
+    $rotatelink = html_writer::link(
+        new moodle_url('/local/corolair/apikey_rotation.php'),
+        get_string('apikeyrotate', 'local_corolair')
+    );
+    $apikeydescription = get_string('apikeydesc', 'local_corolair') .
+        html_writer::empty_tag('br') . $rotatelink;
     $settings->add(new admin_setting_configpasswordunmask(
         'local_corolair/apikey',
         get_string('apikey', 'local_corolair'), // Setting title.
-        get_string('apikeydesc', 'local_corolair'), // Setting description.
+        $apikeydescription, // Setting description with rotation link.
         get_string('noapikey', 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-    // Add a text input setting for the Raison login identifier.
-    $settings->add(new admin_setting_configtext(
-        'local_corolair/corolairlogin',
-        get_string('raisonlogin', 'local_corolair'), // Setting title.
-        get_string('raisonlogindesc', 'local_corolair'), // Setting description.
-        get_string('noraisonlogin', 'local_corolair'), // Default value.
-        PARAM_TEXT // Validation type.
-    ));
-
     // Add a text input setting for excluded activity modules.
     // Example value: "quiz, lesson, forum".
     $settings->add(new admin_setting_configtext(

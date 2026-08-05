@@ -335,7 +335,74 @@ class provider implements
             'userrolename' => 'privacy:metadata:raison:userrolename',
             'interaction' => 'privacy:metadata:raison:interaction',
         ], 'privacy:metadata:raison');
+        // Local plugin configuration records the identity of the administrator who
+        // consented to the integration and acknowledged the disclosure, together with
+        // the times they did so. These are retained as operational accountability
+        // records for the active integration owner.
+        $collection->add_database_table('config_plugins', [
+            'setupconsentedby' => 'privacy:metadata:config_plugins:setupconsentedby',
+            'setupconsentedat' => 'privacy:metadata:config_plugins:setupconsentedat',
+            'setupdisclosureacknowledgedby' => 'privacy:metadata:config_plugins:setupdisclosureacknowledgedby',
+            'setupdisclosureacknowledgedat' => 'privacy:metadata:config_plugins:setupdisclosureacknowledgedat',
+        ], 'privacy:metadata:config_plugins');
         return $collection;
+    }
+
+    /**
+     * Return the locally retained setup accountability record for a user, if any.
+     *
+     * The plugin stores the administrator who consented to the integration and
+     * acknowledged the disclosure (with timestamps) in plugin configuration. This
+     * returns a human-readable export payload when $userid is that administrator.
+     *
+     * @param int $userid Moodle user ID.
+     * @return array|null Export payload, or null if the user has no local record.
+     */
+    private static function get_local_setup_record(int $userid): ?array {
+        $consentedby = (int)get_config('local_corolair', 'setupconsentedby');
+        $disclosureby = (int)get_config('local_corolair', 'setupdisclosureacknowledgedby');
+        if ($userid !== $consentedby && $userid !== $disclosureby) {
+            return null;
+        }
+        $record = [];
+        if ($userid === $consentedby) {
+            $record['setupconsentedby'] = $userid;
+            $consentedat = (int)get_config('local_corolair', 'setupconsentedat');
+            if ($consentedat > 0) {
+                $record['setupconsentedat'] = transform::datetime($consentedat);
+            }
+        }
+        if ($userid === $disclosureby) {
+            $record['setupdisclosureacknowledgedby'] = $userid;
+            $acknowledgedat = (int)get_config('local_corolair', 'setupdisclosureacknowledgedat');
+            if ($acknowledgedat > 0) {
+                $record['setupdisclosureacknowledgedat'] = transform::datetime($acknowledgedat);
+            }
+        }
+        return $record !== [] ? $record : null;
+    }
+
+    /**
+     * Export the locally retained setup accountability record for the target user.
+     *
+     * @param approved_contextlist $approvedcontextlist Approved contexts for the user.
+     * @return void
+     */
+    private static function export_local_setup_records(approved_contextlist $approvedcontextlist): void {
+        $user = $approvedcontextlist->get_user();
+        $record = self::get_local_setup_record((int)$user->id);
+        if ($record === null) {
+            return;
+        }
+        foreach ($approvedcontextlist->get_contexts() as $context) {
+            if ((int)$context->contextlevel === CONTEXT_SYSTEM) {
+                \core_privacy\local\request\writer::with_context($context)->export_data(
+                    [get_string('privacy:setupsubcontext', 'local_corolair')],
+                    (object)$record
+                );
+                break;
+            }
+        }
     }
 
     /**
@@ -352,6 +419,14 @@ class provider implements
         global $DB;
 
         $contextlist = new contextlist();
+        // Locally retained setup accountability records live in the system context and
+        // exist independently of the remote API key.
+        if (self::get_local_setup_record($userid) !== null) {
+            $contextlist->add_from_sql(
+                "SELECT id FROM {context} WHERE contextlevel = :contextlevel",
+                ['contextlevel' => CONTEXT_SYSTEM]
+            );
+        }
         $apikey = get_config('local_corolair', 'apikey');
         $noapikey = get_string('noapikey', 'local_corolair');
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
@@ -427,6 +502,9 @@ class provider implements
      * @param approved_contextlist $approvedcontextlist The list of approved contexts for the user.
      */
     public static function export_user_data(approved_contextlist $approvedcontextlist) {
+        // Export locally retained setup accountability records first; these exist
+        // independently of the remote API key.
+        self::export_local_setup_records($approvedcontextlist);
         $apikey = get_config('local_corolair', 'apikey');
         $noapikey = get_string('noapikey', 'local_corolair');
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
@@ -513,12 +591,23 @@ class provider implements
     public static function get_users_in_context(userlist $userlist) {
         global $DB;
 
+        // Locally retained setup accountability records live in the system context and
+        // exist independently of the remote API key.
+        $context = $userlist->get_context();
+        if ((int)$context->contextlevel === CONTEXT_SYSTEM) {
+            foreach (['setupconsentedby', 'setupdisclosureacknowledgedby'] as $configkey) {
+                $actorid = (int)get_config('local_corolair', $configkey);
+                if ($actorid > 0) {
+                    $userlist->add_user($actorid);
+                }
+            }
+        }
+
         $apikey = get_config('local_corolair', 'apikey');
         $noapikey = get_string('noapikey', 'local_corolair');
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
             return;
         }
-        $context = $userlist->get_context();
         $urlparams = self::get_context_scope($context);
         if ($urlparams === null) {
             return;
@@ -658,6 +747,12 @@ class provider implements
      * @param approved_contextlist $contextlist The context list containing the user whose data is to be deleted.
      */
     public static function delete_data_for_user(approved_contextlist $contextlist) {
+        // The locally retained setup accountability records (consenting/acknowledging
+        // administrator identity and timestamps) are the operational owner identity of
+        // the active integration and are retained under legitimate interest for as long
+        // as the plugin is installed. They are declared in get_metadata and exportable;
+        // uninstalling the plugin removes them (see db/uninstall.php). They are therefore
+        // intentionally not erased here.
         $apikey = get_config('local_corolair', 'apikey');
         $noapikey = get_string('noapikey', 'local_corolair');
         if (!$apikey || strpos($apikey, $noapikey) === 0) {

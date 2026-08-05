@@ -49,4 +49,11 @@ $capabilities = [
         'clonepermissionsfrom' => 'local/corolair:createtutor',
         'description' => get_string('viewrolescapability', 'local_corolair'),
     ],
+    // Capability to assign only the fixed Raison Manager role through the scoped external API.
+    'local/corolair:assignmanagerrole' => [
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'clonepermissionsfrom' => 'local/corolair:createtutor',
+        'description' => get_string('assignmanagerrolecapability', 'local_corolair'),
+    ],
 ];

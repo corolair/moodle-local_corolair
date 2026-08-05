@@ -137,6 +137,12 @@ class create_exam_placement extends external_api {
         $moduleinfo->groupmode = 0;
         $moduleinfo->groupingid = 0;
         $moduleinfo->completion = COMPLETION_TRACKING_NONE;
+        // Creation reaches lti_grade_item_update(), which reads $lti->grade
+        // unconditionally whenever the tool type accepts grades. Leaving it unset raised
+        // "Undefined property: stdClass::$grade" on every placement and then fell through
+        // to the zero branch anyway. Zero is therefore the value that has always been in
+        // effect: a text-only grade item. Changing that is a grading decision, not a fix.
+        $moduleinfo->grade = 0;
 
         // Moodle positions a module by the course-module ID it should precede.
         // A missing or out-of-range position intentionally appends the activity.

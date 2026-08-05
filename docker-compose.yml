@@ -1,0 +1,53 @@
+# Local CI-parity environment for local_corolair. Driven by the Makefile.
+#
+#   make up setup     # start services, install Moodle + this plugin
+#   make ci           # every check GitHub runs, plus phpunit
+#
+# The database block mirrors the `services.mariadb` block in
+# .github/workflows/moodle-plugin-ci.yml.
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "true"
+      MARIADB_CHARACTER_SET_SERVER: utf8mb4
+      MARIADB_COLLATION_SERVER: utf8mb4_unicode_ci
+    command: >-
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-file-per-table=1
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      # A named volume, not tmpfs: the Moodle checkout survives `make down`, so the
+      # database it points at has to as well. On tmpfs the two fall out of step and
+      # the next run fails with "Unknown database 'moodle'". `make clean` drops both.
+      - dbdata:/var/lib/mysql
+
+  ci:
+    build:
+      context: ./.dev
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.2}
+    # The base image is built to run Apache; we only want a long-lived shell.
+    entrypoint: ["sleep", "infinity"]
+    environment:
+      DB: mariadb
+      MOODLE_BRANCH: ${MOODLE_BRANCH:-MOODLE_501_STABLE}
+      # moodle-plugin-ci reads these when installing Moodle.
+      MOODLE_DIR: /workspace/moodle
+    volumes:
+      # Only the plugin is bind-mounted, so edits on the host are picked up
+      # immediately. Everything heavy lives in the named volume below.
+      - ./:/plugin
+      - workspace:/workspace
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  workspace:
+  dbdata:

@@ -57,7 +57,7 @@ if ($action !== '') {
     $consentrequired = \local_corolair\local\setup_manager::enablement_consent_required();
     \local_corolair\local\setup_manager::activate((int)$USER->id, (bool)$enablementconsent);
     redirect(
-        $settingsurl,
+        new moodle_url('/'),
         get_string($consentrequired ? 'setupqueued' : 'setupqueuedwithoutconsent', 'local_corolair'),
         null,
         \core\output\notification::NOTIFY_SUCCESS

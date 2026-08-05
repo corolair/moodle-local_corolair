@@ -40,9 +40,6 @@ final class audited_request {
     /** Organization registration operation. */
     public const OP_ORGANIZATION_REGISTER = 'organization_register';
 
-    /** Organization update operation. */
-    public const OP_ORGANIZATION_UPDATE = 'organization_update';
-
     /** Organization deregistration operation. */
     public const OP_ORGANIZATION_DEREGISTER = 'organization_deregister';
 
@@ -69,7 +66,6 @@ final class audited_request {
         self::OP_WIDGET_SESSION,
         self::OP_TRAINER_AUTH,
         self::OP_ORGANIZATION_REGISTER,
-        self::OP_ORGANIZATION_UPDATE,
         self::OP_ORGANIZATION_DEREGISTER,
         self::OP_WEBSERVICE_TOKEN_ROTATION,
         self::OP_PRIVACY_CONTEXTS,

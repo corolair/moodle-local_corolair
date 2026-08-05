@@ -48,6 +48,16 @@ if ($retryregistration) {
     require_sesskey();
 }
 
+// Handle optional course parameter for embedding, and enforce Moodle course access
+// before any of its identity is forwarded to the remote provider. This must run
+// before header output so require_login can redirect cleanly.
+$raisonsourcecourse = optional_param('raisonsourcecourse', 0, PARAM_INT);
+if ($raisonsourcecourse) {
+    $course = get_course($raisonsourcecourse);
+    require_login($course);
+    require_capability('local/corolair:createtutor', context_course::instance($course->id));
+}
+
 // Output header only after authentication and authorization have succeeded.
 echo $OUTPUT->header();
 
@@ -79,103 +89,98 @@ if ($existingservice) {
 }
 
 // Retrieve plugin configuration settings.
-$apikey = get_config('local_corolair', 'apikey');
-if (
-    empty($apikey) ||
-    strpos($apikey, 'No Corolair Api Key') === 0 ||
-    strpos($apikey, 'Aucune Clé API Corolair') === 0 ||
-    strpos($apikey, 'No hay clave API de Corolair') === 0 ||
-    strpos($apikey, 'No Raison Api Key') === 0 ||
-    strpos($apikey, 'Aucune Clé API Raison') === 0 ||
-    strpos($apikey, 'No hay clave API de Raison') === 0
-) {
+$apikey = \local_corolair\local\api_key::get();
+if ($apikey === null) {
     if ($retryregistration && $existingservice) {
         $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
         if ($token) {
             // Attempt to register the moodle instance again.
-            $curl = new \curl();
-            $url = "https://services.raison.is/moodle-integration/plugin/organization/register";
-            $postdata = json_encode([
-                'url' => $moodlerooturl,
-                'webserviceToken' => $token->token,
-                'email' => $useremail,
-                'firstname' => $userfirstname,
-                'lastname' => $userlastname,
-                'siteName' => $sitename,
-            ]);
-            $options = [
-                "CURLOPT_RETURNTRANSFER" => true,
-                "CURLOPT_CONNECTTIMEOUT" => 15,
-                "CURLOPT_TIMEOUT" => 60,
-                'CURLOPT_HTTPHEADER' => [
-                    'Content-Type: application/json',
-                    'Content-Length: ' . strlen($postdata),
-                ],
-            ];
-            $response = \local_corolair\local\audited_request::execute(
-                $curl,
-                function () use ($curl, $url, $postdata, $options) {
-                    return $curl->post($url, $postdata, $options);
-                },
-                \local_corolair\local\audited_request::OP_ORGANIZATION_REGISTER,
+            $newapikey = \local_corolair\local\registration_client::register(
+                $moodlerooturl,
+                $token->token,
+                $useremail,
+                $userfirstname,
+                $userlastname,
+                $sitename,
                 context_system::instance(),
                 (int)$USER->id
             );
-            $errno = $curl->get_errno();
-            $info = $curl->get_info();
-            $httpstatus = (int)($info['http_code'] ?? 0);
-            if ($response !== false && $errno === 0 && $httpstatus >= 200 && $httpstatus < 300) {
-                try {
-                    $jsonresponse = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-                    if (
-                        is_array($jsonresponse) &&
-                        isset($jsonresponse['apiKey']) &&
-                        is_string($jsonresponse['apiKey']) &&
-                        $jsonresponse['apiKey'] !== ''
-                    ) {
-                        set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
-                        $isretrysuccess = true;
-                    }
-                } catch (JsonException $exception) {
-                    debugging('Invalid JSON received while registering Corolair.', DEBUG_DEVELOPER);
-                }
+            if ($newapikey !== null) {
+                set_config('apikey', $newapikey, 'local_corolair');
+                $isretrysuccess = true;
             }
         }
     }
     if (!$isretrysuccess) {
+        $output = $PAGE->get_renderer('local_corolair');
         if ($istokenexist) {
-            $retryurl = new moodle_url('/local/corolair/trainer.php', [
-                'retryregistration' => 1,
-            ]);
-            echo $OUTPUT->single_button(
-                $retryurl,
-                get_string('retryregistration', 'local_corolair'),
-                'post'
+            $retryurl = new moodle_url('/local/corolair/trainer.php');
+            $retryform = html_writer::tag(
+                'form',
+                html_writer::empty_tag('input', [
+                    'type' => 'hidden',
+                    'name' => 'retryregistration',
+                    'value' => 1,
+                ]) .
+                html_writer::empty_tag('input', [
+                    'type' => 'hidden',
+                    'name' => 'sesskey',
+                    'value' => sesskey(),
+                ]) .
+                html_writer::tag(
+                    'button',
+                    get_string('retryregistration', 'local_corolair'),
+                    ['type' => 'submit', 'class' => 'btn btn-primary btn-lg']
+                ),
+                [
+                    'method' => 'post',
+                    'action' => $retryurl->out(false),
+                    'class' => 'corolair-retry-form',
+                ]
+            );
+            echo html_writer::div($retryform, 'corolair-retry-registration');
+            echo html_writer::div(
+                html_writer::span(get_string('retryseparator', 'local_corolair')),
+                'corolair-retry-separator'
             );
         }
-        $output = $PAGE->get_renderer('local_corolair');
         echo $output->render_installation_troubleshoot(
-            $moodlerooturl,
-            $sitename,
             $iswebserviceenabled,
             $isrestprotocolenabled,
             $israisonserviceexist,
-            $istokenexist,
-            $useremail,
-            $userfirstname,
-            $userlastname
+            $istokenexist
         );
         echo $OUTPUT->footer();
         return;
     } else {
-        echo get_string('apikeyset', 'local_corolair');
+        echo $OUTPUT->notification(
+            get_string('apikeyset', 'local_corolair'),
+            \core\output\notification::NOTIFY_SUCCESS
+        );
+        $reloadparams = [];
+        if ($raisonsourcecourse) {
+            $reloadparams['raisonsourcecourse'] = $raisonsourcecourse;
+        }
+        $reloadplugin = optional_param('corolairplugin', '', PARAM_TEXT);
+        if ($reloadplugin !== '') {
+            $reloadparams['corolairplugin'] = $reloadplugin;
+        }
+        $reloadurl = new moodle_url('/local/corolair/trainer.php', $reloadparams);
+        echo html_writer::div(
+            $OUTPUT->single_button(
+                $reloadurl,
+                get_string('reloadpage', 'local_corolair'),
+                'get'
+            ),
+            'corolair-retry-registration'
+        );
+        echo $OUTPUT->footer();
         return;
     }
 }
 
 $createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
-// Handle optional course parameter for embedding.
-$raisonsourcecourse = optional_param('raisonsourcecourse', 0, PARAM_INT);
+// The course parameter ($raisonsourcecourse) was resolved and authorized earlier, before header output.
 $plugin = optional_param('corolairplugin', '', PARAM_TEXT);
 // Prepare payload for external authentication request.
 $postdata = json_encode([
@@ -217,15 +222,10 @@ $httpstatus = (int)($info['http_code'] ?? 0);
 if ($response === false || $errno !== 0 || $httpstatus < 200 || $httpstatus >= 300) {
     $output = $PAGE->get_renderer('local_corolair');
     echo $output->render_installation_troubleshoot(
-        $moodlerooturl,
-        $sitename,
         $iswebserviceenabled,
         $isrestprotocolenabled,
         $israisonserviceexist,
-        $istokenexist,
-        $useremail,
-        $userfirstname,
-        $userlastname
+        $istokenexist
     );
     echo $OUTPUT->footer();
     return;

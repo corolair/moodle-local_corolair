@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.9.0
+**Version:** 1.9.2
 
-**Last Updated:** 2026/07/31
+**Last Updated:** 2026/08/05
 
 ## Overview
 
@@ -48,7 +48,36 @@ If your organization chooses to continue using Raison after the free trial, cont
 
 During setup, administrators can review the plugin's exact access permissions, the Moodle functions it uses, and the purpose of each type of data involved. The integration uses restricted, short-lived access credentials that are renewed automatically. Trainer sign-in is limited to approved, secure Raison destinations.
 
+#### Credential replacement after an upgrade
+
+When upgrading an existing installation that uses legacy credentials, the plugin schedules their replacement as a Moodle ad-hoc task instead of performing it inside the upgrade request. Raison must verify the replacement token by calling back to Moodle, but Moodle web services may not be available or reliably reachable while an upgrade is in progress. Deferring this network-dependent step allows Moodle to finish the upgrade before the plugin creates and verifies the replacement credentials.
+
+The compatible Raison migration endpoint must be deployed before this plugin upgrade so it can replace credentials for installations that already use an active, expiring Moodle token.
+
+Moodle cron runs the queued task after the upgrade. The task replaces the legacy API key and web-service token, verifies the new credentials, and retries safely if the remote verification cannot be completed. The legacy credentials remain active until the replacement has been verified successfully, so administrators should ensure that cron is running and that Moodle can communicate with Raison after upgrading.
+
+#### Local consent and accountability records
+
+The plugin stores the following records in Moodle's `config_plugins` table under the `local_corolair` component:
+
+- `setupconsentedby`: the Moodle user ID of the administrator who authorized activation of the integration.
+- `setupconsentedat`: the date and time when activation was authorized.
+- `setupdisclosureacknowledgedby`: the Moodle user ID of the administrator who acknowledged the integration disclosure.
+- `setupdisclosureacknowledgedat`: the date and time when the disclosure was acknowledged.
+
+These records apply only to administrators who activate the integration or acknowledge its disclosure. They are used to demonstrate authorization and maintain operational accountability. They remain within the Moodle installation and are separate from data processed by the external Raison service.
+
+The records are available for discovery and export through Moodle's Privacy API. They are not automatically removed by an individual erasure request because they identify the accountable owner of the active integration. The Moodle operator is responsible for determining and documenting the applicable lawful basis and retention requirements. Access must be limited to authorized Moodle administrators and other personnel who require it for privacy, audit, or operational purposes.
+
+Uninstalling the plugin removes these records with the rest of the plugin configuration.
+
 For questions about data processing, retention, deletion, privacy, or security, contact contact@raison.is.
+
+### Uninstallation and remote deletion
+
+Uninstalling the plugin revokes the Raison Moodle web-service access and removes the local service, token, role, API key, and plugin configuration. Before local cleanup, the plugin makes up to three synchronous attempts to deregister the organization from Raison and requires an explicit `disconnected` response.
+
+Revoking the Moodle token prevents future access to the Moodle instance; it does not by itself prove deletion of data previously transferred to Raison. If remote deregistration cannot be confirmed, Moodle still completes local cleanup and warns the administrator to contact contact@raison.is under the applicable service or data processing agreement. The request must include the Moodle site URL so Raison can identify the organization and complete the deletion process.
 
 ---
 
@@ -86,6 +115,57 @@ In the Creator platform, trainers can:
 - **Microlearning Support:** Break down courses and resources into bite-sized lessons that can be completed in under 5 minutes for greater focus and retention.
 - **Multimedia Integration:** Offer lessons in multimedia formats, including videos, audio clips, and interactive visuals, to enhance comprehension and engagement.
 - **Voice Search:** Enable learners to interact with the AI Tutor using voice commands for quick and intuitive navigation.
+
+---
+
+## Local development
+
+`make` is the entry point; run `make` on its own to list every target. There are two tiers.
+
+**Tier 1 — fast checks, no database or container.** One-time setup:
+
+```bash
+brew install php@8.2 composer
+composer install
+```
+
+Then, in under a second each:
+
+```bash
+make lint    # php -l across the plugin
+make cs      # Moodle Code Checker (the `moodle` phpcs standard)
+make fix     # auto-fix what the checker can
+make check   # lint + cs
+```
+
+**Tier 2 — full parity with GitHub Actions, including PHPUnit.** Requires Docker.
+
+```bash
+make up setup    # start MariaDB, install Moodle and the plugin (several minutes, once)
+make ci          # every step CI runs, plus phpunit
+make phpunit     # just the tests
+make shell       # a shell inside the CI container
+```
+
+Individual steps are available too: `make phplint phpcs phpdoc validate savepoints mustache`.
+
+The CI matrix covers two combinations: PHP 8.2 with Moodle 5.1 (the default) and PHP 8.1 with Moodle 4.5. Set `PHP_VERSION` alone and the matching Moodle branch follows:
+
+```bash
+PHP_VERSION=8.1 make setup ci    # the older leg
+make setup ci                    # back to the default
+```
+
+The two are paired on purpose — Moodle 5.1 requires PHP 8.2, so an 8.1 image with a 5.1 checkout fails deep inside `composer install`. `make up` rebuilds the image whenever `PHP_VERSION` changes, so the running PHP cannot drift away from the installed Moodle.
+
+Notes:
+
+- `moodle-plugin-ci` copies the plugin into its Moodle tree rather than symlinking it, so every Tier 2 target runs `make sync` first to push your edits across. Editing files while a long run is in flight will not affect it.
+- `make setup` wipes and reinstalls both the Moodle checkout and the test database, so it is safe to re-run when switching branches or PHP versions.
+- `make down` stops the containers; the Moodle checkout and the database both survive, so `make ci` works again straight away without re-running `setup`. `make clean` deletes them and does require a fresh `setup`.
+- Every Tier 2 target starts the containers itself, so `make ci` works from cold. If the Moodle install is missing or incomplete, they stop with one clear message rather than reporting passes against a half-installed tree.
+
+**Packaging.** `make package` builds `local_corolair.zip` from the committed tree using `git archive`, honouring the `export-ignore` rules in `.gitattributes` so development files stay out of the release. It refuses to run against a dirty working tree, because `git archive` packages `HEAD` and the zip would otherwise not match your files.
 
 ---
 
