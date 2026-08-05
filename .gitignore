@@ -3,3 +3,6 @@ local_corolair/
 .codex
 .DS_Store
 plans
+
+# Composer dev dependencies for the native phpcs run; rebuilt by `composer install`.
+vendor/

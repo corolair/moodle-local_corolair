@@ -1,0 +1,14 @@
+{
+    "name": "raison/moodle-local_corolair-dev",
+    "description": "Development-only dependencies for local_corolair. Not shipped with the plugin.",
+    "type": "project",
+    "license": "GPL-3.0-or-later",
+    "require-dev": {
+        "moodlehq/moodle-cs": "^3.7"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}
