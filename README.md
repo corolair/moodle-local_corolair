@@ -118,6 +118,57 @@ In the Creator platform, trainers can:
 
 ---
 
+## Local development
+
+`make` is the entry point; run `make` on its own to list every target. There are two tiers.
+
+**Tier 1 — fast checks, no database or container.** One-time setup:
+
+```bash
+brew install php@8.2 composer
+composer install
+```
+
+Then, in under a second each:
+
+```bash
+make lint    # php -l across the plugin
+make cs      # Moodle Code Checker (the `moodle` phpcs standard)
+make fix     # auto-fix what the checker can
+make check   # lint + cs
+```
+
+**Tier 2 — full parity with GitHub Actions, including PHPUnit.** Requires Docker.
+
+```bash
+make up setup    # start MariaDB, install Moodle and the plugin (several minutes, once)
+make ci          # every step CI runs, plus phpunit
+make phpunit     # just the tests
+make shell       # a shell inside the CI container
+```
+
+Individual steps are available too: `make phplint phpcs phpdoc validate savepoints mustache`.
+
+The CI matrix covers two combinations: PHP 8.2 with Moodle 5.1 (the default) and PHP 8.1 with Moodle 4.5. Set `PHP_VERSION` alone and the matching Moodle branch follows:
+
+```bash
+PHP_VERSION=8.1 make setup ci    # the older leg
+make setup ci                    # back to the default
+```
+
+The two are paired on purpose — Moodle 5.1 requires PHP 8.2, so an 8.1 image with a 5.1 checkout fails deep inside `composer install`. `make up` rebuilds the image whenever `PHP_VERSION` changes, so the running PHP cannot drift away from the installed Moodle.
+
+Notes:
+
+- `moodle-plugin-ci` copies the plugin into its Moodle tree rather than symlinking it, so every Tier 2 target runs `make sync` first to push your edits across. Editing files while a long run is in flight will not affect it.
+- `make setup` wipes and reinstalls both the Moodle checkout and the test database, so it is safe to re-run when switching branches or PHP versions.
+- `make down` stops the containers; the Moodle checkout and the database both survive, so `make ci` works again straight away without re-running `setup`. `make clean` deletes them and does require a fresh `setup`.
+- Every Tier 2 target starts the containers itself, so `make ci` works from cold. If the Moodle install is missing or incomplete, they stop with one clear message rather than reporting passes against a half-installed tree.
+
+**Packaging.** `make package` builds `local_corolair.zip` from the committed tree using `git archive`, honouring the `export-ignore` rules in `.gitattributes` so development files stay out of the release. It refuses to run against a dirty working tree, because `git archive` packages `HEAD` and the zip would otherwise not match your files.
+
+---
+
 ## Contributing
 
 Suggestions and feedback are welcome. You can submit feature requests or report issues through the [Corolair Plugin GitHub repository](https://github.com/corolair/moodle-local_corolair).
