@@ -53,7 +53,7 @@ function xmldb_local_corolair_install() {
         // left behind by an uninstall that did not finish is reused rather than fatal.
         $roleid = \local_corolair\local\role_provisioner::ensure_role();
 
-        // $USER->id is 0 under admin/cli/install.php, where role_assign() would throw.
+        // The $USER->id value is 0 under admin/cli/install.php, where role_assign() would throw.
         // Skipping is safe: site administrators bypass capability checks, and setup.php
         // gates on moodle/site:config rather than on this role.
         if ($USER->id > 0) {

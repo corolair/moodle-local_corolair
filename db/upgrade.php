@@ -39,7 +39,7 @@ function xmldb_local_corolair_upgrade($oldversion) {
     global $DB;
     // Step 1: Remove the "Corolair" menu item if present in custommenuitems.
     if ($oldversion < 2024091600) {
-        // set_config() rather than a raw update_record() on {config}, so the core
+        // Use set_config() rather than a raw update_record() on {config}, so the core
         // configuration cache is purged along with the stored value.
         $custommenuitems = (string)get_config('core', 'custommenuitems');
         $menuitem = 'Corolair|/local/corolair/trainer.php';
