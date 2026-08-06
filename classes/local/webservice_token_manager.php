@@ -388,7 +388,7 @@ final class webservice_token_manager {
         $admin = $DB->get_record('user', ['id' => $adminid, 'deleted' => 0], '*', MUST_EXIST);
         $expiry = $token && !empty($token->validuntil)
             ? userdate((int)$token->validuntil)
-            : get_string('unknown');
+            : get_string('tokenexpiryunknown', 'local_corolair');
         $details = (object)['expiry' => $expiry, 'error' => $errorcode];
         $message = new \core\message\message();
         $message->component = 'local_corolair';
@@ -425,19 +425,7 @@ final class webservice_token_manager {
      * @return string|null
      */
     private static function get_api_key(): ?string {
-        $apikey = (string)get_config('local_corolair', 'apikey');
-        if (
-            $apikey === '' ||
-            strpos($apikey, 'No Corolair Api Key') === 0 ||
-            strpos($apikey, 'Aucune Clé API Corolair') === 0 ||
-            strpos($apikey, 'No hay clave API de Corolair') === 0 ||
-            strpos($apikey, 'No Raison Api Key') === 0 ||
-            strpos($apikey, 'Aucune Clé API Raison') === 0 ||
-            strpos($apikey, 'No hay clave API de Raison') === 0
-        ) {
-            return null;
-        }
-        return $apikey;
+        return api_key::get();
     }
 
     /**

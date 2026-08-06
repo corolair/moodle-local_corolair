@@ -40,9 +40,13 @@ final class rotate_webservice_token_task extends \core\task\scheduled_task {
     /**
      * Run token lifecycle maintenance.
      *
+     * Also retries a credential migration that the upgrade could not queue, so a site
+     * that upgraded without a usable administrator recovers on its own once one exists.
+     *
      * @return void
      */
     public function execute(): void {
+        \local_corolair\local\upgrade_migrator::retry_if_blocked();
         \local_corolair\local\webservice_token_manager::maintain();
     }
 }

@@ -1,0 +1,13 @@
+# Files that exist only for development. `git archive` (see `make package`)
+# honours export-ignore, so these are kept out of the released plugin zip.
+#
+# tests/ is deliberately NOT ignored: Moodle plugins are expected to ship them.
+/.dev               export-ignore
+/.editorconfig      export-ignore
+/.gitattributes     export-ignore
+/.github            export-ignore
+/.gitignore         export-ignore
+/Makefile           export-ignore
+/composer.json      export-ignore
+/composer.lock      export-ignore
+/docker-compose.yml export-ignore

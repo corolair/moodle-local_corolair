@@ -29,7 +29,7 @@ namespace local_corolair\local;
  */
 final class integration_disclosure {
     /** Increment whenever the disclosed integration surface materially changes. */
-    public const VERSION = '2026-07-31-1';
+    public const VERSION = '2026-08-05-1';
 
     /**
      * Return the documented web-service groups.
@@ -68,12 +68,12 @@ final class integration_disclosure {
                 'core_completion_get_course_completion_status',
             ], true),
             self::group('roleassignment', 'write', [
-                'core_role_assign_roles',
+                'local_corolair_assign_manager_role',
             ]),
             self::group('examplacement', 'write', [
                 'local_corolair_create_exam_placement',
                 'local_corolair_manage_exam_placement',
-                'core_course_delete_modules',
+                'local_corolair_delete_exam_placement',
                 'mod_lti_toggle_showinactivitychooser',
             ]),
         ];

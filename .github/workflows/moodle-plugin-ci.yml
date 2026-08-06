@@ -89,3 +89,7 @@ jobs:
       - name: Validate Mustache templates
         if: ${{ !cancelled() }}
         run: moodle-plugin-ci mustache
+
+      - name: PHPUnit tests
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci phpunit --fail-on-warning

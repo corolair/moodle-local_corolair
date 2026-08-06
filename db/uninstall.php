@@ -24,98 +24,76 @@
 
 
 /**
- * Uninstall function for the local_corolair plugin.
+ * Remove the state that only this plugin knows about.
  *
- * This function performs the following steps:
- * 1. Removes the custom role 'Raison Manager'.
- * 2. Removes the external service and associated tokens and functions.
- * 3. Retrieves the 'apikey' value before deleting all Raison-specific config settings.
- * 4. Removes all Raison-specific config settings using Moodle's configuration API.
- * 5. Sends a deregistration request to the external API.
+ * Deliberately narrow. Core's uninstall_plugin() runs immediately after this function
+ * and already removes the web-service tokens and service (delete_service_descriptions),
+ * every local_corolair configuration value (unset_all_config_for_plugin), pending ad-hoc
+ * tasks (task_adhoc by component) and the capability grants (capabilities_cleanup).
+ * Repeating any of that here would only create a second contract to keep correct. What
+ * core cannot do is deregister the organization remotely, and delete a role created with
+ * create_role(), which carries nothing tying it back to this component.
  *
- * @return bool True on success.
- * @throws moodle_exception If an error occurs during the uninstallation process.
+ * NOTHING HERE MAY THROW. Core calls this function unguarded -- "Do not verify result,
+ * let plugin complain if necessary" in lib/adminlib.php -- so an escaping exception
+ * aborts the uninstall before any of that core cleanup runs, leaving live tokens and the
+ * full configuration behind. The two steps are isolated from each other for the same
+ * reason: failing to deregister must not stop the role from being removed.
+ *
+ * Deregistration runs first, while the credentials it needs still exist.
+ *
+ * @return bool Always true.
  */
 function xmldb_local_corolair_uninstall() {
-    global $DB, $CFG;
-    // Define API URL for deregistration.
-    $url = "https://services.raison.is/moodle-integration/v2/plugin/organization/deregister";
-    try {
-        // Step 1: Remove the custom role 'Corolair Manager'.
-        $role = $DB->get_record('role', ['shortname' => 'corolair']);
-        if ($role) {
-            // Unassign role from users and delete the role.
-            role_unassign_all(['roleid' => $role->id]);
-            $DB->delete_records('role', ['id' => $role->id]);
-            $DB->delete_records('role_context_levels', ['roleid' => $role->id]);
-            $DB->delete_records('role_capabilities', ['roleid' => $role->id]);
-        }
-        // Step 2: Remove external service and associated tokens and functions.
-        $service = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
-        if ($service) {
-            $DB->delete_records('external_tokens', ['externalserviceid' => $service->id]);
-            $DB->delete_records('external_services_functions', ['externalserviceid' => $service->id]);
-            $DB->delete_records('external_services', ['id' => $service->id]);
-        }
-        // Step 3: Retrieve the API key before removing all plugin settings.
-        $apikey = (string) (get_config('local_corolair', 'apikey') ?? '');
-        // Step 4: Remove all Raison-specific config settings via the configuration API.
-        $pluginconfig = (array) get_config('local_corolair');
-        foreach (array_keys($pluginconfig) as $configname) {
-            unset_config($configname, 'local_corolair');
-        }
-        // Step 5: Send deregistration request to external API.
-        $moodlebaseurl = $CFG->wwwroot;
-        $postdata = json_encode([
-            'url' => $moodlebaseurl,
-        ]);
-        $curl = new curl();
-        $options = [
-            "CURLOPT_RETURNTRANSFER" => true,
-            "CURLOPT_CONNECTTIMEOUT" => 15,
-            "CURLOPT_TIMEOUT" => 60,
-            'CURLOPT_HTTPHEADER' => [
-                'Authorization: Bearer ' . $apikey,
-                'Content-Type: application/json',
-                'Content-Length: ' . strlen($postdata),
-            ],
-        ];
-        $response = \local_corolair\local\audited_request::execute(
-            $curl,
-            function () use ($curl, $url, $postdata, $options) {
-                return $curl->post($url, $postdata, $options);
-            },
-            \local_corolair\local\audited_request::OP_ORGANIZATION_DEREGISTER,
-            \context_system::instance()
-        );
-        $errno = $curl->get_errno();
-        $info = $curl->get_info();
-        $httpstatus = (int)($info['http_code'] ?? 0);
-        if ($response === false || $errno !== 0 || $httpstatus < 200 || $httpstatus >= 300) {
-            throw new moodle_exception('curlerror', 'local_corolair');
-        }
-        try {
-            $responsedata = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new moodle_exception('curlerror', 'local_corolair');
-        }
-        if (!is_array($responsedata) || ($responsedata['status'] ?? null) !== 'disconnected') {
-            throw new moodle_exception('curlerror', 'local_corolair');
-        }
-        return true;
-    } catch (moodle_exception $me) {
-        debugging($me->getMessage(), DEBUG_DEVELOPER);
+    $deregistered = local_corolair_uninstall_deregister();
+    local_corolair_uninstall_remove_role();
+
+    if (!$deregistered) {
         \core\notification::add(
-            get_string('unexpectederror', 'local_corolair'),
-            \core\output\notification::NOTIFY_ERROR
+            get_string('deregisterfailed', 'local_corolair'),
+            \core\output\notification::NOTIFY_WARNING
         );
+    }
+    return true;
+}
+
+/**
+ * Ask Raison to remove the organization's data.
+ *
+ * @return bool True when deregistration was confirmed, or when there was nothing to
+ *              deregister. False only when a real credential failed to be released.
+ */
+function local_corolair_uninstall_deregister(): bool {
+    global $CFG;
+
+    try {
+        $apikey = \local_corolair\local\api_key::get();
+        if ($apikey === null) {
+            // The site never registered, so there is no organization to remove and no
+            // reason to warn. Reading the raw setting instead would send the translated
+            // "no API key" placeholder as a bearer token, which fails every time.
+            return true;
+        }
+        return \local_corolair\local\organization_deregistration::execute($apikey, $CFG->wwwroot);
+    } catch (\Throwable $e) {
+        debugging($e->getMessage(), DEBUG_DEVELOPER);
         return false;
-    } catch (Exception $e) {
+    }
+}
+
+/**
+ * Delete the "Raison Manager" role.
+ *
+ * @return void
+ */
+function local_corolair_uninstall_remove_role(): void {
+    try {
+        \local_corolair\local\role_provisioner::remove_role();
+    } catch (\Throwable $e) {
         debugging($e->getMessage(), DEBUG_DEVELOPER);
         \core\notification::add(
-            get_string('unexpectederror', 'local_corolair'),
-            \core\output\notification::NOTIFY_ERROR
+            get_string('uninstallroleremovalfailed', 'local_corolair', $e->getMessage()),
+            \core\output\notification::NOTIFY_WARNING
         );
-        return false;
     }
 }

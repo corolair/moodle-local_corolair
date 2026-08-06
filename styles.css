@@ -1,11 +1,9 @@
 /* Settings Page */
-#page-admin-setting-local_corolair #id_s_local_corolair_apikey,
-#page-admin-setting-local_corolair #id_s_local_corolair_corolairlogin {
+#page-admin-setting-local_corolair #id_s_local_corolair_apikey {
   background-color: #e9ecef;
   cursor: not-allowed;
 }
-#page-admin-setting-local_corolair #id_s_local_corolair_apikey:disabled,
-#page-admin-setting-local_corolair #id_s_local_corolair_corolairlogin:disabled {
+#page-admin-setting-local_corolair #id_s_local_corolair_apikey:disabled {
   color: #6c757d;
 }
 
@@ -53,4 +51,33 @@
 
 #page-local-corolair-trainer #page-header {
   display: none;
+}
+
+/* Registration retry / troubleshoot state */
+#page-local-corolair-trainer .corolair-retry-registration {
+  text-align: center;
+  margin: 24px auto;
+}
+
+#page-local-corolair-trainer .corolair-retry-form {
+  margin: 0;
+}
+
+#page-local-corolair-trainer .corolair-retry-separator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 480px;
+  margin: 16px auto;
+  color: #6c757d;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+#page-local-corolair-trainer .corolair-retry-separator::before,
+#page-local-corolair-trainer .corolair-retry-separator::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid #dee2e6;
 }
