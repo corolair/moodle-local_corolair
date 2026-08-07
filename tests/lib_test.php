@@ -389,4 +389,45 @@ final class lib_test extends \advanced_testcase {
 
         $this->assertNotContains($title, $this->child_texts($navigation));
     }
+
+    /**
+     * Saving the rotation setting queues exactly one task and records who changed it.
+     *
+     * The task deliberately carries no payload, so repeated saves collapse into the single
+     * pending record rather than queueing a rotation per click. Nothing about the desired
+     * state travels in it either -- the task re-reads the configuration when it runs, which
+     * is what makes toggling the setting back and forth safe.
+     *
+     * @covers ::local_corolair_disabletokenrotation_updated
+     * @return void
+     */
+    public function test_rotation_setting_callback_queues_one_task(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('disabletokenrotation', 1, 'local_corolair');
+
+        $sink = $this->redirectEvents();
+        local_corolair_disabletokenrotation_updated('s_local_corolair_disabletokenrotation');
+        local_corolair_disabletokenrotation_updated('s_local_corolair_disabletokenrotation');
+        $events = $sink->get_events();
+        $sink->close();
+
+        $this->assertSame(
+            1,
+            $DB->count_records(
+                'task_adhoc',
+                ['classname' => '\local_corolair\task\retry_webservice_token_rotation_task']
+            )
+        );
+
+        $actions = [];
+        foreach ($events as $event) {
+            if ($event instanceof \local_corolair\event\webservice_token_lifecycle) {
+                $actions[] = $event->other['action'];
+            }
+        }
+        $this->assertSame(['rotation_disabled', 'rotation_disabled'], $actions);
+    }
 }

@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.9.2
+**Version:** 1.9.3
 
-**Last Updated:** 2026/08/05
+**Last Updated:** 2026/08/07
 
 ## Overview
 
@@ -55,6 +55,26 @@ When upgrading an existing installation that uses legacy credentials, the plugin
 The compatible Raison migration endpoint must be deployed before this plugin upgrade so it can replace credentials for installations that already use an active, expiring Moodle token.
 
 Moodle cron runs the queued task after the upgrade. The task replaces the legacy API key and web-service token, verifies the new credentials, and retries safely if the remote verification cannot be completed. The legacy credentials remain active until the replacement has been verified successfully, so administrators should ensure that cron is running and that Moodle can communicate with Raison after upgrading.
+
+#### Disabling token rotation
+
+By default the web-service token expires after 15 days and is replaced before it expires. Deployments that cannot rely on that can turn it off with the **Disable web-service token rotation** setting. The token then does not expire, and the plugin stops replacing it.
+
+**Why this option exists.** A rotating credential is the better design, but it assumes someone is reachable when it fails. In practice that assumption often does not hold:
+
+- The registered Moodle administrator address is frequently a placeholder such as `admin@example.com`, or a shared mailbox nobody reads. Every safeguard the rotation lifecycle has — the expiry warning, the failure notice on the settings page — is a message to an address that goes nowhere.
+- Many installations are maintained by an external integrator rather than by the institution. When rotation stops working, the fix goes into a ticket queue that can take weeks and is often billed, so a credential that expires on a fixed schedule turns a minor cron problem into a paid outage.
+- Cron on shared or tightly managed hosting is not always reliable, and outbound HTTPS to Raison is sometimes restricted after the fact, without the plugin being told.
+
+In each of those cases the automated replacement fails silently and the integration simply stops working, with no one positioned to notice or act. A long-lived credential is a genuine reduction in security posture, and it is off by default — but for these deployments it is the difference between an integration that keeps working and one that breaks with nobody watching. The option is a deliberate concession to how these sites are actually run.
+
+The setting converges in both directions. Enabling it replaces the current token with a non-expiring one; disabling it again replaces that token with a normal 15-day one. Either change is applied by the scheduled task, so it needs cron and a successful call to Raison, and the previous token stays usable for up to 7 more days so requests already in flight are not interrupted. The plugin settings page reports whether the change has been applied yet.
+
+The choice is also offered on the setup consent page, before any token exists. Choosing there is preferable: the first token is created with the right lifetime, so the site avoids the immediate replacement that changing the setting afterwards causes. The same value can be preset before setup through `$CFG->forced_plugin_settings`, in which case it is fixed in the server configuration and the setup page reports it as such rather than offering a choice that could not take effect.
+
+Two consequences are worth weighing before enabling it. Rotation is the only thing that makes Raison periodically re-verify that this site still grants the functions the integration needs, so misconfiguration is detected later; the plugin compensates with its own periodic check, but that check is weaker. And the credential is long-lived rather than short-lived, which is a deliberate reduction in the security posture the default provides.
+
+A compatible Raison deployment is required, and must be deployed before this plugin upgrade. Against an older Raison deployment the change is simply not applied: the current token stays active and the plugin settings page reports the failure, so nothing breaks, but the setting has no effect until Raison is updated. Note that the two sides record "never expires" differently — Moodle stores a far-future expiry on the token record, while Raison stores no expiry at all.
 
 #### Local consent and accountability records
 

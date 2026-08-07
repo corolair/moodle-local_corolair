@@ -81,8 +81,8 @@ final class event_test extends \advanced_testcase {
             ],
             'disclosure acknowledged' => [
                 integration_disclosure_acknowledged::class,
-                ['version' => '2026-08-05-1'],
-                '2026-08-05-1',
+                ['version' => '2026-08-06-1'],
+                '2026-08-06-1',
             ],
         ];
     }
@@ -204,7 +204,7 @@ final class event_test extends \advanced_testcase {
         $event = integration_disclosure_acknowledged::create([
             'context' => \context_system::instance(),
             'userid' => (int)$admin->id,
-            'other' => ['version' => '2026-08-05-1'],
+            'other' => ['version' => '2026-08-06-1'],
         ]);
 
         $this->assertEquals((int)$admin->id, (int)$event->userid);

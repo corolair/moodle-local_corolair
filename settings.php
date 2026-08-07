@@ -60,16 +60,37 @@ if ($hassiteconfig) {
             'alert alert-warning mt-3'
         );
     }
+    $expiresat = (int)get_config('local_corolair', 'webservicetokenexpiresat');
+    $rotationdisabled = \local_corolair\local\webservice_token_manager::rotation_disabled();
+    // Whether the active token's lifetime already reflects the configured policy. When it
+    // does not, the pending work is a lifetime change rather than an expiry rotation, and
+    // quoting an expiration date is either meaningless (a date a century out) or actively
+    // misleading ("your token expires on ..." when nothing is expiring).
+    $lifetimeconverged = \local_corolair\local\webservice_token_manager::is_non_expiring(
+        (object)['validuntil' => $expiresat]
+    ) === $rotationdisabled;
     $rotationstatus = (string)get_config('local_corolair', 'webservicetokenrotationstatus');
     if ($rotationstatus === 'ROTATION_FAILED') {
         $rotationdetails = (object)[
-            'expiry' => userdate((int)get_config('local_corolair', 'webservicetokenexpiresat')),
+            'expiry' => userdate($expiresat),
             'error' => s((string)get_config('local_corolair', 'webservicetokenlasterror')),
             'retryurl' => (new moodle_url('/local/corolair/token_rotation.php'))->out(false),
         ];
         $setupstatus .= html_writer::div(
-            get_string('tokenrotationstatusfailed', 'local_corolair', $rotationdetails),
+            get_string(
+                $lifetimeconverged ? 'tokenrotationstatusfailed' : 'tokenrotationstatusfailedlifetime',
+                'local_corolair',
+                $rotationdetails
+            ),
             'alert alert-warning mt-3'
+        );
+    } else if ($rotationdisabled) {
+        $setupstatus .= html_writer::div(
+            get_string(
+                $lifetimeconverged ? 'tokenrotationdisabled' : 'tokenrotationdisabledpending',
+                'local_corolair'
+            ),
+            'alert ' . ($lifetimeconverged ? 'alert-info' : 'alert-warning') . ' mt-3'
         );
     }
     $settings->add(new admin_setting_heading(
@@ -123,4 +144,22 @@ if ($hassiteconfig) {
         '', // Default value: none excluded.
         PARAM_TEXT // Validation type.
     ));
+    // Opt out of the token lifecycle. A checkbox rather than the true/false dropdowns above:
+    // those store the literal string "false", and (bool)'false' is true, which is why
+    // lib.php has to compare against 'true' by hand. A checkbox stores '1'/'0', so a plain
+    // boolean cast is safe -- and this value is read from several places, including paths
+    // where it was set by CLI or forced in config.php rather than through this form.
+    require_once($CFG->dirroot . '/local/corolair/lib.php');
+    $rotationsetting = new admin_setting_configcheckbox(
+        'local_corolair/disabletokenrotation',
+        get_string('disabletokenrotation', 'local_corolair'), // Setting title.
+        get_string('disabletokenrotationdesc', 'local_corolair'), // Setting description.
+        0 // Default value: rotation stays enabled.
+    );
+    // Applying the change needs a network round trip, which must not happen inside the
+    // settings request. The callback only queues an ad-hoc task for immediacy; the scheduled
+    // task reconciles the same desired state hourly and is the only path available when the
+    // value is forced in config.php or set from CLI, neither of which fires this callback.
+    $rotationsetting->set_updatedcallback('local_corolair_disabletokenrotation_updated');
+    $settings->add($rotationsetting);
 }

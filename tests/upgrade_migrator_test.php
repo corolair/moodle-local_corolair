@@ -595,6 +595,48 @@ final class upgrade_migrator_test extends \advanced_testcase {
     }
 
     /**
+     * The migration always mints a normally expiring token, whatever the rotation policy.
+     *
+     * The migration endpoint requires a bounded expiration and recognises a replayed attempt
+     * by comparing the supplied expiration against the stored one -- a comparison that cannot
+     * succeed with no expiration on either side. Retiring an exposed legacy credential must
+     * not depend on any of that, so it opts out of the policy and lets the next maintenance
+     * run converge the token instead.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::run
+     * @return void
+     */
+    public function test_migration_token_ignores_the_rotation_policy(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $this->make_legacy_installation();
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        set_config('disabletokenrotation', 1, 'local_corolair');
+        // Fails before any network call, once the local state has been built.
+        set_config('apikey', 'malformedinheritedkey', 'local_corolair');
+
+        try {
+            upgrade_migrator::run((int)get_admin()->id);
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('legacycredentialmigrationfailed', $exception->errorcode);
+        }
+
+        $candidateid = (int)get_config('local_corolair', 'legacymigrationtokenid');
+        $this->assertGreaterThan(0, $candidateid);
+        $candidate = $DB->get_record('external_tokens', ['id' => $candidateid], '*', MUST_EXIST);
+        $this->assertFalse(
+            \local_corolair\local\webservice_token_manager::is_non_expiring($candidate),
+            'The migration must not mint a non-expiring token.'
+        );
+        $this->assertLessThanOrEqual(
+            time() + \local_corolair\local\webservice_token_manager::TOKEN_LIFETIME,
+            (int)$candidate->validuntil
+        );
+    }
+
+    /**
      * Persist a modified token record.
      *
      * @param \stdClass $token Token record to write back.
