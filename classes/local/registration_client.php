@@ -43,8 +43,13 @@ final class registration_client {
     /**
      * Register (or re-register) the Moodle instance and return the issued API key.
      *
+     * The token record is taken rather than the token string so the call can also report the
+     * expiration. Omitting it made Raison record "no expiration" for the site, which used to
+     * be inert but now means the token never expires -- so an ordinary API-key rotation on a
+     * site that does rotate its token silently told Raison the opposite.
+     *
      * @param string $url Moodle site root URL.
-     * @param string $webservicetoken Raison web-service token used to authenticate the call.
+     * @param \stdClass $token Raison web-service token record used to authenticate the call.
      * @param string $email Admin user email.
      * @param string $firstname Admin user first name.
      * @param string $lastname Admin user last name.
@@ -55,7 +60,7 @@ final class registration_client {
      */
     public static function register(
         string $url,
-        string $webservicetoken,
+        \stdClass $token,
         string $email,
         string $firstname,
         string $lastname,
@@ -70,7 +75,8 @@ final class registration_client {
         $curl = new curl();
         $postdata = json_encode([
             'url' => $url,
-            'webserviceToken' => $webservicetoken,
+            'webserviceToken' => $token->token,
+            'expiresAt' => webservice_token_manager::expiration_iso8601($token),
             'email' => $email,
             'firstname' => $firstname,
             'lastname' => $lastname,

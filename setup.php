@@ -40,6 +40,9 @@ $PAGE->set_heading(get_string('setuppagetitle', 'local_corolair'));
 $step = optional_param('step', '', PARAM_ALPHA);
 $action = optional_param('action', '', PARAM_ALPHA);
 $enablementconsent = optional_param('enablementconsent', 0, PARAM_BOOL);
+// An unchecked checkbox posts nothing, so this is 0 rather than absent: the consent form
+// always states an explicit intent, and null stays reserved for callers that have none.
+$disablerotation = optional_param('disabletokenrotation', 0, PARAM_BOOL);
 if ($action !== '') {
     if (!data_submitted()) {
         throw new moodle_exception('invalidrequest', 'error');
@@ -55,7 +58,11 @@ if ($action !== '') {
     }
 
     $consentrequired = \local_corolair\local\setup_manager::enablement_consent_required();
-    \local_corolair\local\setup_manager::activate((int)$USER->id, (bool)$enablementconsent);
+    \local_corolair\local\setup_manager::activate(
+        (int)$USER->id,
+        (bool)$enablementconsent,
+        (bool)$disablerotation
+    );
     redirect(
         new moodle_url('/'),
         get_string($consentrequired ? 'setupqueued' : 'setupqueuedwithoutconsent', 'local_corolair'),
@@ -71,6 +78,9 @@ if ($step !== 'consent' || !$acknowledged) {
     echo $renderer->render_setup_disclosure([
         'version' => \local_corolair\local\integration_disclosure::VERSION,
         'groups' => \local_corolair\local\integration_disclosure::get_function_groups(),
+        // Selected at render time rather than versioned into the disclosure, so the text is
+        // truthful whichever policy is configured when it is shown.
+        'rotationdisabled' => \local_corolair\local\webservice_token_manager::rotation_disabled(),
         'actionurl' => $setupurl->out(false),
         'cancelurl' => $settingsurl->out(false),
         'sesskey' => sesskey(),
@@ -96,29 +106,87 @@ if ($consentrequired) {
         get_string('setupchangewebservices', 'local_corolair'),
         get_string('setupchangerest', 'local_corolair'),
         get_string('setupchangeregistration', 'local_corolair'),
+        get_string('setupchangetokenlifetime', 'local_corolair'),
     ]);
 } else {
     echo $OUTPUT->heading(get_string('setupreadyheading', 'local_corolair'), 2);
     echo html_writer::tag('p', get_string('setupreadydescription', 'local_corolair'));
-    echo html_writer::alist([get_string('setupchangeregistration', 'local_corolair')]);
+    echo html_writer::alist([
+        get_string('setupchangeregistration', 'local_corolair'),
+        get_string('setupchangetokenlifetime', 'local_corolair'),
+    ]);
 }
 echo $OUTPUT->notification(
     get_string('setupcurrentstatus', 'local_corolair', $status),
     \core\output\notification::NOTIFY_INFO
 );
 
-$continueurl = new moodle_url($setupurl, [
-    'action' => 'activate',
-    'enablementconsent' => $consentrequired ? 1 : 0,
-    'sesskey' => sesskey(),
+// Hand-rolled rather than $OUTPUT->confirm() with a single_button: core builds that form from
+// the continue URL's query string and offers no way to add a field, and this page needs the
+// administrator to be able to choose the token-rotation policy before the first token exists.
+$rotationforced = \local_corolair\local\webservice_token_manager::rotation_setting_is_forced();
+$rotationdisabled = \local_corolair\local\webservice_token_manager::rotation_disabled();
+
+$fields = html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+$fields .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'activate']);
+$fields .= html_writer::empty_tag('input', [
+    'type' => 'hidden',
+    'name' => 'enablementconsent',
+    'value' => $consentrequired ? 1 : 0,
 ]);
-echo $OUTPUT->confirm(
-    get_string($consentrequired ? 'setupconfirmquestion' : 'setupcontinuequestion', 'local_corolair'),
-    new single_button(
-        $continueurl,
-        get_string($consentrequired ? 'setupconfirmbutton' : 'setupcontinuebutton', 'local_corolair'),
-        'post'
-    ),
-    new single_button($settingsurl, get_string('cancel'), 'get')
+
+if ($rotationforced) {
+    // The value is pinned in config.php, so offering a control here would collect a choice
+    // that set_config() cannot apply and get_config() would keep overriding. Report the fixed
+    // policy instead, so the page never promises something that will not happen.
+    $fields .= $OUTPUT->notification(
+        get_string(
+            $rotationdisabled ? 'setupdisablerotationforcedon' : 'setupdisablerotationforcedoff',
+            'local_corolair'
+        ),
+        \core\output\notification::NOTIFY_INFO
+    );
+} else {
+    $checkboxattributes = [
+        'type' => 'checkbox',
+        'name' => 'disabletokenrotation',
+        'id' => 'corolair-disabletokenrotation',
+        'value' => 1,
+        'class' => 'mr-2',
+    ];
+    if ($rotationdisabled) {
+        $checkboxattributes['checked'] = 'checked';
+    }
+    $fields .= html_writer::div(
+        html_writer::empty_tag('input', $checkboxattributes) .
+        html_writer::tag(
+            'label',
+            get_string('setupdisablerotation', 'local_corolair'),
+            ['for' => 'corolair-disabletokenrotation', 'class' => 'font-weight-bold']
+        ) .
+        html_writer::tag(
+            'div',
+            get_string('setupdisablerotationdesc', 'local_corolair'),
+            ['class' => 'text-muted small']
+        ),
+        'my-3'
+    );
+}
+
+$fields .= html_writer::tag(
+    'p',
+    get_string($consentrequired ? 'setupconfirmquestion' : 'setupcontinuequestion', 'local_corolair')
 );
+$fields .= html_writer::tag(
+    'button',
+    get_string($consentrequired ? 'setupconfirmbutton' : 'setupcontinuebutton', 'local_corolair'),
+    ['type' => 'submit', 'class' => 'btn btn-primary']
+);
+$fields .= html_writer::link($settingsurl, get_string('cancel'), ['class' => 'btn btn-secondary ml-2']);
+
+echo html_writer::tag('form', $fields, [
+    'method' => 'post',
+    'action' => $setupurl->out(false),
+    'class' => 'local-corolair-consent-form',
+]);
 echo $OUTPUT->footer();

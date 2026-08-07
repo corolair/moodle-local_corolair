@@ -30,6 +30,7 @@
                 ]
             }
         ],
+        "rotationdisabled": false,
         "actionurl": "https://moodle.example.com/local/corolair/setup.php",
         "cancelurl": "https://moodle.example.com/admin/settings.php",
         "sesskey": "example-session-key",
@@ -48,6 +49,9 @@
         <ul>
             <li>{{#str}}disclosuretokenowner, local_corolair{{/str}}</li>
             <li>{{#str}}disclosuretokentransfer, local_corolair{{/str}}</li>
+            {{#rotationdisabled}}
+            <li>{{#str}}disclosuretokenrotationdisabled, local_corolair{{/str}}</li>
+            {{/rotationdisabled}}
             <li>{{#str}}disclosureallowlist, local_corolair{{/str}}</li>
             <li>{{#str}}disclosurerole, local_corolair{{/str}}</li>
             <li>{{#str}}disclosurestandardised, local_corolair{{/str}}</li>
