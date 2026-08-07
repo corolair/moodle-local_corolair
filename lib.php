@@ -24,6 +24,32 @@
 
 
 /**
+ * Apply a token-rotation policy change without blocking the settings request.
+ *
+ * Only queues work. Saving a setting must not depend on Raison being reachable, for the
+ * same reason db/upgrade.php performs no network I/O: the token change has to be verified
+ * by Raison calling back into Moodle, which cannot be guaranteed mid-request.
+ *
+ * Losing this task is not a correctness problem. rotate_webservice_token_task reconciles
+ * the same desired-versus-actual state hourly, and that is also the only path available to
+ * a value forced through $CFG->forced_plugin_settings or written by CLI set_config(),
+ * neither of which fires an updated callback at all.
+ *
+ * @param string|null $name Full name of the setting that changed.
+ * @return void
+ */
+function local_corolair_disabletokenrotation_updated($name = null) {
+    \local_corolair\local\webservice_token_manager::record_rotation_policy_change();
+    // The task carries no custom data, so queueing it repeatedly collapses to one pending
+    // record. Nothing about the desired state is stored in it -- the task re-reads the
+    // configuration when it runs -- which is what makes rapid toggling safe.
+    \core\task\manager::queue_adhoc_task(
+        new \local_corolair\task\retry_webservice_token_rotation_task(),
+        true
+    );
+}
+
+/**
  * Builds the Raison embed script for the current page.
  *
  * @param int $courseid The course id to send to Raison.

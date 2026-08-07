@@ -97,7 +97,7 @@ if ($apikey === null) {
             // Attempt to register the moodle instance again.
             $newapikey = \local_corolair\local\registration_client::register(
                 $moodlerooturl,
-                $token->token,
+                $token,
                 $useremail,
                 $userfirstname,
                 $userlastname,

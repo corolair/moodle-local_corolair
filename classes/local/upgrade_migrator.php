@@ -282,7 +282,17 @@ final class upgrade_migrator {
                 $DB->delete_records('external_tokens', ['id' => (int)$candidate->id]);
             }
         }
-        $token = webservice_token_manager::create_token($adminid, $serviceid);
+        // Always mint a normally expiring token, even when the site has disabled rotation.
+        // The migration endpoint requires a bounded expiration, and its retry path compares
+        // the supplied expiration against the stored one to recognise a replay -- a
+        // comparison that cannot succeed with no expiration on either side. Retiring an
+        // exposed legacy credential must not depend on any of that. The next maintenance
+        // run converges this token to the configured lifetime.
+        $token = webservice_token_manager::create_token(
+            $adminid,
+            $serviceid,
+            webservice_token_manager::TOKEN_LIFETIME
+        );
         set_config('legacymigrationtokenid', (int)$token->id, 'local_corolair');
         return $token;
     }

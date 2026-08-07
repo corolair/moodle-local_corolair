@@ -546,4 +546,350 @@ final class webservice_token_manager_test extends \advanced_testcase {
         $this->assertSame([], $actions);
         $this->assertFalse(get_config('local_corolair', 'previouswebservicetokenid'));
     }
+
+    /**
+     * Desired-versus-actual lifetimes, and the rotation each combination should produce.
+     *
+     * This is the whole convergence rule in one table. Both directions of the setting have
+     * to fall out of the same predicate, and the legacy "no expiry at all" token has to keep
+     * its original meaning under either policy.
+     *
+     * The two columns are deliberately independent. A token can match the configured policy
+     * and still be due for rotation, which is the ordinary "about to expire" case; what the
+     * mismatch column adds is the rotations that happen for no reason other than the policy.
+     *
+     * @return array[] Data sets of [seconds remaining, rotation disabled, rotation due, lifetime matches].
+     */
+    public static function convergence_provider(): array {
+        return [
+            'expiring token, rotation enabled' => [15 * DAYSECS, false, false, true],
+            'expiring token near expiry, rotation enabled' => [6 * DAYSECS, false, true, true],
+            'expiring token, rotation disabled' => [15 * DAYSECS, true, true, false],
+            'non-expiring token, rotation disabled' => [100 * YEARSECS, true, false, true],
+            'non-expiring token, rotation enabled' => [100 * YEARSECS, false, true, false],
+            'expired token, rotation enabled' => [-DAYSECS, false, true, false],
+            'expired token, rotation disabled' => [-DAYSECS, true, true, false],
+        ];
+    }
+
+    /**
+     * A token whose lifetime no longer matches the configured policy is always rotated.
+     *
+     * @dataProvider convergence_provider
+     * @covers \local_corolair\local\webservice_token_manager::rotation_due
+     * @covers \local_corolair\local\webservice_token_manager::lifetime_matches_configuration
+     * @param int $remaining Seconds until the token expires.
+     * @param bool $disabled Whether rotation is disabled.
+     * @param bool $due Whether rotation should be due.
+     * @param bool $matches Whether the lifetime should match the configuration.
+     * @return void
+     */
+    public function test_lifetime_convergence(int $remaining, bool $disabled, bool $due, bool $matches): void {
+        $this->resetAfterTest();
+        set_config('disabletokenrotation', $disabled ? 1 : 0, 'local_corolair');
+
+        $now = 1700000000;
+        $token = (object)['validuntil' => $now + $remaining];
+
+        $this->assertSame($due, webservice_token_manager::rotation_due($token, $now));
+        $this->assertSame($matches, webservice_token_manager::lifetime_matches_configuration($token, $now));
+    }
+
+    /**
+     * Re-enabling rotation forces a rotation even though the token is a century from expiry.
+     *
+     * This is the direction that does not heal itself. A non-expiring token is nowhere near
+     * the seven-day rotation window, so without the desired-versus-actual check the ordinary
+     * schedule stays false forever and the setting silently never takes effect.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::rotation_due
+     * @return void
+     */
+    public function test_reenabled_rotation_forces_a_lifetime_change(): void {
+        $this->resetAfterTest();
+        set_config('disabletokenrotation', 0, 'local_corolair');
+
+        $now = 1700000000;
+        $token = (object)['validuntil' => $now + webservice_token_manager::NON_EXPIRING_LIFETIME];
+
+        $this->assertGreaterThan(
+            webservice_token_manager::ROTATE_BEFORE_EXPIRY,
+            (int)$token->validuntil - $now,
+            'The token must be far outside the ordinary rotation window for this test to mean anything.'
+        );
+        $this->assertTrue(webservice_token_manager::rotation_due($token, $now));
+    }
+
+    /**
+     * A legacy token with no expiry keeps rotating immediately under either policy.
+     *
+     * validuntil = 0 is the pre-1.9 marker for an exposed credential, not a deliberate
+     * "never expires". Disabling rotation must not turn that marker into an endorsement.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::rotation_due
+     * @covers \local_corolair\local\webservice_token_manager::is_non_expiring
+     * @return void
+     */
+    public function test_legacy_token_still_rotates_when_rotation_is_disabled(): void {
+        $this->resetAfterTest();
+        set_config('disabletokenrotation', 1, 'local_corolair');
+
+        $token = (object)['validuntil' => 0];
+
+        $this->assertFalse(webservice_token_manager::is_non_expiring($token));
+        $this->assertTrue(webservice_token_manager::rotation_due($token));
+    }
+
+    /**
+     * Minted tokens follow the configured policy, and the override wins over it.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::create_token
+     * @covers \local_corolair\local\webservice_token_manager::token_lifetime
+     * @return void
+     */
+    public function test_create_token_honours_the_rotation_policy(): void {
+        $this->resetAfterTest();
+        $adminid = (int)get_admin()->id;
+        $serviceid = $this->service_id();
+        set_config('disabletokenrotation', 1, 'local_corolair');
+
+        $this->assertSame(webservice_token_manager::NON_EXPIRING_LIFETIME, webservice_token_manager::token_lifetime());
+
+        $before = time();
+        $token = webservice_token_manager::create_token($adminid, $serviceid);
+        $this->assertGreaterThanOrEqual(
+            $before + webservice_token_manager::NON_EXPIRING_LIFETIME,
+            (int)$token->validuntil
+        );
+        $this->assertTrue(webservice_token_manager::is_non_expiring($token));
+
+        // The explicit lifetime is what the legacy migration uses to opt out of the policy.
+        $before = time();
+        $forced = webservice_token_manager::create_token(
+            $adminid,
+            $serviceid,
+            webservice_token_manager::TOKEN_LIFETIME
+        );
+        $this->assertLessThanOrEqual(
+            time() + webservice_token_manager::TOKEN_LIFETIME,
+            (int)$forced->validuntil
+        );
+        $this->assertGreaterThanOrEqual(
+            $before + webservice_token_manager::TOKEN_LIFETIME,
+            (int)$forced->validuntil
+        );
+        $this->assertFalse(webservice_token_manager::is_non_expiring($forced));
+    }
+
+    /**
+     * The transmitted expiry is absent for a non-expiring token and a string otherwise.
+     *
+     * Corolair caps any supplied expiration at fifteen days and models "no expiration" as a
+     * null column, so a far-future date could not be sent even if it were meaningful there.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::expiration_iso8601
+     * @return void
+     */
+    public function test_expiration_is_omitted_for_a_non_expiring_token(): void {
+        $this->resetAfterTest();
+
+        $expiring = (object)['validuntil' => time() + webservice_token_manager::TOKEN_LIFETIME];
+        $nonexpiring = (object)['validuntil' => time() + webservice_token_manager::NON_EXPIRING_LIFETIME];
+
+        $this->assertIsString(webservice_token_manager::expiration_iso8601($expiring));
+        $this->assertNull(webservice_token_manager::expiration_iso8601($nonexpiring));
+    }
+
+    /**
+     * A converged non-expiring token is left completely alone.
+     *
+     * Reaching the network would need rotation to be due, and it is not: this is the steady
+     * state the setting exists to produce.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_maintain_leaves_a_converged_non_expiring_token_untouched(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $adminid = $this->make_site_connected();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+        set_config('disabletokenrotation', 1, 'local_corolair');
+
+        $token = webservice_token_manager::create_token($adminid, $serviceid);
+        webservice_token_manager::record_initial_token($token);
+        // Keep the remote re-verification from firing; it is exercised separately.
+        set_config('webservicetokenverifiedat', time(), 'local_corolair');
+
+        $sink = $this->redirectEvents();
+        webservice_token_manager::maintain();
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertSame([], $actions);
+        $this->assertSame('ACTIVE', get_config('local_corolair', 'webservicetokenrotationstatus'));
+        $this->assertEquals((int)$token->id, (int)get_config('local_corolair', 'webservicetokenid'));
+        $this->assertSame(1, $DB->count_records('external_tokens', ['externalserviceid' => $serviceid]));
+    }
+
+    /**
+     * Recording a non-expiring token as active is called out in the log.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::record_initial_token
+     * @return void
+     */
+    public function test_activating_a_non_expiring_token_is_recorded(): void {
+        $this->resetAfterTest();
+        set_config('disabletokenrotation', 1, 'local_corolair');
+        $token = webservice_token_manager::create_token((int)get_admin()->id, $this->service_id());
+
+        $sink = $this->redirectEvents();
+        webservice_token_manager::record_initial_token($token);
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertSame(['initial_token_activated', 'nonexpiring_token_activated'], $actions);
+    }
+
+    /**
+     * Changing the policy is recorded against the administrator who changed it.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::record_rotation_policy_change
+     * @return void
+     */
+    public function test_rotation_policy_changes_are_recorded(): void {
+        $this->resetAfterTest();
+
+        set_config('disabletokenrotation', 1, 'local_corolair');
+        $sink = $this->redirectEvents();
+        webservice_token_manager::record_rotation_policy_change();
+        $this->assertSame(['rotation_disabled'], $this->lifecycle_actions($sink));
+        $sink->close();
+
+        set_config('disabletokenrotation', 0, 'local_corolair');
+        $sink = $this->redirectEvents();
+        webservice_token_manager::record_rotation_policy_change();
+        $this->assertSame(['rotation_enabled'], $this->lifecycle_actions($sink));
+        $sink->close();
+    }
+
+    /**
+     * An unresolved lifetime change eventually warns, but only after retrying stops helping.
+     *
+     * A non-expiring token is never close to expiring, so the ordinary expiry warning can
+     * never fire on it. Without this, a site stuck unable to re-enable rotation would hold a
+     * never-expiring token indefinitely and nobody would be told.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::warning_due
+     * @return void
+     */
+    public function test_unresolved_lifetime_change_warns_after_repeated_failures(): void {
+        $this->resetAfterTest();
+        set_config('disabletokenrotation', 0, 'local_corolair');
+
+        $now = 1700000000;
+        $token = (object)['validuntil' => $now + webservice_token_manager::NON_EXPIRING_LIFETIME];
+
+        set_config('webservicetokenfailurecount', 1, 'local_corolair');
+        $this->assertFalse(webservice_token_manager::warning_due($token, $now));
+
+        set_config(
+            'webservicetokenfailurecount',
+            webservice_token_manager::LIFETIME_CHANGE_WARN_AFTER,
+            'local_corolair'
+        );
+        $this->assertTrue(webservice_token_manager::warning_due($token, $now));
+    }
+
+    /**
+     * Maintenance stands aside while the legacy credential migration owns the token.
+     *
+     * The migration replaces the API key and deletes every other token for the service, so
+     * a rotation running alongside it leaves one side holding a credential the other just
+     * invalidated. Convergence makes this reachable: it fires the moment the setting changes,
+     * which is exactly when a site is likely to be mid-upgrade.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_maintain_defers_to_a_pending_legacy_migration(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $adminid = $this->make_site_connected();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        // A token that would otherwise be rotated at once.
+        $token = webservice_token_manager::create_token($adminid, $serviceid, DAYSECS);
+        webservice_token_manager::record_initial_token($token);
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+
+        $sink = $this->redirectEvents();
+        webservice_token_manager::maintain();
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertSame([], $actions);
+        $this->assertSame('ACTIVE', get_config('local_corolair', 'webservicetokenrotationstatus'));
+        $this->assertSame(1, $DB->count_records('external_tokens', ['externalserviceid' => $serviceid]));
+    }
+
+    /**
+     * Maintenance never leaves the rotation lock held, including when it fails.
+     *
+     * The scheduled task and the administrator-triggered retry hold different core locks, so
+     * nothing else stops them overlapping -- and saving the rotation setting queues the ad-hoc
+     * task at precisely the moment the scheduled one may be running. That mutual exclusion is
+     * only worth anything if the lock is always given back, so a run that throws matters more
+     * here than one that succeeds.
+     *
+     * The exclusion itself is not asserted: both the MySQL and PostgreSQL lock factories are
+     * backed by session-scoped advisory locks, which the owning session may re-acquire freely.
+     * They exclude separate cron processes, which is the case that matters, but a single-process
+     * test cannot stand in for one of them.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_maintenance_always_releases_the_rotation_lock(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $adminid = $this->make_site_connected();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        // A converged token, so maintenance completes without needing the network.
+        set_config('disabletokenrotation', 1, 'local_corolair');
+        $token = webservice_token_manager::create_token($adminid, $serviceid);
+        webservice_token_manager::record_initial_token($token);
+        set_config('webservicetokenverifiedat', time(), 'local_corolair');
+
+        webservice_token_manager::maintain();
+        $this->assert_rotation_lock_is_free();
+
+        // The same guarantee has to hold when maintenance throws part way through.
+        unset_config('setupconsentedby', 'local_corolair');
+        try {
+            webservice_token_manager::maintain();
+            $this->fail('Maintenance should have failed without a consenting administrator.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('setupconsentmissing', $exception->errorcode);
+        }
+        $this->assert_rotation_lock_is_free();
+    }
+
+    /**
+     * Assert the rotation lock can be taken, then give it straight back.
+     *
+     * @return void
+     */
+    private function assert_rotation_lock_is_free(): void {
+        $lock = \core\lock\lock_config::get_lock_factory('local_corolair_token')->get_lock('rotation', 0);
+        $this->assertNotFalse($lock, 'Maintenance left the rotation lock held.');
+        $lock->release();
+    }
 }

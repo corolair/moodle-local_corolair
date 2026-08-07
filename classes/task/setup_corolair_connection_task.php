@@ -126,12 +126,12 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
             1
         );
         $token = reset($tokens);
-        if (
-            !$token ||
-            empty($token->validuntil) ||
-            $token->validuntil <= time() ||
-            $token->validuntil > time() + \local_corolair\local\webservice_token_manager::TOKEN_LIFETIME
-        ) {
+        // Reuse an existing token only when its lifetime already matches the configured
+        // rotation policy. Testing against a fixed fifteen days instead would both reject a
+        // legitimately non-expiring token and, worse, silently adopt a fifteen-day one on a
+        // site that asked for no rotation -- so the very first registration would ignore the
+        // setting. lifetime_matches_configuration() covers expired and legacy tokens too.
+        if (!$token || !\local_corolair\local\webservice_token_manager::lifetime_matches_configuration($token)) {
             $token = \local_corolair\local\webservice_token_manager::create_token($adminid, $serviceid);
         }
         $curl = new \curl();

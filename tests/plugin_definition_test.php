@@ -369,4 +369,60 @@ final class plugin_definition_test extends \advanced_testcase {
             "lang/{$language} defines keys that lang/en does not: " . implode(', ', $unknown)
         );
     }
+
+    /**
+     * A translation must define every key English defines.
+     *
+     * This is the direction that actually bites. Adding a string to lang/en and forgetting
+     * the other packs breaks nothing in English, so it passes review and CI unnoticed, and
+     * only speakers of that language see the raw identifier.
+     *
+     * @dataProvider translation_provider
+     * @coversNothing
+     * @param string $language Language directory name.
+     * @return void
+     */
+    public function test_translations_define_every_english_key(string $language): void {
+        $english = $this->load_strings('en');
+        $translated = $this->load_strings($language);
+
+        $this->assertNotEmpty($english);
+        $missing = array_keys(array_diff_key($english, $translated));
+
+        $this->assertSame(
+            [],
+            $missing,
+            "lang/{$language} is missing keys defined in lang/en: " . implode(', ', $missing)
+        );
+    }
+
+    /**
+     * Every setting the admin page defines resolves to a real string in every language.
+     *
+     * phpcs cannot catch a setting whose title or description key was never added to the
+     * language packs; the settings page just renders the identifier instead.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_settings_strings_resolve(): void {
+        $keys = [
+            'sidepanel', 'sidepaneldesc',
+            'createtutorcapability', 'createtutorcapabilitydesc',
+            'apikey', 'apikeydesc',
+            'excludedmods', 'excludedmodsdesc',
+            'disabletokenrotation', 'disabletokenrotationdesc',
+        ];
+        foreach (['en', 'fr', 'es'] as $language) {
+            $strings = $this->load_strings($language);
+            foreach ($keys as $key) {
+                $this->assertArrayHasKey(
+                    $key,
+                    $strings,
+                    "lang/{$language} does not define the settings string '{$key}'."
+                );
+                $this->assertNotSame('', trim((string)$strings[$key]));
+            }
+        }
+    }
 }

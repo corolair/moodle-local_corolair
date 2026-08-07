@@ -26,6 +26,7 @@ namespace local_corolair;
 
 use local_corolair\local\integration_disclosure;
 use local_corolair\local\setup_manager;
+use local_corolair\local\webservice_token_manager;
 
 /**
  * Verifies that nothing site-wide changes without an authorized, informed administrator.
@@ -379,5 +380,210 @@ final class setup_manager_test extends \advanced_testcase {
         $this->set_webservice_config($enabled, $protocols);
 
         $this->assertSame($expected, setup_manager::enablement_consent_required());
+    }
+
+    /**
+     * Put the site one step away from activation.
+     *
+     * @return void
+     */
+    private function make_site_ready_to_activate(): void {
+        global $USER;
+
+        $this->setAdminUser();
+        $this->set_webservice_config(1, 'rest');
+        setup_manager::acknowledge_disclosure((int)$USER->id);
+    }
+
+    /**
+     * Return the token lifecycle actions a sink recorded, in order.
+     *
+     * @param \phpunit_event_sink $sink Event sink capturing the run.
+     * @return string[]
+     */
+    private function lifecycle_actions(\phpunit_event_sink $sink): array {
+        $actions = [];
+        foreach ($sink->get_events() as $event) {
+            if ($event instanceof \local_corolair\event\webservice_token_lifecycle) {
+                $actions[] = $event->other['action'];
+            }
+        }
+        return $actions;
+    }
+
+    /**
+     * Choosing not to rotate during setup is recorded before the token is ever minted.
+     *
+     * This is the whole point of offering the choice here: the registration task queued by
+     * activate() reads the configured lifetime when it mints the token, so recording the
+     * choice now produces a correctly shaped first token instead of a fifteen-day one that
+     * the next maintenance run immediately replaces.
+     *
+     * @covers \local_corolair\local\setup_manager::activate
+     * @return void
+     */
+    public function test_activate_records_the_rotation_choice(): void {
+        global $USER;
+
+        $this->resetAfterTest();
+        $this->make_site_ready_to_activate();
+
+        $sink = $this->redirectEvents();
+        setup_manager::activate((int)$USER->id, true, true);
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertTrue(webservice_token_manager::rotation_disabled());
+        $this->assertSame(
+            webservice_token_manager::NON_EXPIRING_LIFETIME,
+            webservice_token_manager::token_lifetime(),
+            'The queued registration task would still mint a fifteen-day token.'
+        );
+        $this->assertSame(['rotation_disabled'], $actions);
+        $this->assertSame(1, $this->queued_registration_tasks());
+    }
+
+    /**
+     * The opposite choice is recorded just as explicitly.
+     *
+     * @covers \local_corolair\local\setup_manager::activate
+     * @return void
+     */
+    public function test_activate_records_choosing_to_keep_rotation(): void {
+        global $USER;
+
+        $this->resetAfterTest();
+        $this->make_site_ready_to_activate();
+        set_config('disabletokenrotation', 1, 'local_corolair');
+
+        $sink = $this->redirectEvents();
+        setup_manager::activate((int)$USER->id, true, false);
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertFalse(webservice_token_manager::rotation_disabled());
+        $this->assertSame(webservice_token_manager::TOKEN_LIFETIME, webservice_token_manager::token_lifetime());
+        $this->assertSame(['rotation_enabled'], $actions);
+    }
+
+    /**
+     * A caller that expresses no preference leaves the policy exactly as it was.
+     *
+     * Every pre-existing caller of activate() passes two arguments or fewer, so the default
+     * has to be inert -- both in what it writes and in what it logs.
+     *
+     * @covers \local_corolair\local\setup_manager::activate
+     * @return void
+     */
+    public function test_activate_leaves_the_rotation_setting_alone_by_default(): void {
+        global $USER;
+
+        $this->resetAfterTest();
+        $this->make_site_ready_to_activate();
+
+        // Compared before and after rather than asserted absent: settings.php declares a
+        // default, which Moodle materialises into config_plugins when the plugin installs.
+        $before = $this->stored_rotation_setting();
+
+        $sink = $this->redirectEvents();
+        setup_manager::activate((int)$USER->id, true);
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertSame($before, $this->stored_rotation_setting());
+        $this->assertSame([], $actions);
+    }
+
+    /**
+     * Return the stored rotation setting, bypassing any forced override.
+     *
+     * get_config() applies $CFG->forced_plugin_settings on top of the row, which is exactly
+     * what these tests need to see past.
+     *
+     * @return false|string The stored value, or false when no row exists.
+     */
+    private function stored_rotation_setting() {
+        global $DB;
+
+        return $DB->get_field('config_plugins', 'value', [
+            'plugin' => 'local_corolair',
+            'name' => 'disabletokenrotation',
+        ]);
+    }
+
+    /**
+     * Repeating a choice that is already in force records nothing new.
+     *
+     * @covers \local_corolair\local\setup_manager::activate
+     * @return void
+     */
+    public function test_activate_does_not_log_an_unchanged_rotation_choice(): void {
+        global $USER;
+
+        $this->resetAfterTest();
+        $this->make_site_ready_to_activate();
+        set_config('disabletokenrotation', 1, 'local_corolair');
+
+        $sink = $this->redirectEvents();
+        setup_manager::activate((int)$USER->id, true, true);
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertTrue(webservice_token_manager::rotation_disabled());
+        $this->assertSame([], $actions);
+    }
+
+    /**
+     * A policy pinned in config.php is never overwritten by the setup page.
+     *
+     * set_config() does not consult $CFG->forced_plugin_settings, so writing the row would
+     * appear to succeed while get_config() kept returning the forced value. Recording a
+     * consent decision that cannot take effect is worse than not offering it.
+     *
+     * @covers \local_corolair\local\setup_manager::activate
+     * @return void
+     */
+    public function test_activate_does_not_override_a_forced_rotation_setting(): void {
+        global $CFG, $USER;
+
+        $this->resetAfterTest();
+        $this->make_site_ready_to_activate();
+        set_config('disabletokenrotation', 0, 'local_corolair');
+        $CFG->forced_plugin_settings['local_corolair']['disabletokenrotation'] = 0;
+
+        $this->assertTrue(webservice_token_manager::rotation_setting_is_forced());
+
+        $sink = $this->redirectEvents();
+        setup_manager::activate((int)$USER->id, true, true);
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertSame(
+            '0',
+            $this->stored_rotation_setting(),
+            'A forced setting must not be written, even though the write would appear to succeed.'
+        );
+        $this->assertFalse(webservice_token_manager::rotation_disabled());
+        $this->assertSame([], $actions);
+        $this->assertSame(1, $this->queued_registration_tasks());
+    }
+
+    /**
+     * An unset forced-settings list does not look like a forced setting.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::rotation_setting_is_forced
+     * @return void
+     */
+    public function test_rotation_setting_is_not_forced_by_default(): void {
+        global $CFG;
+
+        $this->resetAfterTest();
+        unset($CFG->forced_plugin_settings);
+
+        $this->assertFalse(webservice_token_manager::rotation_setting_is_forced());
+
+        // A forced value of null still counts as forced, which is why the check cannot use isset().
+        $CFG->forced_plugin_settings['local_corolair']['disabletokenrotation'] = null;
+        $this->assertTrue(webservice_token_manager::rotation_setting_is_forced());
     }
 }

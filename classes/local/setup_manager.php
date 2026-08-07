@@ -113,9 +113,14 @@ final class setup_manager {
      *
      * @param int $adminid Administrator starting setup.
      * @param bool $enablementconsent Whether the administrator approved enabling missing requirements.
+     * @param bool|null $disablerotation Chosen token-rotation policy, or null to leave it unchanged.
      * @return bool True when a new task was queued.
      */
-    public static function activate(int $adminid, bool $enablementconsent = false): bool {
+    public static function activate(
+        int $adminid,
+        bool $enablementconsent = false,
+        ?bool $disablerotation = null
+    ): bool {
         global $CFG, $DB;
 
         $admin = self::require_setup_administrator($adminid);
@@ -147,6 +152,24 @@ final class setup_manager {
         set_config('setupconsentedby', $admin->id, 'local_corolair');
         set_config('setupconsentedat', time(), 'local_corolair');
         set_config('setupcompleted', 0, 'local_corolair');
+
+        // Recording the rotation policy here rather than leaving it to the settings page is
+        // what makes the very first token the right shape: the registration task queued below
+        // reads the configured lifetime when it mints the token, so choosing now saves the
+        // site an immediate second rotation.
+        //
+        // Deliberately not local_corolair_disabletokenrotation_updated(): that callback also
+        // queues retry_webservice_token_rotation_task, which here would join the same
+        // transaction as the registration task and then do nothing, because maintain()
+        // returns while setupcompleted is 0. The event is still emitted so the audit trail
+        // matches the settings-page path.
+        if ($disablerotation !== null && !webservice_token_manager::rotation_setting_is_forced()) {
+            $previous = webservice_token_manager::rotation_disabled();
+            set_config('disabletokenrotation', $disablerotation ? 1 : 0, 'local_corolair');
+            if ($previous !== $disablerotation) {
+                webservice_token_manager::record_rotation_policy_change();
+            }
+        }
 
         $queued = self::queue_registration_task($admin->id);
         $transaction->allow_commit();

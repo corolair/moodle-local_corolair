@@ -29,7 +29,7 @@ namespace local_corolair\local;
  */
 final class integration_disclosure {
     /** Increment whenever the disclosed integration surface materially changes. */
-    public const VERSION = '2026-08-05-1';
+    public const VERSION = '2026-08-06-1';
 
     /**
      * Return the documented web-service groups.

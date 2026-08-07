@@ -63,7 +63,7 @@ if ($confirm) {
 
     $newapikey = \local_corolair\local\registration_client::register(
         $CFG->wwwroot,
-        $token->token,
+        $token,
         $USER->email,
         $USER->firstname,
         $USER->lastname,
