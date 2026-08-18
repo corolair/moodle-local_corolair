@@ -25,6 +25,7 @@
 namespace local_corolair;
 
 use local_corolair\local\role_provisioner;
+use local_corolair\local\service_account_provisioner;
 use local_corolair\local\upgrade_migrator;
 
 defined('MOODLE_INTERNAL') || die();
@@ -47,6 +48,9 @@ final class upgrade_test extends \advanced_testcase {
 
     /** Version recorded before the retired Raison update ping. */
     private const VERSION_BEFORE_UPDATE_PING = 2024100700;
+
+    /** Version recorded before the service was restricted to authorised users. */
+    private const VERSION_BEFORE_SERVICE_ACCOUNT = 2026081400;
 
     /**
      * Rewind the stored plugin version so savepoints can advance.
@@ -254,5 +258,120 @@ final class upgrade_test extends \advanced_testcase {
         upgrade_migrator::retry_if_blocked();
 
         $this->assertFalse(get_config('local_corolair', 'legacycredentialmigrationblocked'));
+    }
+
+    /**
+     * Every current token owner is authorised before core restricts the service.
+     *
+     * Ordering is the whole point of this step, and it is a hard property rather than a
+     * race: core rewrites the service flags in external_update_descriptions(), which
+     * upgrade_plugins() calls only after this function returns. So the rows written here
+     * are already in place the instant restrictedusers flips to 1, and a live
+     * administrator-owned token keeps working with no interruption.
+     *
+     * @covers ::local_corolair_authorise_existing_token_owners
+     * @return void
+     */
+    public function test_upgrade_authorises_existing_token_owners(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $owner = (int)$this->getDataGenerator()->create_user()->id;
+        $this->make_site_look_migratable($owner);
+        set_config('setupconsentedby', $owner, 'local_corolair');
+        $serviceid = (int)$DB->get_field('external_services', 'id', ['shortname' => 'corolair_rest']);
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_SERVICE_ACCOUNT);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SERVICE_ACCOUNT));
+
+        $row = $DB->get_record('external_services_users', [
+            'externalserviceid' => $serviceid,
+            'userid' => $owner,
+        ], '*', MUST_EXIST);
+        // Core's two code paths compare this column in opposite directions, so any value
+        // other than null breaks web-service calls while leaving file downloads working.
+        $this->assertNull($row->validuntil);
+        $this->assertSame($owner, (int)get_config('local_corolair', 'webservicetokenownerid'));
+        $this->assertTrue((bool)get_config('local_corolair', 'serviceaccountmigrationpending'));
+    }
+
+    /**
+     * Running the step twice does not create a second authorisation row.
+     *
+     * There is no unique index on (externalserviceid, userid), so nothing in the database
+     * would stop a duplicate, and a duplicate makes core's UNION return the service twice.
+     *
+     * @covers ::local_corolair_authorise_existing_token_owners
+     * @return void
+     */
+    public function test_upgrade_does_not_duplicate_authorised_rows(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $owner = (int)$this->getDataGenerator()->create_user()->id;
+        $this->make_site_look_migratable($owner);
+        $serviceid = (int)$DB->get_field('external_services', 'id', ['shortname' => 'corolair_rest']);
+
+        local_corolair_authorise_existing_token_owners();
+        local_corolair_authorise_existing_token_owners();
+
+        $this->assertSame(1, $DB->count_records('external_services_users', [
+            'externalserviceid' => $serviceid,
+            'userid' => $owner,
+        ]));
+    }
+
+    /**
+     * The upgrade does not provision the service account.
+     *
+     * Provisioning is deferred to the scheduled task for two reasons that both bite here:
+     * the read set includes this plugin's own capabilities, which core has not registered
+     * at this point in the upgrade, and creating a user fires user_created into every other
+     * component's observers mid-upgrade.
+     *
+     * @covers ::local_corolair_authorise_existing_token_owners
+     * @return void
+     */
+    public function test_upgrade_does_not_create_the_service_account(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $owner = (int)$this->getDataGenerator()->create_user()->id;
+        $this->make_site_look_migratable($owner);
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_SERVICE_ACCOUNT);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SERVICE_ACCOUNT));
+
+        $this->assertSame(0, $DB->count_records('user', [
+            'username' => service_account_provisioner::USERNAME,
+        ]));
+        $this->assertSame(0, $DB->count_records('role', [
+            'shortname' => service_account_provisioner::ROLE_SHORTNAME,
+        ]));
+    }
+
+    /**
+     * A site that never registered has nothing to authorise and records nothing.
+     *
+     * @covers ::local_corolair_authorise_existing_token_owners
+     * @return void
+     */
+    public function test_upgrade_records_no_handover_on_an_unregistered_site(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $serviceid = (int)$DB->get_field('external_services', 'id', ['shortname' => 'corolair_rest']);
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+        unset_config('setupconsentedby', 'local_corolair');
+        unset_config('webservicetokenid', 'local_corolair');
+
+        local_corolair_authorise_existing_token_owners();
+
+        $this->assertSame(0, $DB->count_records('external_services_users', ['externalserviceid' => $serviceid]));
+        $this->assertFalse(get_config('local_corolair', 'serviceaccountmigrationpending'));
     }
 }

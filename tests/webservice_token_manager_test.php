@@ -25,6 +25,7 @@
 namespace local_corolair;
 
 use local_corolair\event\webservice_token_lifecycle;
+use local_corolair\local\service_account_provisioner;
 use local_corolair\local\webservice_token_manager;
 
 /**
@@ -64,6 +65,21 @@ final class webservice_token_manager_test extends \advanced_testcase {
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
         set_config('setupconsentedby', (int)$admin->id, 'local_corolair');
         return (int)$admin->id;
+    }
+
+    /**
+     * Put the site in the steady state: connected, with the token owned by the service account.
+     *
+     * Most maintenance tests want this rather than make_site_connected() alone. An
+     * administrator-owned token is now a rotation trigger in its own right, so seeding one
+     * makes maintain() try to hand ownership over -- and reach the network -- rather than
+     * exercising whatever the test is actually about.
+     *
+     * @return int The service account's ID.
+     */
+    private function make_site_connected_as_service(): int {
+        $this->make_site_connected();
+        return service_account_provisioner::ensure();
     }
 
     /**
@@ -399,9 +415,9 @@ final class webservice_token_manager_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
-        $adminid = $this->make_site_connected();
+        $ownerid = $this->make_site_connected_as_service();
         $DB->delete_records('external_tokens', ['externalserviceid' => $this->service_id()]);
-        $token = webservice_token_manager::create_token($adminid, $this->service_id());
+        $token = webservice_token_manager::create_token($ownerid, $this->service_id());
         webservice_token_manager::record_initial_token($token);
 
         $sink = $this->redirectEvents();
@@ -428,9 +444,9 @@ final class webservice_token_manager_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
-        $adminid = $this->make_site_connected();
+        $ownerid = $this->make_site_connected_as_service();
         $DB->delete_records('external_tokens', ['externalserviceid' => $this->service_id()]);
-        $token = webservice_token_manager::create_token($adminid, $this->service_id());
+        $token = webservice_token_manager::create_token($ownerid, $this->service_id());
         unset_config('webservicetokenid', 'local_corolair');
 
         webservice_token_manager::maintain();
@@ -456,13 +472,13 @@ final class webservice_token_manager_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
-        $adminid = $this->make_site_connected();
+        $ownerid = $this->make_site_connected_as_service();
         $serviceid = $this->service_id();
         $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
 
-        $current = webservice_token_manager::create_token($adminid, $serviceid);
+        $current = webservice_token_manager::create_token($ownerid, $serviceid);
         webservice_token_manager::record_initial_token($current);
-        $previous = webservice_token_manager::create_token($adminid, $serviceid);
+        $previous = webservice_token_manager::create_token($ownerid, $serviceid);
         set_config('previouswebservicetokenid', (int)$previous->id, 'local_corolair');
         set_config('previouswebservicetokenrevokeby', time() - 1, 'local_corolair');
 
@@ -488,13 +504,13 @@ final class webservice_token_manager_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
-        $adminid = $this->make_site_connected();
+        $ownerid = $this->make_site_connected_as_service();
         $serviceid = $this->service_id();
         $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
 
-        $current = webservice_token_manager::create_token($adminid, $serviceid);
+        $current = webservice_token_manager::create_token($ownerid, $serviceid);
         webservice_token_manager::record_initial_token($current);
-        $previous = webservice_token_manager::create_token($adminid, $serviceid);
+        $previous = webservice_token_manager::create_token($ownerid, $serviceid);
         set_config('previouswebservicetokenid', (int)$previous->id, 'local_corolair');
         set_config('previouswebservicetokenrevokeby', time() + DAYSECS, 'local_corolair');
 
@@ -509,28 +525,43 @@ final class webservice_token_manager_test extends \advanced_testcase {
     }
 
     /**
-     * Cleanup never deletes a token that does not belong to this integration.
+     * Cleanup never deletes a token belonging to a different service.
      *
      * previouswebservicetokenid is a plain configuration value. If it were ever wrong --
-     * mis-set, or carried over from a restored database -- an unguarded delete would
-     * revoke somebody else's live web-service token.
+     * mis-set, or carried over from a restored database -- an unguarded delete would revoke
+     * an unrelated live web-service token.
+     *
+     * The guard is scoped to the service and no longer to the owner. Requiring the owner to
+     * be the consenting administrator was only ever correct while the token was always an
+     * administrator's; once ownership moved to the service account, every superseded token
+     * would have failed that check and accumulated forever instead of being revoked.
      *
      * @covers \local_corolair\local\webservice_token_manager::maintain
      * @return void
      */
-    public function test_cleanup_refuses_a_token_owned_by_someone_else(): void {
+    public function test_cleanup_refuses_a_token_from_another_service(): void {
         global $DB;
 
         $this->resetAfterTest();
-        $adminid = $this->make_site_connected();
+        $ownerid = $this->make_site_connected_as_service();
         $serviceid = $this->service_id();
         $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
 
-        $current = webservice_token_manager::create_token($adminid, $serviceid);
+        $current = webservice_token_manager::create_token($ownerid, $serviceid);
         webservice_token_manager::record_initial_token($current);
 
-        $stranger = $this->getDataGenerator()->create_user();
-        $foreign = webservice_token_manager::create_token((int)$stranger->id, $serviceid);
+        $otherservice = $DB->insert_record('external_services', (object)[
+            'name' => 'Unrelated service',
+            'enabled' => 1,
+            'restrictedusers' => 0,
+            'component' => null,
+            'timecreated' => time(),
+            'timemodified' => time(),
+            'shortname' => 'unrelated_rest',
+            'downloadfiles' => 0,
+            'uploadfiles' => 0,
+        ]);
+        $foreign = webservice_token_manager::create_token($ownerid, (int)$otherservice);
         set_config('previouswebservicetokenid', (int)$foreign->id, 'local_corolair');
         set_config('previouswebservicetokenrevokeby', time() - 1, 'local_corolair');
 
@@ -541,7 +572,7 @@ final class webservice_token_manager_test extends \advanced_testcase {
 
         $this->assertTrue(
             $DB->record_exists('external_tokens', ['id' => (int)$foreign->id]),
-            "Another user's token must never be revoked by this cleanup."
+            'A token belonging to another service must never be revoked by this cleanup.'
         );
         $this->assertSame([], $actions);
         $this->assertFalse(get_config('local_corolair', 'previouswebservicetokenid'));
@@ -713,12 +744,12 @@ final class webservice_token_manager_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
-        $adminid = $this->make_site_connected();
+        $ownerid = $this->make_site_connected_as_service();
         $serviceid = $this->service_id();
         $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
         set_config('disabletokenrotation', 1, 'local_corolair');
 
-        $token = webservice_token_manager::create_token($adminid, $serviceid);
+        $token = webservice_token_manager::create_token($ownerid, $serviceid);
         webservice_token_manager::record_initial_token($token);
         // Keep the remote re-verification from firing; it is exercised separately.
         set_config('webservicetokenverifiedat', time(), 'local_corolair');
@@ -858,13 +889,13 @@ final class webservice_token_manager_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
-        $adminid = $this->make_site_connected();
+        $ownerid = $this->make_site_connected_as_service();
         $serviceid = $this->service_id();
         $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
 
         // A converged token, so maintenance completes without needing the network.
         set_config('disabletokenrotation', 1, 'local_corolair');
-        $token = webservice_token_manager::create_token($adminid, $serviceid);
+        $token = webservice_token_manager::create_token($ownerid, $serviceid);
         webservice_token_manager::record_initial_token($token);
         set_config('webservicetokenverifiedat', time(), 'local_corolair');
 
@@ -891,5 +922,300 @@ final class webservice_token_manager_test extends \advanced_testcase {
         $lock = \core\lock\lock_config::get_lock_factory('local_corolair_token')->get_lock('rotation', 0);
         $this->assertNotFalse($lock, 'Maintenance left the rotation lock held.');
         $lock->release();
+    }
+
+    /**
+     * Maintenance provisions the service account and rotates onto it.
+     *
+     * Network-free: the run reaches send_candidate() and fails there, which is exactly far
+     * enough to prove that a candidate was minted for the right owner. Asserting that after
+     * the failure is why this uses try/fail/catch rather than expectException.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_maintain_rotates_when_the_token_owner_differs(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $adminid = $this->make_site_connected();
+        $serviceid = $this->service_id();
+        $current = webservice_token_manager::create_token($adminid, $serviceid);
+        webservice_token_manager::record_initial_token($current);
+
+        try {
+            webservice_token_manager::maintain();
+        } catch (\Throwable $exception) {
+            // Expected: the rotation POST cannot succeed in a test run.
+            $this->assertNotEmpty($exception->getMessage());
+        }
+
+        $serviceaccountid = service_account_provisioner::locate();
+        $this->assertGreaterThan(0, $serviceaccountid, 'Maintenance must provision the service account.');
+        $this->assertNotSame($adminid, $serviceaccountid);
+
+        $candidateid = (int)get_config('local_corolair', 'webservicetokencandidateid');
+        $this->assertGreaterThan(0, $candidateid, 'A rotation onto the service account should have started.');
+        $this->assertSame(
+            $serviceaccountid,
+            (int)$DB->get_field('external_tokens', 'userid', ['id' => $candidateid]),
+            'The candidate token must belong to the service account.'
+        );
+    }
+
+    /**
+     * An in-flight candidate belonging to the previous owner is finished, not abandoned.
+     *
+     * The candidate lookup must not be scoped to the desired owner. If it were, a candidate
+     * minted before the ownership change would not be found -- which also skips the delete
+     * branch, so the row is orphaned *and* a fresh rotation ID is minted while Raison is
+     * still waiting on the old one. Raison refuses a new rotation ID while one is
+     * outstanding, and nothing clears that state except a rotation matching it, so every
+     * later attempt would deadlock.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_a_candidate_from_the_previous_owner_is_reused(): void {
+        $this->resetAfterTest();
+
+        $adminid = $this->make_site_connected();
+        $serviceid = $this->service_id();
+        $current = webservice_token_manager::create_token($adminid, $serviceid);
+        webservice_token_manager::record_initial_token($current);
+
+        // An admin-owned candidate left pending by an earlier cycle.
+        $candidate = webservice_token_manager::create_token($adminid, $serviceid);
+        set_config('webservicetokencandidateid', (int)$candidate->id, 'local_corolair');
+        set_config('webservicetokenrotationid', 'ffffffff-ffff-4fff-bfff-ffffffffffff', 'local_corolair');
+
+        try {
+            webservice_token_manager::maintain();
+        } catch (\Throwable $exception) {
+            $this->assertNotEmpty($exception->getMessage());
+        }
+
+        $this->assertSame(
+            (int)$candidate->id,
+            (int)get_config('local_corolair', 'webservicetokencandidateid'),
+            'The pending candidate must be reused, not replaced.'
+        );
+        $this->assertSame(
+            'ffffffff-ffff-4fff-bfff-ffffffffffff',
+            (string)get_config('local_corolair', 'webservicetokenrotationid'),
+            'Minting a new rotation ID while one is outstanding deadlocks every later attempt.'
+        );
+    }
+
+    /**
+     * A superseded token owned by the service account is still revoked.
+     *
+     * The cleanup guard used to also require the token owner to be the consenting
+     * administrator, which held only while the token was always an administrator's. Once
+     * ownership moves, every subsequent superseded token belongs to the service account and
+     * the guard would fail silently -- old tokens accumulating forever, which is the exact
+     * opposite of what this method is for.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_cleanup_revokes_a_token_owned_by_the_service_account(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $this->make_site_connected();
+        $serviceid = $this->service_id();
+        $serviceaccountid = service_account_provisioner::ensure();
+
+        $previous = webservice_token_manager::create_token($serviceaccountid, $serviceid);
+        $current = webservice_token_manager::create_token($serviceaccountid, $serviceid);
+        webservice_token_manager::record_initial_token($current);
+        set_config('previouswebservicetokenid', (int)$previous->id, 'local_corolair');
+        set_config('previouswebservicetokenownerid', $serviceaccountid, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', time() - 1, 'local_corolair');
+
+        try {
+            webservice_token_manager::maintain();
+        } catch (\Throwable $exception) {
+            $this->assertNotEmpty($exception->getMessage());
+        }
+
+        $this->assertFalse(
+            $DB->record_exists('external_tokens', ['id' => (int)$previous->id]),
+            'A superseded service-account token must be revoked once its overlap has passed.'
+        );
+    }
+
+    /**
+     * Revoking the old token also withdraws its owner's authorisation.
+     *
+     * Order matters in one direction only: the administrator keeps its authorised-user row
+     * for as long as it holds a live token, because withdrawing it when the new token is
+     * activated would break every request made during the overlap -- which is the entire
+     * reason the overlap exists.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_cleanup_withdraws_the_previous_owner_authorisation(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $adminid = $this->make_site_connected();
+        $serviceid = $this->service_id();
+        $serviceaccountid = service_account_provisioner::ensure();
+        service_account_provisioner::ensure_authorised($serviceid, $adminid);
+
+        $previous = webservice_token_manager::create_token($adminid, $serviceid);
+        $current = webservice_token_manager::create_token($serviceaccountid, $serviceid);
+        webservice_token_manager::record_initial_token($current);
+        set_config('previouswebservicetokenid', (int)$previous->id, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', time() - 1, 'local_corolair');
+        set_config('serviceaccountmigrationpending', 1, 'local_corolair');
+
+        try {
+            webservice_token_manager::maintain();
+        } catch (\Throwable $exception) {
+            $this->assertNotEmpty($exception->getMessage());
+        }
+
+        $this->assertFalse(
+            $DB->record_exists('external_services_users', [
+                'externalserviceid' => $serviceid,
+                'userid' => $adminid,
+            ]),
+            'The administrator loses authorisation once no administrator-owned token survives.'
+        );
+        $this->assertTrue($DB->record_exists('external_services_users', [
+            'externalserviceid' => $serviceid,
+            'userid' => $serviceaccountid,
+        ]));
+        $this->assertFalse(get_config('local_corolair', 'serviceaccountmigrationpending'));
+    }
+
+    /**
+     * A non-administrator token owner is not reported as a problem.
+     *
+     * The drift check used to require the owner to hold moodle/site:config. Against the
+     * service account that test is now guaranteed to fail, so leaving it in place would mail
+     * every administrator a daily warning describing the intended state.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_a_non_administrator_owner_is_not_reported_as_drift(): void {
+        $this->resetAfterTest();
+
+        $this->make_site_connected();
+        set_config('disabletokenrotation', 1, 'local_corolair');
+        $serviceid = $this->service_id();
+        $serviceaccountid = service_account_provisioner::ensure();
+        accesslib_clear_all_caches_for_unit_testing();
+
+        $current = webservice_token_manager::create_token($serviceaccountid, $serviceid);
+        webservice_token_manager::record_initial_token($current);
+        // Weekly remote re-verification would otherwise run; recording it as just done keeps
+        // this test entirely local, which is the contract for this suite.
+        set_config('webservicetokenverifiedat', time(), 'local_corolair');
+
+        $sink = $this->redirectMessages();
+        try {
+            webservice_token_manager::maintain();
+            $this->assertSame([], $sink->get_messages(), 'A service-account owner is the intended state.');
+        } finally {
+            $sink->close();
+        }
+    }
+
+    /**
+     * A missing granted function is still reported.
+     *
+     * The counterpart to the test above: replacing the administrator check must not leave
+     * the drift check with nothing left to detect. This is the condition it exists for --
+     * the site no longer grants something the integration needs, and with rotation disabled
+     * nothing else would ever notice, because the rotate call is the only thing that asks
+     * Raison to re-verify the integration end to end.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_a_missing_granted_function_is_reported(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $this->make_site_connected();
+        set_config('disabletokenrotation', 1, 'local_corolair');
+        $serviceid = $this->service_id();
+        $serviceaccountid = service_account_provisioner::ensure();
+        accesslib_clear_all_caches_for_unit_testing();
+
+        $current = webservice_token_manager::create_token($serviceaccountid, $serviceid);
+        webservice_token_manager::record_initial_token($current);
+        set_config('webservicetokenverifiedat', time(), 'local_corolair');
+
+        $DB->delete_records('external_services_functions', [
+            'externalserviceid' => $serviceid,
+            'functionname' => 'core_course_get_contents',
+        ]);
+
+        $sink = $this->redirectMessages();
+        try {
+            webservice_token_manager::maintain();
+            $this->assertNotEmpty($sink->get_messages(), 'A revoked function grant must raise a warning.');
+        } finally {
+            $sink->close();
+        }
+    }
+
+    /**
+     * Maintenance stands down entirely while the legacy credential migration is pending.
+     *
+     * It must not provision, must not mint a candidate, and must not call Raison. The
+     * migration deletes every token for the service except its own and then asserts that
+     * exactly one survives, so a candidate created underneath it breaks both halves of that
+     * -- and the migration exists to retire a credential that is already exposed, which
+     * makes it the one thing that must not be raced.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_maintain_stands_down_during_the_legacy_migration(): void {
+        $this->resetAfterTest();
+
+        $adminid = $this->make_site_connected();
+        $serviceid = $this->service_id();
+        $current = webservice_token_manager::create_token($adminid, $serviceid, 1);
+        webservice_token_manager::record_initial_token($current);
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+
+        $sink = $this->redirectEvents();
+        try {
+            webservice_token_manager::maintain();
+            $events = $sink->get_events();
+        } finally {
+            $sink->close();
+        }
+
+        foreach ($events as $event) {
+            $this->assertNotInstanceOf(
+                \local_corolair\event\remote_request_completed::class,
+                $event,
+                'Rotating underneath the credential migration must not happen.'
+            );
+        }
+        $this->assertSame(
+            0,
+            (int)get_config('local_corolair', 'webservicetokencandidateid'),
+            'No candidate may be minted while the migration holds the service.'
+        );
+        $this->assertSame(
+            0,
+            service_account_provisioner::locate(),
+            'Provisioning must wait until the migration has released the service.'
+        );
     }
 }

@@ -25,6 +25,7 @@
 namespace local_corolair;
 
 use local_corolair\local\role_provisioner;
+use local_corolair\local\service_account_provisioner;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -271,5 +272,38 @@ final class install_test extends \advanced_testcase {
 
         $this->assertSame($roleid, $repaired);
         $this->assert_role_fully_provisioned('After repairing a stripped role.');
+    }
+
+    /**
+     * Installing does not provision the privileged service identity.
+     *
+     * Three reasons, and each one alone would be enough. Two of the account's capabilities
+     * belong to this plugin, and core registers those only after db/install.php returns, so
+     * assign_capability() would throw. Creating a user fires user_created into every other
+     * component's observers, mid-install. And a site that installs the plugin but never
+     * registers with Raison has nothing for such an account to own, so carrying one would be
+     * privilege with no purpose.
+     *
+     * @covers ::xmldb_local_corolair_install
+     * @return void
+     */
+    public function test_install_does_not_provision_the_service_account(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $DB->delete_records('user', ['username' => service_account_provisioner::USERNAME]);
+        unset_config('serviceaccountid', 'local_corolair');
+        unset_config('serviceroleid', 'local_corolair');
+
+        xmldb_local_corolair_install();
+
+        $this->assertSame(0, $DB->count_records('user', [
+            'username' => service_account_provisioner::USERNAME,
+        ]));
+        $this->assertSame(0, $DB->count_records('role', [
+            'shortname' => service_account_provisioner::ROLE_SHORTNAME,
+        ]));
+        $this->assertFalse(get_config('local_corolair', 'serviceaccountid'));
     }
 }

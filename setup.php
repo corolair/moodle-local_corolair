@@ -78,6 +78,14 @@ if ($step !== 'consent' || !$acknowledged) {
     echo $renderer->render_setup_disclosure([
         'version' => \local_corolair\local\integration_disclosure::VERSION,
         'groups' => \local_corolair\local\integration_disclosure::get_function_groups(),
+        'capabilitygroups' => \local_corolair\local\integration_disclosure::get_capability_groups(),
+        'serviceaccountusername' => \local_corolair\local\service_account_provisioner::USERNAME,
+        // The address the account is meant to carry, not the one it currently has: the
+        // disclosure is shown before the account exists, and on a site where that address is
+        // already taken the account falls back to a reserved unroutable one. Reading the
+        // live value would therefore print either nothing or a placeholder, when what an
+        // administrator needs here is somewhere to write.
+        'serviceaccountemail' => \local_corolair\local\service_account_provisioner::EMAIL,
         // Selected at render time rather than versioned into the disclosure, so the text is
         // truthful whichever policy is configured when it is shown.
         'rotationdisabled' => \local_corolair\local\webservice_token_manager::rotation_disabled(),

@@ -33,6 +33,16 @@ $functions = [
         'type'        => 'read',
         'ajax'        => true,
     ],
+    'local_corolair_get_integration_status' => [
+        'classname'   => 'local_corolair\\external\\get_integration_status',
+        'methodname'  => 'execute',
+        'description' => 'Report the integration capability, feature and version status.',
+        'type'        => 'read',
+        // Not exposed on /lib/ajax/service.php. That is a second authentication path, open to
+        // any logged-in browser session, and this plugin's disclosure describes the token's
+        // surface rather than that one.
+        'ajax'        => false,
+    ],
     'local_corolair_get_roles' => [
         'classname'   => 'local_corolair\\external\\get_roles',
         'methodname'  => 'execute',
@@ -82,6 +92,7 @@ $services = [
             'core_enrol_get_users_courses',
             'core_enrol_get_enrolled_users',
             'core_webservice_get_site_info',
+            'local_corolair_get_integration_status',
             'core_enrol_get_enrolled_users_with_capability',
             'core_course_get_categories',
             'mod_lesson_get_lessons_by_courses',
@@ -101,10 +112,22 @@ $services = [
             'core_course_get_courses_by_field',
             'mod_lti_toggle_showinactivitychooser',
         ],
-        'restrictedusers' => 0,
+        // Only the dedicated service account is authorised, so a token minted for any other
+        // user against this service is refused -- by the function-call path and by
+        // webservice/pluginfile.php alike. Core rewrites these flags from this file on every
+        // version bump; service_account_provisioner::ensure_service_flags() repairs manual
+        // changes made in between.
+        'restrictedusers' => 1,
         'enabled' => 1,
         'shortname' => 'corolair_rest',
-        'uploadfiles' => 1,
+        // Nothing in the plugin or in Raison uploads to Moodle. This matters more than it
+        // looks: webservice/upload.php consults this flag and nothing else -- not the
+        // function allowlist -- so leaving it on would let any holder of the token write
+        // arbitrary files into the token owner's draft area.
+        'uploadfiles' => 0,
+        // Required. Every Moodle file Raison reads is fetched through
+        // webservice/pluginfile.php with the token appended, which is gated on this flag
+        // alone. Core defaults it to 0 when the key is absent, so it stays explicit.
         'downloadfiles' => 1,
     ],
 ];

@@ -25,6 +25,7 @@
 namespace local_corolair;
 
 use local_corolair\local\integration_disclosure;
+use local_corolair\local\service_account_provisioner;
 use local_corolair\local\upgrade_migrator;
 
 /**
@@ -637,6 +638,273 @@ final class upgrade_migrator_test extends \advanced_testcase {
     }
 
     /**
+     * Scheduling the replacement puts a deadline on the inherited token.
+     *
+     * Without this the inherited credential lives exactly as long as it takes Raison to
+     * confirm the swap, which on an unreachable backend is forever.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::migrate_if_required
+     * @covers \local_corolair\local\upgrade_migrator::bound_legacy_token_lifetime
+     * @return void
+     */
+    public function test_scheduling_bounds_the_inherited_token(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $legacy = $this->make_legacy_installation();
+        $this->assertSame(0, (int)$legacy->validuntil);
+
+        $before = time();
+        upgrade_migrator::migrate_if_required();
+        $after = time();
+
+        $validuntil = (int)$DB->get_field('external_tokens', 'validuntil', ['id' => $legacy->id]);
+        $this->assertGreaterThanOrEqual($before + upgrade_migrator::LEGACY_TOKEN_GRACE, $validuntil);
+        $this->assertLessThanOrEqual($after + upgrade_migrator::LEGACY_TOKEN_GRACE, $validuntil);
+    }
+
+    /**
+     * A bounded token is never given more time by a later pass.
+     *
+     * migrate_if_required() runs from several places, so a rule that re-stamped an already
+     * bounded token would push the deadline out on every call and never expire anything.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::bound_legacy_token_lifetime
+     * @return void
+     */
+    public function test_a_bounded_token_is_never_given_more_time(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $legacy = $this->make_legacy_installation();
+        upgrade_migrator::migrate_if_required();
+
+        // Bring the deadline forward, then confirm a second pass cannot push it back out.
+        $imminent = time() + MINSECS;
+        $DB->set_field('external_tokens', 'validuntil', $imminent, ['id' => $legacy->id]);
+
+        upgrade_migrator::migrate_if_required();
+
+        $this->assertSame(
+            $imminent,
+            (int)$DB->get_field('external_tokens', 'validuntil', ['id' => $legacy->id]),
+            'Re-running the scheduler must not extend a token that is already bounded.'
+        );
+    }
+
+    /**
+     * A token that already expires is not an inherited credential and is left alone.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::bound_legacy_token_lifetime
+     * @return void
+     */
+    public function test_a_token_that_already_expires_is_left_alone(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $DB->delete_records('external_tokens', ['externalserviceid' => $this->service_id()]);
+        set_config('apikey', 'org_instance.inheritedsecret', 'local_corolair');
+        $expiry = time() + DAYSECS;
+        $token = $this->add_token((int)get_admin()->id, $expiry);
+
+        upgrade_migrator::migrate_if_required();
+
+        $this->assertSame(
+            $expiry,
+            (int)$DB->get_field('external_tokens', 'validuntil', ['id' => $token->id])
+        );
+    }
+
+    /**
+     * Bounding inherited tokens must not cut down the replacement this class just minted.
+     *
+     * The candidate is a fifteen-day token on the same service, so any rule broader than
+     * "no expiration at all" -- notably "expires later than the deadline" -- would crush it
+     * to the grace period the next time anything called migrate_if_required().
+     *
+     * @covers \local_corolair\local\upgrade_migrator::bound_legacy_token_lifetime
+     * @return void
+     */
+    public function test_the_migration_candidate_survives_a_later_scheduling_pass(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $this->make_legacy_installation();
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        // Fails once the candidate has been minted, before any network call.
+        set_config('apikey', 'malformedinheritedkey', 'local_corolair');
+        try {
+            upgrade_migrator::run((int)get_admin()->id);
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('legacycredentialmigrationfailed', $exception->errorcode);
+        }
+        $candidateid = (int)get_config('local_corolair', 'legacymigrationtokenid');
+        $this->assertGreaterThan(0, $candidateid);
+
+        upgrade_migrator::migrate_if_required();
+
+        $this->assertGreaterThan(
+            time() + upgrade_migrator::LEGACY_TOKEN_GRACE,
+            (int)$DB->get_field('external_tokens', 'validuntil', ['id' => $candidateid]),
+            'The replacement token must keep its full lifetime.'
+        );
+    }
+
+    /**
+     * The upgrade entry point bounds an inherited token without queueing anything.
+     *
+     * This is what db/upgrade.php calls, so that a site already running 1.9.x with a
+     * migration that never confirmed stops carrying a live pre-1.9 credential.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::bound_legacy_token_lifetime
+     * @return void
+     */
+    public function test_bounding_alone_schedules_nothing(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $legacy = $this->make_legacy_installation();
+
+        $before = time();
+        upgrade_migrator::bound_legacy_token_lifetime();
+        $after = time();
+
+        $validuntil = (int)$DB->get_field('external_tokens', 'validuntil', ['id' => $legacy->id]);
+        $this->assertGreaterThanOrEqual($before + upgrade_migrator::LEGACY_TOKEN_GRACE, $validuntil);
+        $this->assertLessThanOrEqual($after + upgrade_migrator::LEGACY_TOKEN_GRACE, $validuntil);
+        $this->assertCount(0, $this->queued_migrations());
+    }
+
+    /**
+     * Bounding is inert on a site whose service is gone, since it runs during upgrade.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::bound_legacy_token_lifetime
+     * @return void
+     */
+    public function test_bounding_is_inert_without_the_service(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $legacy = $this->make_legacy_installation();
+        $DB->set_field('external_services', 'shortname', 'corolair_rest_renamed', [
+            'shortname' => self::SERVICE_SHORTNAME,
+        ]);
+
+        upgrade_migrator::bound_legacy_token_lifetime();
+
+        $this->assertSame(0, (int)$DB->get_field('external_tokens', 'validuntil', ['id' => $legacy->id]));
+    }
+
+    /**
+     * A migration left pending with no ad-hoc task to run it is queued again.
+     *
+     * Nothing else recovers this: retry_if_blocked() looks only at the blocked flag, and
+     * maintain() stands down on the pending one, so the lifecycle would stay frozen.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::requeue_if_stalled
+     * @return void
+     */
+    public function test_a_stalled_migration_is_requeued(): void {
+        $this->resetAfterTest();
+
+        $this->make_legacy_installation();
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        $this->assertCount(0, $this->queued_migrations());
+
+        upgrade_migrator::requeue_if_stalled();
+
+        $this->assertCount(1, $this->queued_migrations());
+    }
+
+    /**
+     * A migration that still has its task is left for core to retry.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::requeue_if_stalled
+     * @return void
+     */
+    public function test_a_queued_migration_is_not_requeued(): void {
+        $this->resetAfterTest();
+
+        $this->make_legacy_installation();
+        upgrade_migrator::migrate_if_required();
+        $this->assertCount(1, $this->queued_migrations());
+
+        upgrade_migrator::requeue_if_stalled();
+
+        $this->assertCount(1, $this->queued_migrations());
+    }
+
+    /**
+     * A site with no pending migration is not given one.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::requeue_if_stalled
+     * @return void
+     */
+    public function test_requeue_ignores_a_site_with_nothing_pending(): void {
+        $this->resetAfterTest();
+
+        $this->make_legacy_installation();
+        unset_config('legacycredentialmigrationpending', 'local_corolair');
+
+        upgrade_migrator::requeue_if_stalled();
+
+        $this->assertCount(0, $this->queued_migrations());
+    }
+
+    /**
+     * A completed migration that never cleared its flag is settled rather than repeated.
+     *
+     * run() records the completion timestamp several statements before it clears the pending
+     * flag. A process dying in between leaves a migrated site flagged as pending forever,
+     * which freezes token maintenance permanently.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::requeue_if_stalled
+     * @return void
+     */
+    public function test_a_completed_migration_clears_a_stranded_pending_flag(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $DB->delete_records('external_tokens', ['externalserviceid' => $this->service_id()]);
+        set_config('apikey', 'org_instance.replacementsecret', 'local_corolair');
+        $active = $this->add_token((int)get_admin()->id, time() + DAYSECS);
+        set_config('webservicetokenid', (int)$active->id, 'local_corolair');
+        set_config('legacycredentialmigrationcompletedat', time() - MINSECS, 'local_corolair');
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+
+        upgrade_migrator::requeue_if_stalled();
+
+        $this->assertFalse(get_config('local_corolair', 'legacycredentialmigrationpending'));
+        $this->assertCount(0, $this->queued_migrations());
+    }
+
+    /**
+     * A recorded completion with no live token behind it is not treated as complete.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::requeue_if_stalled
+     * @return void
+     */
+    public function test_a_completion_without_a_live_token_is_requeued(): void {
+        $this->resetAfterTest();
+
+        $this->make_legacy_installation();
+        set_config('legacycredentialmigrationcompletedat', time() - MINSECS, 'local_corolair');
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        unset_config('webservicetokenid', 'local_corolair');
+
+        upgrade_migrator::requeue_if_stalled();
+
+        $this->assertCount(1, $this->queued_migrations());
+    }
+
+    /**
      * Persist a modified token record.
      *
      * @param \stdClass $token Token record to write back.
@@ -646,5 +914,43 @@ final class upgrade_migrator_test extends \advanced_testcase {
         global $DB;
 
         $DB->update_record('external_tokens', $token);
+    }
+
+    /**
+     * The migration authorises its own token owner before minting.
+     *
+     * The owner here is resolved separately from the ordinary token owner, and the fallback
+     * chain ends at get_admin() -- a user who may own no token at all, and who therefore
+     * received no authorisation from the upgrade step. Under a service restricted to
+     * authorised users, a token minted for such a user is refused the first time it is used.
+     * That would be a bad failure to have precisely here: this path exists to retire a
+     * credential that is already exposed.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::run
+     * @return void
+     */
+    public function test_migration_authorises_its_token_owner(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $owner = (int)$this->getDataGenerator()->create_user()->id;
+        $this->make_legacy_installation($owner);
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_services_users', ['externalserviceid' => $serviceid]);
+
+        try {
+            upgrade_migrator::run($owner);
+        } catch (\Throwable $exception) {
+            // Expected: the remote replacement cannot succeed in a test run.
+            $this->assertNotEmpty($exception->getMessage());
+        }
+
+        $row = $DB->get_record('external_services_users', [
+            'externalserviceid' => $serviceid,
+            'userid' => $owner,
+        ], '*', MUST_EXIST);
+        $this->assertNull($row->validuntil);
     }
 }
