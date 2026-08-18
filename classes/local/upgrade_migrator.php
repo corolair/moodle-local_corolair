@@ -42,6 +42,9 @@ final class upgrade_migrator {
     /** External service shortname. */
     private const SERVICE_SHORTNAME = 'corolair_rest';
 
+    /** Longest an inherited token stays usable once its replacement has been scheduled. */
+    public const LEGACY_TOKEN_GRACE = 6 * HOURSECS;
+
     /** Authenticated endpoint that atomically replaces both inherited credentials. */
     private const MIGRATION_ENDPOINT =
         'https://services.raison.is/moodle-integration/v2/plugin/organization/legacy-credentials/migrate';
@@ -99,6 +102,9 @@ final class upgrade_migrator {
 
         self::grandfather_consent($adminid);
         set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        // From here the inherited credentials are committed to being replaced, so the
+        // inherited token gets a deadline it keeps even if the replacement never confirms.
+        self::bound_legacy_token_lifetime();
 
         $task = new \local_corolair\task\migrate_legacy_credentials_task();
         $task->set_custom_data((object)['adminid' => $adminid]);
@@ -131,12 +137,117 @@ final class upgrade_migrator {
     }
 
     /**
+     * Recover a migration that is pending but has nothing left to run it.
+     *
+     * The pending flag gates a great deal: webservice_token_manager::maintain() stands down on
+     * it, and the registration task defers to it. Nothing re-queues it, though. retry_if_blocked()
+     * only ever looks at the blocked flag, which covers the migration never being queued at all
+     * and not the queued task later disappearing -- a purged queue, a restored database, an
+     * administrator deleting a repeatedly failing task. Left alone, that combination stops the
+     * token lifecycle indefinitely while the inherited credential stays live.
+     *
+     * Called hourly from the scheduled token task, ahead of maintenance.
+     *
+     * @return void
+     */
+    public static function requeue_if_stalled(): void {
+        if (!(bool)get_config('local_corolair', 'legacycredentialmigrationpending')) {
+            return;
+        }
+        // The completion timestamp is recorded in run() several statements before it clears the
+        // pending flag, so a process dying in between leaves the flag set on a site that has already
+        // migrated. That state is self-sustaining: migrate_if_required() reads it as "nothing to
+        // migrate" and returns without queueing anything, so the flag would never be cleared and
+        // maintenance would never resume. Settle it here, using the same predicate
+        // migrate_if_required() uses to reach that conclusion.
+        if (self::migration_already_complete()) {
+            unset_config('legacycredentialmigrationpending', 'local_corolair');
+            return;
+        }
+        if (\core\task\manager::get_adhoc_tasks('\local_corolair\task\migrate_legacy_credentials_task')) {
+            // Still queued, or running right now -- a running task keeps its task_adhoc record.
+            // Core retries it on its own backoff; queueing a second one would only duplicate work.
+            return;
+        }
+        self::migrate_if_required();
+    }
+
+    /**
+     * Whether a completed migration left a usable active token behind.
+     *
+     * @return bool
+     */
+    private static function migration_already_complete(): bool {
+        global $DB;
+
+        if ((int)get_config('local_corolair', 'legacycredentialmigrationcompletedat') <= 0) {
+            return false;
+        }
+        $activeid = (int)get_config('local_corolair', 'webservicetokenid');
+        if ($activeid <= 0) {
+            return false;
+        }
+        $serviceid = (int)$DB->get_field('external_services', 'id', ['shortname' => self::SERVICE_SHORTNAME]);
+        if ($serviceid <= 0) {
+            return false;
+        }
+        return $DB->record_exists_select(
+            'external_tokens',
+            'id = :id AND externalserviceid = :serviceid AND tokentype = 0 AND validuntil > :now',
+            ['id' => $activeid, 'serviceid' => $serviceid, 'now' => time()]
+        );
+    }
+
+    /**
      * Clear the "migration could not be queued" flag.
      *
      * @return void
      */
     private static function clear_blocked(): void {
         unset_config('legacycredentialmigrationblocked', 'local_corolair');
+    }
+
+    /**
+     * Give any inherited token a deadline it keeps regardless of the remote replacement.
+     *
+     * run() deletes the inherited token only after Raison confirms the swap, so on its own the
+     * exposure window is a function of Raison's availability: an unreachable backend, an API key
+     * the backend rejects, or a lost ad-hoc task all leave a pre-1.9 credential live forever.
+     * That credential is worth bounding -- it was minted as md5(uniqid(rand(), true)) rather than
+     * from a CSPRNG, it never expires, and older releases put it in a troubleshoot URL query
+     * string, so it may already sit in browser history and proxy logs. What it opens is the whole
+     * corolair_rest service, which has no user restriction and is owned by an administrator.
+     *
+     * Bounding it costs nothing when the migration behaves: the replacement is normally confirmed
+     * within one cron cycle and delete_legacy_tokens() removes the token outright. Nor can the
+     * deadline strand the migration, because the migration never uses this token -- it mints its
+     * own in get_or_create_migration_token() and authenticates with the API key -- so the swap
+     * still completes whenever Raison returns. The grace period is purely how long the
+     * integration keeps working while that is outstanding.
+     *
+     * Matching "no expiry" and nothing else is the entire rule, and widening it would be a bug.
+     * Every pre-1.9 release stamped validuntil = 0, so the test selects exactly the inherited
+     * credential; it is self-idempotent, since a stamped row no longer matches and a later call
+     * cannot push the deadline back out; and it cannot touch the fifteen-day candidate this class
+     * has already minted, which a "further away than the deadline" test would silently cut down
+     * to the grace period on any re-entry.
+     *
+     * @return void
+     */
+    public static function bound_legacy_token_lifetime(): void {
+        global $DB;
+
+        $serviceid = (int)$DB->get_field('external_services', 'id', ['shortname' => self::SERVICE_SHORTNAME]);
+        if ($serviceid <= 0) {
+            return;
+        }
+        $DB->set_field_select(
+            'external_tokens',
+            'validuntil',
+            time() + self::LEGACY_TOKEN_GRACE,
+            'externalserviceid = :serviceid AND (validuntil = 0 OR validuntil IS NULL)',
+            ['serviceid' => $serviceid]
+        );
     }
 
     /**
@@ -153,6 +264,14 @@ final class upgrade_migrator {
         }
         $service = $DB->get_record('external_services', ['shortname' => self::SERVICE_SHORTNAME], '*', MUST_EXIST);
         $serviceid = (int)$service->id;
+
+        // The service is restricted to authorised users, and this owner is resolved
+        // independently of the ordinary token owner -- resolve_admin_id() can fall back to
+        // get_admin(), who may own no token at all and therefore was never authorised by the
+        // upgrade step. Without this the migration would mint a token that is dead the moment
+        // it is used, and the migration exists precisely to retire a credential that must not
+        // stay live.
+        service_account_provisioner::ensure_authorised($serviceid, $adminid);
 
         // Reuse a token minted by a previous attempt to avoid orphaning tokens across retries.
         $newtoken = self::get_or_create_migration_token($adminid, $serviceid);
@@ -192,6 +311,12 @@ final class upgrade_migrator {
 
     /**
      * Resolve the integration owner: the legacy token owner when usable, else the primary admin.
+     *
+     * This is deliberately still an administrator, and is not the service account. Retiring
+     * an inherited credential also grandfathers consent for a site that predates the consent
+     * record, and consent is a human act -- see grandfather_consent(). Ownership of the
+     * resulting token converges to the service account on the next maintenance run, which is
+     * the path that exists for exactly that purpose.
      *
      * @param int $serviceid External service ID.
      * @return int User ID, or 0 when none is usable.

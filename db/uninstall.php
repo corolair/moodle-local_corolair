@@ -37,8 +37,9 @@
  * NOTHING HERE MAY THROW. Core calls this function unguarded -- "Do not verify result,
  * let plugin complain if necessary" in lib/adminlib.php -- so an escaping exception
  * aborts the uninstall before any of that core cleanup runs, leaving live tokens and the
- * full configuration behind. The two steps are isolated from each other for the same
- * reason: failing to deregister must not stop the role from being removed.
+ * full configuration behind. Every step is isolated from the others for the same reason:
+ * failing to deregister must not stop the roles from being removed, and a role that cannot
+ * be deleted must not stop the service account from being suspended.
  *
  * Deregistration runs first, while the credentials it needs still exist.
  *
@@ -47,6 +48,8 @@
 function xmldb_local_corolair_uninstall() {
     $deregistered = local_corolair_uninstall_deregister();
     local_corolair_uninstall_remove_role();
+    local_corolair_uninstall_remove_service_role();
+    local_corolair_uninstall_suspend_service_account();
 
     if (!$deregistered) {
         \core\notification::add(
@@ -93,6 +96,56 @@ function local_corolair_uninstall_remove_role(): void {
         debugging($e->getMessage(), DEBUG_DEVELOPER);
         \core\notification::add(
             get_string('uninstallroleremovalfailed', 'local_corolair', $e->getMessage()),
+            \core\output\notification::NOTIFY_WARNING
+        );
+    }
+}
+
+/**
+ * Delete the role that carries the service account's capabilities.
+ *
+ * Not optional, and the one step here whose failure genuinely matters. Core's
+ * capabilities_cleanup() removes role_capabilities rows for local/corolair capabilities
+ * only, so everything else this role holds -- moodle/course:view, moodle/user:viewalldetails
+ * and the rest -- survives the uninstall untouched. A role granting those at system context
+ * is worse residue than any credential.
+ *
+ * @return void
+ */
+function local_corolair_uninstall_remove_service_role(): void {
+    try {
+        \local_corolair\local\service_account_provisioner::remove_role();
+    } catch (\Throwable $e) {
+        debugging($e->getMessage(), DEBUG_DEVELOPER);
+        \core\notification::add(
+            get_string('uninstallserviceroleremovalfailed', 'local_corolair', $e->getMessage()),
+            \core\output\notification::NOTIFY_WARNING
+        );
+    }
+}
+
+/**
+ * Suspend the service account.
+ *
+ * Suspended rather than deleted. delete_user() is irreversible and mangles the username, so
+ * every reinstall would create another account and leave the previous one behind as a
+ * tombstone -- and reinstalling this plugin is ordinary enough that the whole provisioning
+ * path is written to be convergent. Suspension is both reversible and a stronger guarantee
+ * than relying on the role having been deleted: a suspended user is refused by the web
+ * service layer outright. The account carries no personal data to begin with.
+ *
+ * @return void
+ */
+function local_corolair_uninstall_suspend_service_account(): void {
+    try {
+        \local_corolair\local\service_account_provisioner::suspend();
+    } catch (\Throwable $e) {
+        debugging($e->getMessage(), DEBUG_DEVELOPER);
+        \core\notification::add(
+            get_string('serviceaccountremovalfailed', 'local_corolair', (object)[
+                'username' => \local_corolair\local\service_account_provisioner::USERNAME,
+                'error' => $e->getMessage(),
+            ]),
             \core\output\notification::NOTIFY_WARNING
         );
     }

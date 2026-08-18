@@ -25,6 +25,7 @@
 namespace local_corolair;
 
 use local_corolair\local\integration_disclosure;
+use local_corolair\local\service_account_provisioner;
 
 /**
  * Verifies the rendered output, and in particular what the troubleshoot URL leaks.
@@ -172,7 +173,14 @@ final class renderer_test extends \advanced_testcase {
     }
 
     /**
-     * The disclosure page renders every documented group.
+     * The disclosure page renders everything the administrator is being asked to consent to.
+     *
+     * Built from the same context setup.php passes, because a mustache template resolves an
+     * absent variable to the empty string rather than failing. A test that supplied only the
+     * function groups would keep passing if the capability table or the service-account
+     * section were deleted outright -- and those are precisely the parts a reviewer relies
+     * on. Asserting on the generated names rather than on fixed text means adding a
+     * capability without disclosing it fails here.
      *
      * @covers \local_corolair\output\renderer::render_setup_disclosure
      * @return void
@@ -184,6 +192,10 @@ final class renderer_test extends \advanced_testcase {
         $html = $this->renderer()->render_setup_disclosure([
             'version' => integration_disclosure::VERSION,
             'groups' => integration_disclosure::get_function_groups(),
+            'capabilitygroups' => integration_disclosure::get_capability_groups(),
+            'serviceaccountusername' => service_account_provisioner::USERNAME,
+            'serviceaccountemail' => service_account_provisioner::EMAIL,
+            'rotationdisabled' => false,
             'actionurl' => (new \moodle_url('/local/corolair/setup.php'))->out(false),
             'cancelurl' => (new \moodle_url('/admin/settings.php', ['section' => 'local_corolair']))->out(false),
             'sesskey' => sesskey(),
@@ -198,6 +210,20 @@ final class renderer_test extends \advanced_testcase {
                 "The disclosure page does not list {$function}."
             );
         }
+        foreach (integration_disclosure::get_capability_names() as $capability) {
+            $this->assertStringContainsString(
+                $capability,
+                $html,
+                "The disclosure page does not list {$capability}."
+            );
+        }
+
+        $this->assertStringContainsString(service_account_provisioner::USERNAME, $html);
+        $this->assertStringContainsString(
+            service_account_provisioner::EMAIL,
+            $html,
+            'The disclosure must say where to ask about the account it creates.'
+        );
     }
 
     /**

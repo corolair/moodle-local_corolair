@@ -26,6 +26,7 @@ namespace local_corolair;
 
 use local_corolair\local\organization_deregistration;
 use local_corolair\local\role_provisioner;
+use local_corolair\local\service_account_provisioner;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -271,5 +272,79 @@ final class uninstall_test extends \advanced_testcase {
 
         $this->assertFalse($result);
         $this->assertSame(1, $attempts);
+    }
+
+    /**
+     * Uninstalling deletes the service role.
+     *
+     * Not cosmetic. Core's capabilities_cleanup() removes role_capabilities rows for this
+     * plugin's own capabilities only, so every core capability this role holds -- course
+     * reads, user profile reads, participant reads -- would survive the uninstall at system
+     * context, attached to a role nothing points at any more.
+     *
+     * @covers ::local_corolair_uninstall_remove_service_role
+     * @return void
+     */
+    public function test_uninstall_removes_the_service_role(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        service_account_provisioner::ensure();
+        $roleid = (int)get_config('local_corolair', 'serviceroleid');
+        $this->assertTrue($DB->record_exists('role_capabilities', ['roleid' => $roleid]));
+
+        xmldb_local_corolair_uninstall();
+
+        $this->assertFalse($DB->record_exists('role', ['id' => $roleid]));
+        $this->assertFalse($DB->record_exists('role_capabilities', ['roleid' => $roleid]));
+        $this->assertFalse($DB->record_exists('role_assignments', ['roleid' => $roleid]));
+    }
+
+    /**
+     * Uninstalling suspends the service account rather than deleting it.
+     *
+     * delete_user() is irreversible and mangles the username, so a reinstall would create a
+     * second account and leave the first as a tombstone -- and reinstalling this plugin is
+     * ordinary enough that the whole provisioning path is written to be convergent. A
+     * suspended account is refused by the web-service layer just as firmly.
+     *
+     * @covers ::local_corolair_uninstall_suspend_service_account
+     * @return void
+     */
+    public function test_uninstall_suspends_but_does_not_delete_the_service_account(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $userid = service_account_provisioner::ensure();
+
+        xmldb_local_corolair_uninstall();
+
+        $user = $DB->get_record('user', ['id' => $userid], '*', MUST_EXIST);
+        $this->assertSame(1, (int)$user->suspended);
+        $this->assertSame(0, (int)$user->deleted);
+        $this->assertSame(service_account_provisioner::USERNAME, $user->username);
+    }
+
+    /**
+     * Uninstalling a site that never provisioned the account does not throw.
+     *
+     * Core calls the uninstall hook unguarded, so an escaping exception aborts the whole
+     * uninstall before any of core's own cleanup runs.
+     *
+     * @covers ::xmldb_local_corolair_uninstall
+     * @return void
+     */
+    public function test_uninstall_survives_a_missing_service_account(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $DB->delete_records('user', ['username' => service_account_provisioner::USERNAME]);
+        unset_config('serviceaccountid', 'local_corolair');
+        unset_config('serviceroleid', 'local_corolair');
+
+        $this->assertTrue(xmldb_local_corolair_uninstall());
     }
 }

@@ -62,6 +62,9 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         }
         $admin = $DB->get_record('user', ['id' => $adminid, 'deleted' => 0], '*', MUST_EXIST);
         $context = \context_system::instance();
+        // Still required, and still about the human. This checks who consented to the
+        // integration, which remains an administrator decision; it is not, and is no longer
+        // confusable with, a statement about who the token runs as.
         if (!has_capability('moodle/site:config', $context, $adminid)) {
             throw new \required_capability_exception($context, 'moodle/site:config', 'nopermissions', '');
         }
@@ -85,6 +88,16 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
             throw new \moodle_exception('servicecreationerror', 'local_corolair');
         }
         $serviceid = (int)$existingservice->id;
+        // The token is minted for a dedicated non-administrator account rather than for the
+        // administrator above. Provisioning happens here rather than at install time because
+        // this is the first moment a privileged identity is actually needed -- a site that
+        // installs the plugin and never registers should not carry one -- and because
+        // db/install.php runs before core has registered this plugin's own capabilities.
+        $ownerid = \local_corolair\local\service_account_provisioner::ensure();
+        // Strictly after ensure(), which is what guarantees the account is authorised: these
+        // flags include restrictedusers, and a service locked down with no authorised users
+        // rejects everything.
+        \local_corolair\local\service_account_provisioner::ensure_service_flags();
         if (\local_corolair\local\api_key::is_configured()) {
             if ((bool)get_config('local_corolair', 'legacycredentialmigrationpending')) {
                 set_config('setupcompleted', 0, 'local_corolair');
@@ -100,9 +113,14 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
                 // atomically reissues the API key and verifies a fresh token remotely.
             } else {
                 if ((int)get_config('local_corolair', 'webservicetokenid') <= 0) {
+                    // Adoption is scoped to the service, not to an owner. This site is
+                    // already registered and its live token may still belong to the
+                    // administrator who set it up; refusing to adopt that would leave the
+                    // token untracked and mint a second live credential beside it. The
+                    // scheduled task hands ownership over afterwards.
                     $tokens = $DB->get_records(
                         'external_tokens',
-                        ['externalserviceid' => $serviceid, 'userid' => $adminid, 'tokentype' => 0],
+                        ['externalserviceid' => $serviceid, 'tokentype' => 0],
                         'timecreated DESC',
                         '*',
                         0,
@@ -119,7 +137,7 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         }
         $tokens = $DB->get_records(
             'external_tokens',
-            ['externalserviceid' => $serviceid, 'userid' => $adminid, 'tokentype' => 0],
+            ['externalserviceid' => $serviceid, 'userid' => $ownerid, 'tokentype' => 0],
             'timecreated DESC',
             '*',
             0,
@@ -132,7 +150,7 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         // site that asked for no rotation -- so the very first registration would ignore the
         // setting. lifetime_matches_configuration() covers expired and legacy tokens too.
         if (!$token || !\local_corolair\local\webservice_token_manager::lifetime_matches_configuration($token)) {
-            $token = \local_corolair\local\webservice_token_manager::create_token($adminid, $serviceid);
+            $token = \local_corolair\local\webservice_token_manager::create_token($ownerid, $serviceid);
         }
         $curl = new \curl();
         $url = "https://services.raison.is/moodle-integration/plugin/organization/register";

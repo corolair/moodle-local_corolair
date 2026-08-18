@@ -152,7 +152,79 @@ function xmldb_local_corolair_upgrade($oldversion) {
         \local_corolair\local\role_provisioner::ensure_role();
         upgrade_plugin_savepoint(true, 2026080307, 'local', 'corolair');
     }
+    // Bound any inherited token still carrying no expiration. Sites already running 1.9.x with a
+    // migration that never confirmed hold a live pre-1.9 credential, and nothing expires it. This
+    // is a local field update with no network call and no throw, so unlike the migration itself it
+    // is safe to run inline here rather than through local_corolair_queue_legacy_migration().
+    if ($oldversion < 2026081400) {
+        \local_corolair\local\upgrade_migrator::bound_legacy_token_lifetime();
+        upgrade_plugin_savepoint(true, 2026081400, 'local', 'corolair');
+    }
+    // Authorise the current token owners before core restricts the service to authorised
+    // users. Core rewrites the service flags from db/services.php inside
+    // external_update_descriptions(), which upgrade_plugins() calls *after* this function
+    // returns -- so this step runs while restrictedusers is still 0, and the rows it writes
+    // are what keeps the live administrator token working the instant the flag flips.
+    if ($oldversion < 2026081700) {
+        local_corolair_authorise_existing_token_owners();
+        upgrade_plugin_savepoint(true, 2026081700, 'local', 'corolair');
+    }
     return true;
+}
+
+/**
+ * Authorise every user who currently owns a token for the Raison service.
+ *
+ * Unlike every other step in this file, this one is deliberately allowed to throw, and the
+ * comment at the top of the file about never blocking a site upgrade does not apply to it.
+ * The two outcomes are not symmetric: a failure here followed by a successful flag flip
+ * takes the integration offline until an administrator notices, whereas a failed upgrade is
+ * visible immediately and can simply be retried. A throw also prevents the flip outright,
+ * because upgrade_component_updated() is never reached when this function raises.
+ *
+ * Note what this does *not* do: it does not create the service account. Two of the
+ * capabilities that account needs belong to this plugin, and core has not registered them
+ * yet at this point in the upgrade, so assign_capability() would throw. Provisioning happens
+ * on the next scheduled run instead, and the handover to it is an ordinary rotation.
+ *
+ * @return void
+ */
+function local_corolair_authorise_existing_token_owners(): void {
+    global $DB;
+
+    $service = $DB->get_record('external_services', ['shortname' => 'corolair_rest'], 'id');
+    if (!$service) {
+        // The service is created by core from db/services.php, so its absence means this
+        // site has never registered and holds no token to protect.
+        return;
+    }
+    $serviceid = (int)$service->id;
+
+    $owners = $DB->get_fieldset_select(
+        'external_tokens',
+        'DISTINCT userid',
+        'externalserviceid = :serviceid AND tokentype = 0',
+        ['serviceid' => $serviceid]
+    );
+    $consentedby = (int)get_config('local_corolair', 'setupconsentedby');
+    if ($consentedby > 0) {
+        $owners[] = $consentedby;
+    }
+    foreach (array_unique(array_map('intval', $owners)) as $userid) {
+        \local_corolair\local\service_account_provisioner::ensure_authorised($serviceid, $userid);
+    }
+
+    // Seed the owner of the active token. Before this release the owner was implied by
+    // setupconsentedby; from here on it is recorded explicitly, and the first post-upgrade
+    // maintenance run needs it to find the token it is about to rotate away from.
+    $tokenid = (int)get_config('local_corolair', 'webservicetokenid');
+    $token = $tokenid > 0 ? $DB->get_record('external_tokens', ['id' => $tokenid], 'id, userid') : false;
+    $ownerid = $token ? (int)$token->userid : $consentedby;
+    if ($ownerid > 0) {
+        set_config('webservicetokenownerid', $ownerid, 'local_corolair');
+        // Only meaningful where there is actually an administrator-owned token to move off.
+        set_config('serviceaccountmigrationpending', 1, 'local_corolair');
+    }
 }
 
 /**

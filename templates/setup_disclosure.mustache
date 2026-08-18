@@ -30,6 +30,23 @@
                 ]
             }
         ],
+        "capabilitygroups": [
+            {
+                "purpose": "Read course structure.",
+                "capabilities": [
+                    {"name": "moodle/course:view"},
+                    {"name": "moodle/course:viewhiddencourses"}
+                ]
+            },
+            {
+                "purpose": "Create exam activities.",
+                "capabilities": [
+                    {"name": "moodle/course:manageactivities"}
+                ]
+            }
+        ],
+        "serviceaccountusername": "corolair_webservice",
+        "serviceaccountemail": "contact@raison.is",
         "rotationdisabled": false,
         "actionurl": "https://moodle.example.com/local/corolair/setup.php",
         "cancelurl": "https://moodle.example.com/admin/settings.php",
@@ -57,6 +74,12 @@
             <li>{{#str}}disclosurestandardised, local_corolair{{/str}}</li>
             <li>{{#str}}disclosurefiletransfer, local_corolair{{/str}}</li>
         </ul>
+    </section>
+
+    <section aria-labelledby="corolair-service-account">
+        <h3 id="corolair-service-account" class="h5">{{#str}}disclosureserviceaccountheading, local_corolair{{/str}}</h3>
+        <p>{{#str}}disclosureserviceaccountbody, local_corolair, {{serviceaccountusername}}{{/str}}</p>
+        <p>{{#str}}disclosureserviceaccountcontact, local_corolair, {{serviceaccountemail}}{{/str}}</p>
     </section>
 
     <section aria-labelledby="corolair-functions">
@@ -109,13 +132,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>moodle/course:view</code>, <code>moodle/course:viewhiddencourses</code>, <code>moodle/category:viewhiddencategories</code></td><td>{{#str}}disclosurecapcoursevisibility, local_corolair{{/str}}</td></tr>
-                    <tr><td><code>moodle/course:update</code>, <code>mod/resource:view</code>, <code>mod/lesson:view</code></td><td>{{#str}}disclosurecapcontent, local_corolair{{/str}}</td></tr>
-                    <tr><td><code>moodle/site:accessallgroups</code>, <code>moodle/course:viewparticipants</code></td><td>{{#str}}disclosurecapparticipants, local_corolair{{/str}}</td></tr>
-                    <tr><td><code>moodle/user:viewdetails</code>, <code>moodle/user:viewhiddendetails</code>, <code>moodle/course:useremail</code>, <code>moodle/user:update</code></td><td>{{#str}}disclosurecapidentity, local_corolair{{/str}}</td></tr>
-                    <tr><td><code>report/completion:view</code></td><td>{{#str}}disclosurecapcompletion, local_corolair{{/str}}</td></tr>
-                    <tr><td><code>moodle/role:assign</code></td><td>{{#str}}disclosurecaproleassign, local_corolair{{/str}}</td></tr>
-                    <tr><td><code>moodle/course:manageactivities</code>, <code>mod/lti:addinstance</code></td><td>{{#str}}disclosurecapexam, local_corolair{{/str}}</td></tr>
+                    {{#capabilitygroups}}
+                        <tr>
+                            <td>
+                                {{#capabilities}}<code>{{name}}</code> {{/capabilities}}
+                            </td>
+                            <td>{{purpose}}</td>
+                        </tr>
+                    {{/capabilitygroups}}
                 </tbody>
             </table>
         </div>
