@@ -737,7 +737,13 @@ final class service_account_provisioner {
 
         require_once($CFG->dirroot . '/user/lib.php');
         user_update_user((object)['id' => $userid, 'suspended' => 1], false, true);
-        \core\session\manager::kill_user_sessions($userid);
+        // Moodle 4.5 renamed kill_user_sessions() to destroy_user_sessions() and deprecated the old
+        // name; we still support 4.4, where only the old name exists.
+        if (method_exists('\core\session\manager', 'destroy_user_sessions')) {
+            \core\session\manager::destroy_user_sessions($userid);
+        } else {
+            \core\session\manager::kill_user_sessions($userid);
+        }
     }
 
     /**
