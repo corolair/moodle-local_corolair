@@ -24,7 +24,10 @@
 
 namespace local_corolair;
 
+use local_corolair\external\get_integration_status;
+use local_corolair\local\integration_disclosure;
 use local_corolair\local\role_provisioner;
+use local_corolair\local\service_account_provisioner;
 
 /**
  * Verifies the db/ and lang/ declarations stay consistent with the code that uses them.
@@ -221,6 +224,278 @@ final class plugin_definition_test extends \advanced_testcase {
             $declared,
             $installed,
             'The installed service functions differ from db/services.php.'
+        );
+    }
+
+    /**
+     * The declared and installed service flags both match the intended access boundary.
+     *
+     * Both sides are asserted because they answer different questions: the declaration is
+     * the intent a reviewer reads, and the installed row is what core actually applied. The
+     * three flags are the whole of the file and authorised-user boundary -- neither
+     * webservice/pluginfile.php nor webservice/upload.php consults the function allow-list
+     * at all, so a flag flipped by hand or lost in an upgrade widens the integration in a
+     * way that no other test in this suite would notice.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_installed_service_flags_match_the_declaration(): void {
+        global $DB;
+
+        $services = $this->load_definition('db/services.php', ['functions', 'services'])['services'];
+        $declared = null;
+        foreach ($services as $service) {
+            if (($service['shortname'] ?? '') === 'corolair_rest') {
+                $declared = $service;
+            }
+        }
+        $this->assertNotNull($declared, 'db/services.php no longer defines the corolair_rest service.');
+
+        $expected = ['restrictedusers' => 1, 'uploadfiles' => 0, 'downloadfiles' => 1, 'enabled' => 1];
+        $installed = $DB->get_record('external_services', ['shortname' => 'corolair_rest'], '*', MUST_EXIST);
+
+        foreach ($expected as $flag => $value) {
+            $this->assertArrayHasKey(
+                $flag,
+                $declared,
+                "db/services.php must state {$flag} explicitly; core's default for an omitted key is not ours."
+            );
+            $this->assertSame($value, (int)$declared[$flag], "db/services.php declares an unexpected {$flag}.");
+            $this->assertSame($value, (int)$installed->{$flag}, "The installed service has an unexpected {$flag}.");
+        }
+    }
+
+    /**
+     * The service array key is unchanged.
+     *
+     * Core matches an installed service against db/services.php on the array key, not the
+     * shortname. Renaming the key takes the deleted-service branch of
+     * external_update_descriptions(), which drops the service row and with it every token,
+     * function grant and authorised user -- silently, during an ordinary upgrade.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_service_name_key_is_pinned(): void {
+        $services = $this->load_definition('db/services.php', ['functions', 'services'])['services'];
+
+        $this->assertSame(
+            ['Corolair REST Service'],
+            array_keys($services),
+            'Renaming this key makes core delete the service, its tokens and its authorised users.'
+        );
+    }
+
+    /**
+     * Every capability the service role grants is a real capability on this site.
+     *
+     * assign_capability() throws a coding_exception for an unknown capability, and the
+     * provisioner filters those out at run time so that an uninstalled optional module
+     * cannot break the scheduled task. That filter also hides a typo, and would have hidden
+     * mod/scorm:view -- a capability that reads as though it must exist but does not. This
+     * test is what makes the filter safe.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_service_role_capabilities_are_registered(): void {
+        global $DB;
+
+        $capabilities = array_merge(
+            service_account_provisioner::READ_CAPABILITIES,
+            service_account_provisioner::WRITE_CAPABILITIES
+        );
+        $this->assertNotEmpty($capabilities);
+
+        foreach ($capabilities as $capability) {
+            $this->assertTrue(
+                $DB->record_exists('capabilities', ['name' => $capability]),
+                "{$capability} is granted to the service role but is not a registered capability."
+            );
+        }
+    }
+
+    /**
+     * Every capability the status function evaluates is one the service role actually holds.
+     *
+     * These are two lists in two files that no single change ever touches together, and the
+     * failure is silent in the worst direction: a capability evaluated but never granted
+     * makes the function report privileged=false on a correctly provisioned site, and the
+     * content sync responds by refusing to archive anything, indefinitely, with no error.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_visibility_capabilities_are_all_provisioned(): void {
+        foreach (get_integration_status::VISIBILITY_CAPABILITIES as $capability) {
+            $this->assertContains(
+                $capability,
+                service_account_provisioner::READ_CAPABILITIES,
+                "{$capability} is evaluated by the status function but never granted to the service role."
+            );
+        }
+    }
+
+    /**
+     * A site that can answer the status function can also perform a scoped exam deletion.
+     *
+     * Raison infers exactly this: any site answering the status call is new enough to expose
+     * the scoped delete, so it skips a second round trip. That inference is only safe while
+     * the two functions ship together, and if it ever stopped being true the consequence is
+     * a fall back to core_course_delete_modules, which can remove any course module rather
+     * than only this plugin's own placements.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_the_status_function_implies_the_scoped_delete(): void {
+        $granted = $this->service_functions();
+
+        $this->assertContains('local_corolair_get_integration_status', $granted);
+        $this->assertContains(
+            'local_corolair_delete_exam_placement',
+            $granted,
+            'Raison treats the status function as proof the scoped delete exists.'
+        );
+    }
+
+    /**
+     * No capability appears in both the always-granted and the opt-in set.
+     *
+     * An overlap would make disabling exam placement revoke something the read path needs,
+     * because ensure_capabilities() applies the sets in that order.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_read_and_write_capability_sets_are_disjoint(): void {
+        $this->assertSame(
+            [],
+            array_values(array_intersect(
+                service_account_provisioner::READ_CAPABILITIES,
+                service_account_provisioner::WRITE_CAPABILITIES
+            )),
+            'A capability in both sets would be revoked when exam placement is switched off.'
+        );
+    }
+
+    /**
+     * The service account holds no capability that lets it administer the site.
+     *
+     * Written as a deny-list rather than by comparing against the granted set, so that it
+     * keeps failing for the right reason if the granted set grows.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_service_role_grants_no_administrative_capability(): void {
+        $forbidden = [
+            'moodle/site:config',
+            'moodle/site:uploadusers',
+            'moodle/user:create',
+            'moodle/user:delete',
+            'moodle/user:update',
+            'moodle/role:assign',
+            'moodle/role:manage',
+            'moodle/role:override',
+            'moodle/course:create',
+            'moodle/course:delete',
+            'moodle/course:update',
+            'moodle/webservice:createtoken',
+            'moodle/webservice:managealltokens',
+        ];
+        $granted = array_merge(
+            service_account_provisioner::READ_CAPABILITIES,
+            service_account_provisioner::WRITE_CAPABILITIES
+        );
+
+        foreach ($forbidden as $capability) {
+            $this->assertNotContains(
+                $capability,
+                $granted,
+                "{$capability} must never be granted to the Raison service account."
+            );
+        }
+    }
+
+    /**
+     * The opt-in set covers exactly what the exam-placement functions declare they need.
+     *
+     * db/services.php declares the capabilities per function for the "missing capabilities"
+     * admin report; the provisioner is what actually grants them. If the two disagree, the
+     * report tells administrators something the site does not do.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_write_set_covers_what_the_exam_functions_declare(): void {
+        $functions = $this->load_definition('db/services.php', ['functions', 'services'])['functions'];
+
+        $declared = [];
+        foreach ($functions as $name => $definition) {
+            if (strpos($name, '_exam_placement') === false) {
+                continue;
+            }
+            foreach (explode(',', (string)($definition['capabilities'] ?? '')) as $capability) {
+                $capability = trim($capability);
+                if ($capability !== '') {
+                    $declared[$capability] = true;
+                }
+            }
+        }
+        $this->assertNotEmpty($declared, 'The exam-placement functions declare no capabilities.');
+
+        foreach (array_keys($declared) as $capability) {
+            $this->assertContains(
+                $capability,
+                service_account_provisioner::WRITE_CAPABILITIES,
+                "{$capability} is declared by an exam-placement function but is never granted."
+            );
+        }
+    }
+
+    /**
+     * Every capability the service role grants is disclosed, and nothing else is.
+     *
+     * The disclosed table used to be hand-written and had drifted in both directions. It is
+     * now generated from the same constants, and this is what stops it drifting again.
+     *
+     * @covers \local_corolair\local\integration_disclosure::get_capability_names
+     * @return void
+     */
+    public function test_disclosure_matches_the_granted_capabilities(): void {
+        $granted = array_merge(
+            service_account_provisioner::READ_CAPABILITIES,
+            service_account_provisioner::WRITE_CAPABILITIES
+        );
+        $disclosed = integration_disclosure::get_capability_names();
+
+        sort($granted);
+        sort($disclosed);
+
+        $this->assertSame(
+            $granted,
+            $disclosed,
+            'The disclosed capability table and the granted capability sets have drifted.'
+        );
+    }
+
+    /**
+     * No capability is disclosed twice.
+     *
+     * A duplicate would let the test above pass while a capability is missing.
+     *
+     * @covers \local_corolair\local\integration_disclosure::get_capability_names
+     * @return void
+     */
+    public function test_no_capability_is_disclosed_twice(): void {
+        $disclosed = integration_disclosure::get_capability_names();
+
+        $this->assertSame(
+            count($disclosed),
+            count(array_unique($disclosed)),
+            'A capability appears in more than one disclosure group.'
         );
     }
 

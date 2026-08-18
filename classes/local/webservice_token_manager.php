@@ -117,13 +117,49 @@ final class webservice_token_manager {
      * @return bool
      */
     public static function rotation_setting_is_forced(): bool {
+        return self::setting_is_forced('disabletokenrotation');
+    }
+
+    /**
+     * Whether one of this plugin's settings is pinned in config.php.
+     *
+     * @param string $name Setting name within the local_corolair plugin.
+     * @return bool
+     */
+    public static function setting_is_forced(string $name): bool {
         global $CFG;
 
         $forced = $CFG->forced_plugin_settings ?? [];
         return is_array($forced)
             && array_key_exists('local_corolair', $forced)
             && is_array($forced['local_corolair'])
-            && array_key_exists('disabletokenrotation', $forced['local_corolair']);
+            && array_key_exists($name, $forced['local_corolair']);
+    }
+
+    /**
+     * Resolve the user the active token belongs to.
+     *
+     * Deliberately distinct from setupconsentedby, which used to serve both purposes and is
+     * the root of what this release fixes. That key records the human who consented to the
+     * integration -- it is who gets warned, and who the audit trail attributes the setup to.
+     * It is no longer who the token runs as.
+     *
+     * The fallbacks matter on upgraded sites: the recorded owner is seeded by the upgrade
+     * step, the service account is the desired end state, and the consenting administrator
+     * is the pre-service-account answer for a site that reaches here before either was written.
+     *
+     * @return int
+     */
+    public static function token_owner_id(): int {
+        $recorded = (int)get_config('local_corolair', 'webservicetokenownerid');
+        if ($recorded > 0) {
+            return $recorded;
+        }
+        $serviceaccount = service_account_provisioner::locate();
+        if ($serviceaccount > 0) {
+            return $serviceaccount;
+        }
+        return (int)get_config('local_corolair', 'setupconsentedby');
     }
 
     /**
@@ -289,18 +325,40 @@ final class webservice_token_manager {
         self::cleanup_previous_token();
 
         $service = $db->get_record('external_services', ['shortname' => self::SERVICE_SHORTNAME], '*', MUST_EXIST);
+        // The consenting human, used only for warnings and attribution from here on.
         $adminid = (int)get_config('local_corolair', 'setupconsentedby');
         if ($adminid <= 0) {
             throw new \moodle_exception('setupconsentmissing', 'local_corolair');
         }
 
-        $current = self::get_current_token((int)$service->id, $adminid);
+        try {
+            $desiredowner = service_account_provisioner::ensure();
+            // Strictly after ensure(): the flags include restrictedusers, and locking a
+            // service down before its account is authorised is an immediate outage.
+            service_account_provisioner::ensure_service_flags();
+        } catch (\Throwable $exception) {
+            // Deliberately does not rethrow. A site that cannot create or repair the service
+            // account still has a working token, and failing the task here would revoke
+            // nothing while burying the actual problem in cron noise. Convergence retries
+            // hourly, and the administrator is told once a day in the meantime.
+            self::set_rotation_failure('service_account_unavailable');
+            self::send_warning($adminid, null, 'service_account_unavailable');
+            return;
+        }
+
+        $current = self::get_current_token((int)$service->id, self::token_owner_id());
         if (!$current) {
             self::set_rotation_failure('current_token_missing');
             self::send_warning($adminid, null, 'current_token_missing');
             throw new \moodle_exception('tokenmissing', 'local_corolair');
         }
-        if (!self::rotation_due($current)) {
+
+        // An ownership change is a rotation trigger in its own right, and it has to be
+        // tested separately rather than folded into the token's own lifetime: a site with
+        // rotation disabled holds a token a century from expiry, so the ordinary test would
+        // never fire and such a site would keep an administrator-owned token forever.
+        $ownerchanged = (int)$current->userid !== $desiredowner;
+        if (!$ownerchanged && !self::rotation_due($current)) {
             // Nothing to rotate. Rotation is also the only thing that proves the integration
             // still works, so a site that has opted out needs that assurance from elsewhere.
             self::monitor_static_token($current, $adminid, $apikey);
@@ -309,7 +367,7 @@ final class webservice_token_manager {
 
         set_config('webservicetokenrotationstatus', 'ROTATION_DUE', 'local_corolair');
         try {
-            $candidate = self::get_or_create_candidate((int)$service->id, $adminid);
+            $candidate = self::get_or_create_candidate((int)$service->id, $desiredowner);
             $rotationid = (string)get_config('local_corolair', 'webservicetokenrotationid');
             self::send_candidate($candidate, $rotationid, $apikey);
             self::activate_candidate($current, $candidate, $rotationid);
@@ -334,6 +392,7 @@ final class webservice_token_manager {
     public static function record_initial_token(\stdClass $token): void {
         set_config('webservicetokenid', (int)$token->id, 'local_corolair');
         set_config('webservicetokenexpiresat', (int)$token->validuntil, 'local_corolair');
+        set_config('webservicetokenownerid', (int)$token->userid, 'local_corolair');
         set_config('webservicetokenrotationstatus', 'ACTIVE', 'local_corolair');
         self::clear_pending_state();
         self::trigger_event('initial_token_activated', $token, null);
@@ -387,20 +446,34 @@ final class webservice_token_manager {
             }
         }
 
-        $tokens = $DB->get_records(
-            'external_tokens',
-            ['externalserviceid' => $serviceid, 'userid' => $userid, 'tokentype' => 0],
-            'timecreated DESC',
-            '*',
-            0,
-            1
-        );
-        $token = reset($tokens);
+        $token = self::newest_token(['externalserviceid' => $serviceid, 'userid' => $userid, 'tokentype' => 0]);
+        if (!$token) {
+            // Widen to the service alone. The ownership change makes this reachable in a way
+            // it was not before: a site whose recorded token ID was lost and whose owner then
+            // moved would otherwise throw tokenmissing on every run forever, even though a
+            // perfectly usable token for this service exists. Adopting it is safe -- only
+            // this plugin's own tokens can carry this service ID.
+            $token = self::newest_token(['externalserviceid' => $serviceid, 'tokentype' => 0]);
+        }
         if ($token) {
             set_config('webservicetokenid', (int)$token->id, 'local_corolair');
             set_config('webservicetokenexpiresat', (int)$token->validuntil, 'local_corolair');
+            set_config('webservicetokenownerid', (int)$token->userid, 'local_corolair');
         }
         return $token;
+    }
+
+    /**
+     * Return the most recently created token matching the given conditions.
+     *
+     * @param array $conditions Field/value pairs.
+     * @return \stdClass|false
+     */
+    private static function newest_token(array $conditions) {
+        global $DB;
+
+        $tokens = $DB->get_records('external_tokens', $conditions, 'timecreated DESC', '*', 0, 1);
+        return reset($tokens);
     }
 
     /**
@@ -415,10 +488,14 @@ final class webservice_token_manager {
 
         $candidateid = (int)get_config('local_corolair', 'webservicetokencandidateid');
         if ($candidateid > 0) {
+            // Deliberately not scoped to $userid. A candidate minted last cycle under the
+            // previous owner is still the candidate Corolair is waiting on, and scoping the
+            // lookup would find nothing -- which also skips the delete branch below, so the
+            // row would be orphaned *and* a fresh rotation ID minted while the old one is
+            // still outstanding. That is exactly the deadlock the comment below describes.
             $candidate = $DB->get_record('external_tokens', [
                 'id' => $candidateid,
                 'externalserviceid' => $serviceid,
-                'userid' => $userid,
                 'tokentype' => 0,
             ]);
             if ($candidate && (int)$candidate->validuntil > time()) {
@@ -428,9 +505,10 @@ final class webservice_token_manager {
                 // refuses a new rotation ID while one is pending -- nothing clears that state
                 // except a rotation matching it, so minting a fresh ID here would deadlock
                 // every later attempt. Deleting the candidate would also strand Corolair on a
-                // token that no longer exists in Moodle. rotation_due() fires again on the
-                // next run and converges the now-active token, so finishing the wrong-shaped
-                // candidate costs one extra rotation, not correctness.
+                // token that no longer exists in Moodle. The next run detects the still-wrong
+                // lifetime or the still-wrong owner and converges the now-active token, so
+                // finishing the wrong-shaped candidate costs one extra rotation, not
+                // correctness.
                 return $candidate;
             }
             if ($candidate) {
@@ -525,8 +603,10 @@ final class webservice_token_manager {
             time() + self::ROTATE_BEFORE_EXPIRY
         );
         set_config('previouswebservicetokenid', (int)$current->id, 'local_corolair');
+        set_config('previouswebservicetokenownerid', (int)$current->userid, 'local_corolair');
         set_config('previouswebservicetokenrevokeby', $revokeby, 'local_corolair');
         set_config('webservicetokenid', (int)$candidate->id, 'local_corolair');
+        set_config('webservicetokenownerid', (int)$candidate->userid, 'local_corolair');
         set_config('webservicetokenexpiresat', (int)$candidate->validuntil, 'local_corolair');
         set_config('webservicetokenrotationstatus', 'ACTIVE', 'local_corolair');
         set_config('webservicetokenrotatedat', time(), 'local_corolair');
@@ -558,7 +638,7 @@ final class webservice_token_manager {
         if (!self::rotation_disabled()) {
             return;
         }
-        $drift = self::local_drift($token, $adminid);
+        $drift = self::local_drift($token);
         if ($drift !== null) {
             self::send_warning($adminid, $token, $drift);
             return;
@@ -573,10 +653,9 @@ final class webservice_token_manager {
      * Detect integration drift that Moodle can see without asking Corolair.
      *
      * @param \stdClass $token Active token record.
-     * @param int $adminid Integration owner.
      * @return string|null Safe error code, or null when nothing has drifted.
      */
-    private static function local_drift(\stdClass $token, int $adminid): ?string {
+    private static function local_drift(\stdClass $token): ?string {
         global $DB;
 
         $granted = $DB->get_fieldset_select(
@@ -588,13 +667,14 @@ final class webservice_token_manager {
         if (array_diff(integration_disclosure::get_function_names(), $granted)) {
             return 'function_allowlist_drift';
         }
-        if (!$DB->record_exists('user', ['id' => $adminid, 'deleted' => 0, 'suspended' => 0])) {
+        // The owner is checked for usability, not for privilege. This used to require
+        // moodle/site:config, which was correct only while the token belonged to an
+        // administrator; against the service account that test is now guaranteed to fail,
+        // and leaving it would page every administrator daily to report the intended state.
+        if (!$DB->record_exists('user', ['id' => (int)$token->userid, 'deleted' => 0, 'suspended' => 0])) {
             return 'token_owner_unusable';
         }
-        if (!has_capability('moodle/site:config', \context_system::instance(), $adminid)) {
-            return 'token_owner_unusable';
-        }
-        return null;
+        return service_account_provisioner::health_problem();
     }
 
     /**
@@ -660,17 +740,43 @@ final class webservice_token_manager {
         if ($tokenid <= 0 || $revokeby <= 0 || $revokeby > time()) {
             return;
         }
+        $service = $DB->get_record('external_services', ['shortname' => self::SERVICE_SHORTNAME], 'id', MUST_EXIST);
         $token = $DB->get_record('external_tokens', ['id' => $tokenid]);
         if ($token) {
-            $service = $DB->get_record('external_services', ['shortname' => self::SERVICE_SHORTNAME], 'id', MUST_EXIST);
-            $adminid = (int)get_config('local_corolair', 'setupconsentedby');
-            if ((int)$token->externalserviceid === (int)$service->id && (int)$token->userid === $adminid) {
+            // Guarded on the service alone. It used to also require the owner to be
+            // setupconsentedby, which held only while the token was always the consenting
+            // administrator's. Once ownership moves to the service account, every subsequent
+            // previous token belongs to that account instead and the guard would fail
+            // silently -- superseded tokens would accumulate and never be revoked, which is
+            // the opposite of what this method exists to do. The ID came from this plugin's
+            // own configuration and the service check already bounds it to our tokens.
+            if ((int)$token->externalserviceid === (int)$service->id) {
                 $DB->delete_records('external_tokens', ['id' => $tokenid]);
                 self::trigger_event('old_token_revoked', $token, null);
             }
         }
         unset_config('previouswebservicetokenid', 'local_corolair');
+        unset_config('previouswebservicetokenownerid', 'local_corolair');
         unset_config('previouswebservicetokenrevokeby', 'local_corolair');
+
+        // The old owner keeps its authorisation for as long as it holds a live token, and
+        // loses it here. Doing it the other way round -- withdrawing authorisation when the
+        // new token is activated -- would break every request made with the old token during
+        // its overlap, which is the whole point of having an overlap.
+        $surviving = $DB->get_fieldset_select(
+            'external_tokens',
+            'DISTINCT userid',
+            'externalserviceid = :serviceid AND tokentype = 0',
+            ['serviceid' => (int)$service->id]
+        );
+        $surviving[] = service_account_provisioner::locate();
+        service_account_provisioner::converge_authorised((int)$service->id, $surviving);
+
+        if ((bool)get_config('local_corolair', 'serviceaccountmigrationpending')) {
+            unset_config('serviceaccountmigrationpending', 'local_corolair');
+            set_config('serviceaccountmigratedat', time(), 'local_corolair');
+            self::trigger_event('service_account_activated', null, null);
+        }
     }
 
     /**

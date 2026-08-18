@@ -113,6 +113,10 @@ final class provider_test extends \advanced_testcase {
                 'setupconsentedat',
                 'setupdisclosureacknowledgedby',
                 'setupdisclosureacknowledgedat',
+                // Declared because during the ownership handover this briefly holds a real
+                // administrator's user ID rather than the synthetic service account's.
+                'webservicetokenownerid',
+                'serviceaccountid',
             ],
             array_keys($types['config_plugins']->get_privacy_fields())
         );

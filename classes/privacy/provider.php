@@ -344,6 +344,10 @@ class provider implements
             'setupconsentedat' => 'privacy:metadata:config_plugins:setupconsentedat',
             'setupdisclosureacknowledgedby' => 'privacy:metadata:config_plugins:setupdisclosureacknowledgedby',
             'setupdisclosureacknowledgedat' => 'privacy:metadata:config_plugins:setupdisclosureacknowledgedat',
+            // Declared because during the ownership handover this holds a real
+            // administrator's user ID, not only the synthetic service account's.
+            'webservicetokenownerid' => 'privacy:metadata:config_plugins:webservicetokenownerid',
+            'serviceaccountid' => 'privacy:metadata:config_plugins:serviceaccountid',
         ], 'privacy:metadata:config_plugins');
         return $collection;
     }
@@ -419,6 +423,12 @@ class provider implements
         global $DB;
 
         $contextlist = new contextlist();
+        if (self::is_service_account($userid)) {
+            // The service account is a synthetic system identity, not a data subject: it has
+            // no natural person behind it and no personal data anywhere. Treating it as one
+            // would send Raison a deletion request for an ID it has never seen.
+            return $contextlist;
+        }
         // Locally retained setup accountability records live in the system context and
         // exist independently of the remote API key.
         if (self::get_local_setup_record($userid) !== null) {
@@ -597,7 +607,9 @@ class provider implements
         if ((int)$context->contextlevel === CONTEXT_SYSTEM) {
             foreach (['setupconsentedby', 'setupdisclosureacknowledgedby'] as $configkey) {
                 $actorid = (int)get_config('local_corolair', $configkey);
-                if ($actorid > 0) {
+                // The service account is never one of these, but it can be a legacy token
+                // owner, and it must not be offered up as a data subject either way.
+                if ($actorid > 0 && !self::is_service_account($actorid)) {
                     $userlist->add_user($actorid);
                 }
             }
@@ -760,6 +772,9 @@ class provider implements
         }
         $user = $contextlist->get_user();
         $userid = $user->id;
+        if (self::is_service_account((int)$userid)) {
+            return;
+        }
         $curl = new curl();
         foreach ($contextlist->get_contexts() as $context) {
             self::delete_user_in_context($userid, $context, $apikey, $curl);
@@ -785,7 +800,26 @@ class provider implements
         $curl = new curl();
         $context = $userlist->get_context();
         foreach ($users as $userid) {
+            if (self::is_service_account((int)$userid)) {
+                continue;
+            }
             self::delete_user_in_context((int)$userid, $context, $apikey, $curl);
         }
+    }
+
+    /**
+     * Whether a user ID belongs to the plugin's own service account.
+     *
+     * The account is created by this plugin to own the web-service token. It represents no
+     * natural person -- synthetic name, unroutable address, no login -- so it is excluded
+     * from every data-subject path here. Without that a site-wide erasure in the system
+     * context would issue Raison a deletion request for an identity it has never held, and
+     * emit an audit event describing something that did not happen.
+     *
+     * @param int $userid User ID.
+     * @return bool
+     */
+    private static function is_service_account(int $userid): bool {
+        return $userid > 0 && $userid === \local_corolair\local\service_account_provisioner::locate();
     }
 }

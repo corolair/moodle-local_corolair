@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.9.3
+**Version:** 1.9.4
 
-**Last Updated:** 2026/08/07
+**Last Updated:** 2026/08/17
 
 ## Overview
 
@@ -47,6 +47,22 @@ If your organization chooses to continue using Raison after the free trial, cont
 ### Privacy and security
 
 During setup, administrators can review the plugin's exact access permissions, the Moodle functions it uses, and the purpose of each type of data involved. The integration uses restricted, short-lived access credentials that are renewed automatically. Trainer sign-in is limited to approved, secure Raison destinations.
+
+#### The service account
+
+The web-service token is owned by a dedicated Moodle account, `corolair_webservice`, that the plugin creates and maintains. It is listed under `contact@raison.is` so that an administrator who finds it among their users knows whose it is and where to ask; the site never sends mail to it. It is not a site administrator, has no password, and cannot sign in. The `corolair_rest` service is restricted to authorised users, so a token minted for any other account is refused — by web-service calls and by file downloads alike.
+
+The account holds an explicit, enumerated set of capabilities, each one required by a specific function in the service allowlist. That set is read-only apart from assigning the _Raison Manager_ role, which can only ever assign that one role, and the exam-placement writes described below. File download is enabled because Raison reads course resources through Moodle's web-service file endpoint; file upload is disabled, because nothing in the integration writes files to Moodle.
+
+The set includes `moodle/course:ignoreavailabilityrestrictions`, so the account reads activities and sections behind access restrictions — including those set to hide entirely, which Moodle otherwise omits from its response with no indication that anything is missing. This is what lets Raison index date-gated material before its release date, as it always has, and it is what stops a content sync mistaking restricted content for deleted content. It does mean the account can read material scoped to a subset of learners.
+
+Raison asks the site what the integration can currently do through `local_corolair_get_integration_status`, rather than inferring it. That function reports whether the token can see hidden and restricted content, which features are available, and which plugin version is installed. It reads no course or user data.
+
+Exam placement — creating, renaming and deleting External tool activities — is the only feature that writes to courses. Its blast radius is bounded by the functions rather than by the capabilities: Raison can only reach it through the plugin's own three exam-placement functions, and the deletion one resolves its target through Moodle's LTI table, so it can never remove any other kind of course module.
+
+Upgrading from an earlier version transfers the token from the administrator who set the integration up to the service account. Both remain valid until the transfer completes, so nothing stops working in the meantime; the administrator's token is revoked afterwards. The plugin settings page reports the transfer while it is in progress.
+
+The full capability table, with the purpose of each group, is shown on the setup disclosure page.
 
 #### Credential replacement after an upgrade
 
@@ -95,7 +111,7 @@ For questions about data processing, retention, deletion, privacy, or security, 
 
 ### Uninstallation and remote deletion
 
-Uninstalling the plugin revokes the Raison Moodle web-service access and removes the local service, token, role, API key, and plugin configuration. Before local cleanup, the plugin makes up to three synchronous attempts to deregister the organization from Raison and requires an explicit `disconnected` response.
+Uninstalling the plugin revokes the Raison Moodle web-service access and removes the local service, token, roles, API key, and plugin configuration. The service account itself is suspended rather than deleted, so that reinstalling reuses it instead of accumulating a new account each time; it holds no personal data. Before local cleanup, the plugin makes up to three synchronous attempts to deregister the organization from Raison and requires an explicit `disconnected` response.
 
 Revoking the Moodle token prevents future access to the Moodle instance; it does not by itself prove deletion of data previously transferred to Raison. If remote deregistration cannot be confirmed, Moodle still completes local cleanup and warns the administrator to contact contact@raison.is under the applicable service or data processing agreement. The request must include the Moodle site URL so Raison can identify the organization and complete the deletion process.
 

@@ -60,6 +60,29 @@ if ($hassiteconfig) {
             'alert alert-warning mt-3'
         );
     }
+    if ((bool)get_config('local_corolair', 'legacycredentialmigrationpending')) {
+        // Reported separately from the blocked flag above, which is the narrower case of the
+        // migration never having been queued. This one covers a migration that is queued and
+        // simply has not confirmed yet -- and until it does, the setup heading above still
+        // reads "complete" on an upgraded site, because nothing on the upgrade path resets
+        // setupcompleted. Without this the whole window is invisible: maintain() stands down
+        // on the same flag, so no token warning is sent for as long as it is set.
+        $setupstatus .= html_writer::div(
+            get_string('legacycredentialmigrationpendingnotice', 'local_corolair'),
+            'alert alert-warning mt-3'
+        );
+    }
+    if ((bool)get_config('local_corolair', 'serviceaccountmigrationpending')) {
+        // The ownership handover is asynchronous: the upgrade authorises the current
+        // administrator owner, and the scheduled task then rotates onto the service account
+        // and revokes the old token after its overlap. Nothing is broken during that window,
+        // which is exactly why it needs saying -- an administrator who sees a second live
+        // token for this service should know it is expected and temporary.
+        $setupstatus .= html_writer::div(
+            get_string('serviceaccountmigrationpendingnotice', 'local_corolair'),
+            'alert alert-info mt-3'
+        );
+    }
     $expiresat = (int)get_config('local_corolair', 'webservicetokenexpiresat');
     $rotationdisabled = \local_corolair\local\webservice_token_manager::rotation_disabled();
     // Whether the active token's lifetime already reflects the configured policy. When it
@@ -144,12 +167,12 @@ if ($hassiteconfig) {
         '', // Default value: none excluded.
         PARAM_TEXT // Validation type.
     ));
+    require_once($CFG->dirroot . '/local/corolair/lib.php');
     // Opt out of the token lifecycle. A checkbox rather than the true/false dropdowns above:
     // those store the literal string "false", and (bool)'false' is true, which is why
     // lib.php has to compare against 'true' by hand. A checkbox stores '1'/'0', so a plain
     // boolean cast is safe -- and this value is read from several places, including paths
     // where it was set by CLI or forced in config.php rather than through this form.
-    require_once($CFG->dirroot . '/local/corolair/lib.php');
     $rotationsetting = new admin_setting_configcheckbox(
         'local_corolair/disabletokenrotation',
         get_string('disabletokenrotation', 'local_corolair'), // Setting title.

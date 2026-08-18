@@ -29,7 +29,7 @@ namespace local_corolair\local;
  */
 final class integration_disclosure {
     /** Increment whenever the disclosed integration surface materially changes. */
-    public const VERSION = '2026-08-06-1';
+    public const VERSION = '2026-08-17-1';
 
     /**
      * Return the documented web-service groups.
@@ -40,6 +40,7 @@ final class integration_disclosure {
         return [
             self::group('identity', 'read', [
                 'core_webservice_get_site_info',
+                'local_corolair_get_integration_status',
                 'core_user_get_users',
                 'core_user_get_users_by_field',
             ]),
@@ -92,6 +93,96 @@ final class integration_disclosure {
             }
         }
         return $names;
+    }
+
+    /**
+     * Return the capabilities the token owner holds, grouped by what they are needed for.
+     *
+     * Derived from service_account_provisioner rather than written out again, because the
+     * previous hand-maintained table had drifted badly: it listed two capabilities the
+     * integration never required and omitted several it does. A disclosure that is wrong is
+     * worse than no disclosure, and the only durable fix is to generate it from the same
+     * constants that are actually granted.
+     *
+     * @return array[]
+     */
+    public static function get_capability_groups(): array {
+        return [
+            self::capability_group('protocol', [
+                'webservice/rest:use',
+            ]),
+            self::capability_group('coursevisibility', [
+                'moodle/course:view',
+                'moodle/course:viewhiddencourses',
+                'moodle/course:viewhiddensections',
+                'moodle/course:viewhiddenactivities',
+                'moodle/course:ignoreavailabilityrestrictions',
+                'moodle/category:viewhiddencategories',
+            ]),
+            self::capability_group('content', [
+                'mod/resource:view',
+                'mod/lesson:view',
+                'mod/lti:view',
+                'mod/book:read',
+                'mod/folder:view',
+                'mod/page:view',
+                'mod/url:view',
+            ]),
+            self::capability_group('participants', [
+                'moodle/course:viewparticipants',
+                'moodle/site:accessallgroups',
+                'moodle/role:review',
+            ]),
+            self::capability_group('identity', [
+                'moodle/user:viewdetails',
+                'moodle/user:viewhiddendetails',
+                'moodle/user:viewalldetails',
+                'moodle/site:viewuseridentity',
+                'moodle/course:useremail',
+            ]),
+            self::capability_group('completion', [
+                'report/progress:view',
+                'report/completion:view',
+            ]),
+            self::capability_group('roleassign', [
+                'local/corolair:viewroles',
+                'local/corolair:assignmanagerrole',
+            ]),
+            self::capability_group('exam', service_account_provisioner::WRITE_CAPABILITIES),
+        ];
+    }
+
+    /**
+     * Return every disclosed capability name.
+     *
+     * @return string[]
+     */
+    public static function get_capability_names(): array {
+        $names = [];
+        foreach (self::get_capability_groups() as $group) {
+            foreach ($group['capabilities'] as $capability) {
+                $names[] = $capability['name'];
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * Build a localized capability group.
+     *
+     * @param string $key Language-string suffix.
+     * @param string[] $capabilities Capability names.
+     * @return array
+     */
+    private static function capability_group(string $key, array $capabilities): array {
+        $items = [];
+        foreach ($capabilities as $capability) {
+            $items[] = ['name' => $capability];
+        }
+        return [
+            'purpose' => get_string('disclosurecap' . $key, 'local_corolair'),
+            'capabilities' => $items,
+        ];
     }
 
     /**

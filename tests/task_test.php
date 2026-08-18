@@ -480,4 +480,45 @@ final class task_test extends \advanced_testcase {
 
         $this->assertCount(0, $events);
     }
+
+    /**
+     * The hourly task recovers a migration that has lost its ad-hoc task.
+     *
+     * This is the only automatic path back: maintain() stands down while the pending flag
+     * is set, so without the recovery the site would keep the inherited credential and stop
+     * maintaining tokens altogether.
+     *
+     * @covers \local_corolair\task\rotate_webservice_token_task::execute
+     * @return void
+     */
+    public function test_scheduled_task_requeues_a_stalled_migration(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $adminid = (int)get_admin()->id;
+        $DB->delete_records('external_tokens', ['externalserviceid' => $this->service_id()]);
+        set_config('apikey', 'org_instance.inheritedsecret', 'local_corolair');
+        $DB->insert_record('external_tokens', (object)[
+            'token' => bin2hex(random_bytes(32)),
+            'privatetoken' => null,
+            'tokentype' => 0,
+            'userid' => $adminid,
+            'externalserviceid' => $this->service_id(),
+            'contextid' => \context_system::instance()->id,
+            'creatorid' => $adminid,
+            'iprestriction' => null,
+            'validuntil' => 0,
+            'timecreated' => time(),
+            'lastaccess' => null,
+        ]);
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+
+        (new rotate_webservice_token_task())->execute();
+
+        $this->assertCount(
+            1,
+            \core\task\manager::get_adhoc_tasks('\local_corolair\task\migrate_legacy_credentials_task')
+        );
+    }
 }
