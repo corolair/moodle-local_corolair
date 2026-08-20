@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.9.4
+**Version:** 1.9.5
 
-**Last Updated:** 2026/08/17
+**Last Updated:** 2026/08/19
 
 ## Overview
 
