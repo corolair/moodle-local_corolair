@@ -29,7 +29,7 @@ namespace local_corolair\local;
  */
 final class integration_disclosure {
     /** Increment whenever the disclosed integration surface materially changes. */
-    public const VERSION = '2026-08-17-1';
+    public const VERSION = '2026-08-19-1';
 
     /**
      * Return the documented web-service groups.
@@ -41,7 +41,6 @@ final class integration_disclosure {
             self::group('identity', 'read', [
                 'core_webservice_get_site_info',
                 'local_corolair_get_integration_status',
-                'core_user_get_users',
                 'core_user_get_users_by_field',
             ]),
             self::group('content', 'read', [
@@ -136,7 +135,6 @@ final class integration_disclosure {
             self::capability_group('identity', [
                 'moodle/user:viewdetails',
                 'moodle/user:viewhiddendetails',
-                'moodle/user:viewalldetails',
                 'moodle/site:viewuseridentity',
                 'moodle/course:useremail',
             ]),
