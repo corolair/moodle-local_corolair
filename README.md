@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.9.4
+**Version:** 1.9.5
 
-**Last Updated:** 2026/08/17
+**Last Updated:** 2026/08/19
 
 ## Overview
 
@@ -63,6 +63,28 @@ Exam placement — creating, renaming and deleting External tool activities — 
 Upgrading from an earlier version transfers the token from the administrator who set the integration up to the service account. Both remain valid until the transfer completes, so nothing stops working in the meantime; the administrator's token is revoked afterwards. The plugin settings page reports the transfer while it is in progress.
 
 The full capability table, with the purpose of each group, is shown on the setup disclosure page.
+
+#### The Raison Manager role
+
+The plugin creates and owns one Moodle role, **Raison Manager** (shortname `corolair`). It is the role a trainer receives when someone invites them from Raison, and it is the only role the integration can assign. This section describes exactly what it is, because "a role assigned by an integration" is reasonably something an administrator wants to see spelled out.
+
+**One role, one context.** `local_corolair_assign_manager_role` takes a list of Moodle user IDs and nothing else. The role and the context are fixed in the plugin's own code: it always assigns Raison Manager, and it always assigns it at system context. Neither can be chosen by the caller. Earlier versions of the integration used Moodle's general-purpose `core_role_assign_roles` function instead, which accepts any role at any context; the scoped function replaced it precisely so that this could be stated without qualification.
+
+**What it grants.** Three capabilities, all defined by this plugin:
+
+| Capability | What it permits |
+| --- | --- |
+| `local/corolair:createtutor` | Shows the Raison entries in the Moodle navigation, and opens the Raison Creator page |
+| `local/corolair:viewroles` | Reads the list of role names, shortnames and descriptions defined on the site |
+| `local/corolair:assignmanagerrole` | Gates the assignment function described above |
+
+**It grants no Moodle capability whatsoever.** There is no `moodle/*` capability in the role — not one. A person who receives Raison Manager can read and write exactly the courses, users, grades, enrolments and files they could read and write beforehand, and no others. Receiving it does not enrol them anywhere, does not make them a teacher or a manager of anything, and does not let them see a course they could not already see. What it does is give them access to the Raison Creator platform for this site's organization, which is what being invited as a trainer means.
+
+**It cannot be used to spread itself.** `local/corolair:assignmanagerrole` sounds like it should let a holder grant the role onward, and it does not. The assignment function is reachable only through the `corolair_rest` web service, which is restricted to the service account, and it is deliberately not published on Moodle's AJAX endpoint, which is the route a signed-in browser session would otherwise use. Holding the role therefore provides no way to invoke the function. Assignment stays with the integration.
+
+**Administrators keep control.** Every assignment is written to Moodle's standard log as a `role_assigned` event, attributed to the service account and naming the user who received it, so the grants are visible in **Reports > Logs** like any other role assignment. An administrator can review who currently holds the role, and remove it from anyone, under **Site administration > Users > Permissions > Assign system roles**. Uninstalling the plugin deletes the role outright, which removes it from everyone who held it.
+
+One limitation to be aware of: the plugin can currently assign the role but not withdraw it. When someone leaves the Raison organization, their Raison access ends there, but the Moodle role remains until an administrator removes it by hand. A function letting Raison withdraw the role is planned.
 
 #### Credential replacement after an upgrade
 

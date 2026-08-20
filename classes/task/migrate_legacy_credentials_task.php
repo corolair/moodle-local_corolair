@@ -28,8 +28,10 @@ namespace local_corolair\task;
  * Runs the deferred legacy-credential rotation queued by the upgrade step.
  *
  * The remote migration runs here rather than in db/upgrade.php so Raison can verify the new token
- * against a live Moodle site. Exceptions are allowed to escape so Moodle retries the task while
- * the inherited credentials remain untouched.
+ * against a live Moodle site. Exceptions are allowed to escape so Moodle retries the task. The
+ * inherited token is already deleted by the time the network call can raise one, and the retry
+ * re-presents the same candidate rather than minting another, so a failing task no longer keeps
+ * a presumed-compromised credential alive.
  */
 class migrate_legacy_credentials_task extends \core\task\adhoc_task {
     /**

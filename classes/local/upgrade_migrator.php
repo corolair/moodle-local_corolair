@@ -35,15 +35,22 @@ namespace local_corolair\local;
  *
  * The network step is deferred to an ad-hoc task because Raison verifies the candidate token by
  * calling back into Moodle. Web services may be unavailable while an upgrade is running. The
- * inherited credentials remain active until the task verifiably replaces them, and stable pending
- * values make every task retry idempotent.
+ * inherited token is retired when that task reaches its network call rather than when the call
+ * succeeds, and stable pending values make every task retry idempotent.
  */
 final class upgrade_migrator {
     /** External service shortname. */
     private const SERVICE_SHORTNAME = 'corolair_rest';
 
-    /** Longest an inherited token stays usable once its replacement has been scheduled. */
-    public const LEGACY_TOKEN_GRACE = 6 * HOURSECS;
+    /**
+     * Longest an inherited token stays usable when the migration task never runs at all.
+     *
+     * This is a backstop, not the primary defence: run() deletes the token itself as soon as it
+     * reaches the network call, so the only sites that reach this deadline are ones where the
+     * ad-hoc task was lost or cron is not running. Matched to the hourly cadence of the
+     * scheduled task that recovers a stalled migration, so a site that can recover still does.
+     */
+    public const LEGACY_TOKEN_GRACE = HOURSECS;
 
     /** Authenticated endpoint that atomically replaces both inherited credentials. */
     private const MIGRATION_ENDPOINT =
@@ -210,20 +217,22 @@ final class upgrade_migrator {
     /**
      * Give any inherited token a deadline it keeps regardless of the remote replacement.
      *
-     * run() deletes the inherited token only after Raison confirms the swap, so on its own the
-     * exposure window is a function of Raison's availability: an unreachable backend, an API key
-     * the backend rejects, or a lost ad-hoc task all leave a pre-1.9 credential live forever.
-     * That credential is worth bounding -- it was minted as md5(uniqid(rand(), true)) rather than
-     * from a CSPRNG, it never expires, and older releases put it in a troubleshoot URL query
-     * string, so it may already sit in browser history and proxy logs. What it opens is the whole
-     * corolair_rest service, which has no user restriction and is owned by an administrator.
+     * run() deletes the inherited token before it calls Raison, so an unreachable backend or an
+     * API key the backend rejects no longer extends the exposure. What remains is the case run()
+     * never reaches at all: a lost ad-hoc task, a purged queue, a site whose cron does not run.
+     * On those sites nothing else expires a pre-1.9 credential, and it is worth bounding: it was
+     * minted as md5(uniqid(rand(), true)) rather than from a CSPRNG, it never expires, and older
+     * releases put it in a troubleshoot URL query string, so it may already sit in browser
+     * history and proxy logs. What it opens is the whole corolair_rest service, owned by an
+     * administrator -- and the restrictedusers flip does not close it, because the upgrade
+     * authorises every current token owner so the live integration survives that flip.
      *
-     * Bounding it costs nothing when the migration behaves: the replacement is normally confirmed
-     * within one cron cycle and delete_legacy_tokens() removes the token outright. Nor can the
+     * Bounding it costs nothing when the migration behaves: the first cron cycle runs the task,
+     * and delete_legacy_tokens() removes the token outright well inside the deadline. Nor can the
      * deadline strand the migration, because the migration never uses this token -- it mints its
      * own in get_or_create_migration_token() and authenticates with the API key -- so the swap
      * still completes whenever Raison returns. The grace period is purely how long the
-     * integration keeps working while that is outstanding.
+     * integration keeps working on a site whose task never runs.
      *
      * Matching "no expiry" and nothing else is the entire rule, and widening it would be a bug.
      * Every pre-1.9 release stamped validuntil = 0, so the test selects exactly the inherited
@@ -288,6 +297,20 @@ final class upgrade_migrator {
         }
         $replacementapikey = $apikeyparts[0] . '.' . $replacementsecret;
 
+        // Retire the inherited credential before the network call rather than after it. Deleting
+        // it afterwards made the exposure window a function of Raison's availability -- a backend
+        // that is down, an API key it rejects, or a task that keeps failing each kept a
+        // presumed-compromised token live for as long as that lasted. Nothing in the exchange
+        // needs it: the request authenticates with the API key, and Raison verifies the
+        // replacement by calling back with $newtoken, which is minted and authorised above.
+        //
+        // Everything that can fail locally has already failed by this point, so a site that can
+        // never migrate does not lose its token here. What this does cost is that Raison still
+        // holds the old token until the swap confirms, so calls in between fail: one HTTP round
+        // trip on the normal path, and on the failure path an outage an administrator can see
+        // and act on, in place of a live credential nobody can see.
+        self::delete_legacy_tokens($serviceid, (int)$newtoken->id);
+
         self::migrate_remotely(
             $newtoken,
             $migrationid,
@@ -298,7 +321,6 @@ final class upgrade_migrator {
 
         set_config('apikey', $replacementapikey, 'local_corolair');
         webservice_token_manager::record_initial_token($newtoken);
-        self::delete_legacy_tokens($serviceid, (int)$newtoken->id);
         self::assert_migration_complete($serviceid, $newtoken);
         set_config('setupcompleted', 1, 'local_corolair');
         set_config('legacycredentialmigrationcompletedat', time(), 'local_corolair');
