@@ -106,7 +106,7 @@ function local_corolair_uninstall_remove_role(): void {
  *
  * Not optional, and the one step here whose failure genuinely matters. Core's
  * capabilities_cleanup() removes role_capabilities rows for local/corolair capabilities
- * only, so everything else this role holds -- moodle/course:view, moodle/user:viewalldetails
+ * only, so everything else this role holds -- moodle/course:view, moodle/site:accessallgroups
  * and the rest -- survives the uninstall untouched. A role granting those at system context
  * is worse residue than any credential.
  *

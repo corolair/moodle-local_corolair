@@ -317,6 +317,52 @@ final class plugin_definition_test extends \advanced_testcase {
     }
 
     /**
+     * A capability is never both granted and revoked.
+     *
+     * ensure_capabilities() applies the revocations after the grants, so an overlap would
+     * silently withdraw a capability the integration needs -- the failure would surface as
+     * accessexception from Raison, far from the list that caused it.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_revoked_capabilities_are_not_also_granted(): void {
+        $granted = array_merge(
+            service_account_provisioner::READ_CAPABILITIES,
+            service_account_provisioner::WRITE_CAPABILITIES
+        );
+
+        $overlap = array_intersect($granted, service_account_provisioner::REVOKED_CAPABILITIES);
+
+        $this->assertSame(
+            [],
+            array_values($overlap),
+            'A capability is listed as both granted and revoked; ensure_capabilities() would revoke it.'
+        );
+    }
+
+    /**
+     * Every revoked capability is a real one.
+     *
+     * unassign_capability() does not validate the name, so a typo here revokes nothing at all
+     * and does it silently -- the opposite of assign_capability(), which throws. This is the
+     * only thing that catches it.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_revoked_capabilities_are_registered(): void {
+        global $DB;
+
+        foreach (service_account_provisioner::REVOKED_CAPABILITIES as $capability) {
+            $this->assertTrue(
+                $DB->record_exists('capabilities', ['name' => $capability]),
+                "{$capability} is listed for revocation but is not a registered capability."
+            );
+        }
+    }
+
+    /**
      * Every capability the status function evaluates is one the service role actually holds.
      *
      * These are two lists in two files that no single change ever touches together, and the

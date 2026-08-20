@@ -151,12 +151,22 @@ final class service_account_provisioner {
         // evaluated in separate branches of cm_info, and a restriction set to "hide entirely"
         // makes core_course_get_contents omit the module from the payload altogether rather
         // than return it marked unavailable. A whole section carrying such a rule disappears
-        // the same way, taking every module in it. For a content sync that reads "absent"
-        // as "deleted", the difference is destructive: without this capability, ordinary
-        // date-gated material would be archived on every run until its release date. The
-        // administrator token held this implicitly, so this preserves existing behaviour
-        // rather than widening it -- but it does mean the account reads content restricted
-        // to a subset of learners, which the disclosure says in as many words.
+        // the same way, taking every module in it.
+        //
+        // What this capability buys is sync *completeness*, not protection from mass archival.
+        // Worth being precise about, because the two are easy to conflate and the difference
+        // is what an auditor asks about. Raison does not read "absent" as "deleted" on a token
+        // that cannot see everything: its content sync calls get_integration_status per course
+        // first, and a run that comes back unprivileged may add and update but may never
+        // conclude that anything was deleted. So dropping this capability does not destroy
+        // content -- it stops restricted material being ingested at all, and it stops removals
+        // being applied to those courses, so genuinely deleted material lingers instead.
+        //
+        // The administrator token held this implicitly, so granting it preserves existing
+        // behaviour rather than widening it -- but it does mean the account reads content
+        // restricted to a subset of learners, which the disclosure says in as many words.
+        // get_integration_status::VISIBILITY_CAPABILITIES reports on exactly this list, and a
+        // unit test keeps the two in step.
         'moodle/course:ignoreavailabilityrestrictions',
         'moodle/course:viewparticipants',
         'moodle/category:viewhiddencategories',
@@ -166,14 +176,20 @@ final class service_account_provisioner {
         'moodle/site:accessallgroups',
         'moodle/user:viewdetails',
         'moodle/user:viewhiddendetails',
-        'moodle/user:viewalldetails',
         // Identity fields are filtered per-capability when the read is course-scoped, so
-        // without this email is returned by core_user_get_users but not by
+        // without this email is returned by core_user_get_users_by_field but not by
         // core_enrol_get_enrolled_users -- an inconsistency that is easy to miss in QA.
+        //
+        // Note what is deliberately *not* here: moodle/user:viewalldetails. It gates username,
+        // idnumber, institution, department and the auth/confirmed/lang/theme/mailformat block,
+        // and nothing in the integration reads any of them. Raison resolves people by email
+        // alone, which the two capabilities in this pair already cover.
         'moodle/site:viewuseridentity',
         // The second, independent route to the same field, and not redundant with the one
         // above. user_get_user_details() returns email when the identity-field list contains
         // it -- which is what viewuseridentity unlocks -- *or* when this capability is held.
+        // Neither route is affected by dropping viewalldetails: email is not one of the fields
+        // that capability gates.
         // The first route depends on $CFG->showuseridentity still listing email, which a
         // privacy-minded administrator may well have changed; the second does not depend on
         // site configuration at all. Raison falls back to matching Moodle accounts by email
@@ -228,6 +244,32 @@ final class service_account_provisioner {
         // tool type, which is what the Raison exam placement always creates.
         'mod/lti:addpreconfiguredinstance',
         'mod/lti:addcoursetool',
+    ];
+
+    /**
+     * Capabilities the service role must not hold, and once did.
+     *
+     * ensure_capabilities() is otherwise purely additive, so deleting an entry from
+     * READ_CAPABILITIES stops granting it to new installs while leaving every existing
+     * role_capabilities row exactly where it was. Naming the removal here is what actually
+     * withdraws it -- and keeps withdrawing it, which matters for a site restored from a
+     * backup taken before the removal, or one whose role was rebuilt by hand.
+     *
+     * Deliberately a list of named removals rather than "delete every row not declared
+     * above". The convergent version would also strip capabilities an administrator granted
+     * this role on purpose, which is a decision this class has no business making.
+     *
+     * Entries are permanent. Once a capability is here it stays here: the whole point is to
+     * keep withdrawing it from sites that have not converged yet, and there is no point at
+     * which every such site is known to be gone.
+     */
+    public const REVOKED_CAPABILITIES = [
+        // Gates username, idnumber, institution, department and the auth/confirmed/lang/theme/
+        // mailformat/trackforums block. Nothing in the integration reads any of them: username
+        // was the only one ever selected, by the email-matching lookup, and the invite form it
+        // feeds discards it. Removed in 1.9.5 after an external audit asked which functions
+        // required it and the answer turned out to be none.
+        'moodle/user:viewalldetails',
     ];
 
     /**
@@ -463,7 +505,7 @@ final class service_account_provisioner {
     }
 
     /**
-     * Grant every capability the service role is meant to hold.
+     * Grant every capability the service role is meant to hold, and withdraw the rest.
      *
      * Unlike role_provisioner::ensure_capability(), this writes through core's
      * assign_capability() instead of touching role_capabilities directly. That class has to
@@ -476,17 +518,42 @@ final class service_account_provisioner {
      * failure instead of a silently dead row.
      *
      * Every run reapplies the whole set, which is what repairs a grant an administrator
-     * removed or overrode to prevent.
+     * removed or overrode to prevent, and withdraws everything in REVOKED_CAPABILITIES, which
+     * is the only thing that retires a capability this role used to be granted.
      *
      * @param int $roleid Role to apply the capabilities to.
      * @return void
      */
     public static function ensure_capabilities(int $roleid): void {
+        global $DB;
+
         $context = \context_system::instance();
         $capabilities = array_merge(self::READ_CAPABILITIES, self::WRITE_CAPABILITIES);
 
         foreach (self::filter_registered($capabilities) as $capability) {
             assign_capability($capability, CAP_ALLOW, $roleid, $context->id, true);
+        }
+
+        // Withdraw what this role is no longer meant to hold. Ordered after the grants so the
+        // two lists being wrongly allowed to overlap fails closed -- the capability ends up
+        // revoked -- rather than silently granted. A unit test asserts they never overlap.
+        //
+        // Guarded on the row existing rather than calling unassign_capability() unconditionally.
+        // Core deletes with delete_records(), which is a silent no-op on a site that never had
+        // the capability, but it triggers capability_unassigned regardless -- and this runs
+        // hourly on every install, so the unguarded version would emit that event forever, on
+        // sites that converged long ago and on fresh installs that never held the capability at
+        // all. filter_registered() stays in front of it because unassign_capability() throws a
+        // coding_exception for a capability this site does not have installed.
+        foreach (self::filter_registered(self::REVOKED_CAPABILITIES) as $capability) {
+            $held = $DB->record_exists('role_capabilities', [
+                'roleid' => $roleid,
+                'contextid' => $context->id,
+                'capability' => $capability,
+            ]);
+            if ($held) {
+                unassign_capability($capability, $roleid, $context->id);
+            }
         }
 
         // Capability changes are invisible to already-loaded access caches until the
@@ -751,7 +818,7 @@ final class service_account_provisioner {
      *
      * Not optional at uninstall. Core's capabilities_cleanup() only removes rows for this
      * plugin's own local/corolair capabilities, so a role left behind would keep holding
-     * moodle/course:view and moodle/user:viewalldetails at system context -- worse residue
+     * moodle/course:view and moodle/site:accessallgroups at system context -- worse residue
      * than a stale token.
      *
      * @return void

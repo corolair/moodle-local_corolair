@@ -97,6 +97,27 @@ final class upgrade_migrator_test extends \advanced_testcase {
     }
 
     /**
+     * Route every outbound request to a closed local port instead of Raison.
+     *
+     * run() reaches a real HTTP POST as soon as the inherited API key parses, and
+     * migrate_remotely() builds its own \curl client, so there is nothing to inject a double
+     * into. Moodle's \curl honours $CFG->proxyhost, which makes a dead proxy the one available
+     * seam. The connection is refused immediately -- which is the transport failure these tests
+     * want anyway -- and nothing leaves the machine, not even a DNS lookup for the endpoint,
+     * because resolving it would have been the proxy's job.
+     *
+     * @return void
+     */
+    private function sink_outbound_requests(): void {
+        global $CFG;
+
+        $CFG->proxyhost = '127.0.0.1';
+        $CFG->proxyport = 1;
+        $CFG->proxytype = 'HTTP';
+        $CFG->proxybypass = '';
+    }
+
+    /**
      * Return the queued migration tasks.
      *
      * @return \core\task\adhoc_task[]
@@ -934,6 +955,7 @@ final class upgrade_migrator_test extends \advanced_testcase {
 
         $this->resetAfterTest();
 
+        $this->sink_outbound_requests();
         $owner = (int)$this->getDataGenerator()->create_user()->id;
         $this->make_legacy_installation($owner);
         set_config('legacycredentialmigrationpending', 1, 'local_corolair');
@@ -952,5 +974,119 @@ final class upgrade_migrator_test extends \advanced_testcase {
             'userid' => $owner,
         ], '*', MUST_EXIST);
         $this->assertNull($row->validuntil);
+    }
+
+    /**
+     * The inherited token is gone before the migration ever contacts Raison.
+     *
+     * Deleting it after the swap confirmed made the exposure window a function of Raison's
+     * availability: an unreachable backend or a rejected API key kept a presumed-compromised
+     * credential live for as long as the failure lasted. Nothing in the exchange needs the old
+     * token -- the request authenticates with the API key and Raison verifies the replacement by
+     * calling back with the candidate -- so the delete belongs on the near side of the call.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::run
+     * @return void
+     */
+    public function test_the_inherited_token_is_retired_before_the_remote_call(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->sink_outbound_requests();
+
+        $legacy = $this->make_legacy_installation();
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+
+        try {
+            upgrade_migrator::run((int)get_admin()->id);
+            $this->fail('The remote migration cannot succeed against a closed port.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('legacycredentialmigrationfailed', $exception->errorcode);
+        }
+
+        $this->assertFalse(
+            $DB->record_exists('external_tokens', ['id' => (int)$legacy->id]),
+            'A remote migration that failed must still have retired the inherited credential.'
+        );
+        $candidateid = (int)get_config('local_corolair', 'legacymigrationtokenid');
+        $this->assertGreaterThan(0, $candidateid);
+        $this->assertTrue(
+            $DB->record_exists('external_tokens', ['id' => $candidateid]),
+            'The candidate is what the retry re-presents, so it has to survive the failure.'
+        );
+        $this->assertSame(
+            1,
+            $DB->count_records('external_tokens', ['externalserviceid' => $this->service_id()])
+        );
+    }
+
+    /**
+     * Retrying a failing remote migration neither restores nor duplicates credentials.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::run
+     * @return void
+     */
+    public function test_a_retried_remote_failure_leaves_the_inherited_token_deleted(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->sink_outbound_requests();
+
+        $legacy = $this->make_legacy_installation();
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        $adminid = (int)get_admin()->id;
+
+        $candidates = [];
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                upgrade_migrator::run($adminid);
+            } catch (\moodle_exception $exception) {
+                $this->assertSame('legacycredentialmigrationfailed', $exception->errorcode);
+            }
+            $candidates[] = (int)get_config('local_corolair', 'legacymigrationtokenid');
+        }
+
+        $this->assertFalse($DB->record_exists('external_tokens', ['id' => (int)$legacy->id]));
+        $this->assertGreaterThan(0, $candidates[0]);
+        $this->assertSame([$candidates[0], $candidates[0], $candidates[0]], $candidates);
+        $this->assertSame(
+            1,
+            $DB->count_records('external_tokens', ['externalserviceid' => $this->service_id()]),
+            'Every retry must reuse the one candidate rather than orphan another token.'
+        );
+    }
+
+    /**
+     * A migration that fails before the network call leaves the inherited token alone.
+     *
+     * The delete sits after every local precondition on purpose. A site that can never migrate
+     * -- here because its stored API key does not parse -- would gain nothing from losing its
+     * token at this point, and would lose the integration for a reason unrelated to exposure.
+     * bound_legacy_token_lifetime() is what covers that site instead.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::run
+     * @return void
+     */
+    public function test_a_local_failure_leaves_the_inherited_token_in_place(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->sink_outbound_requests();
+
+        $legacy = $this->make_legacy_installation();
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        set_config('apikey', 'malformedinheritedkey', 'local_corolair');
+
+        try {
+            upgrade_migrator::run((int)get_admin()->id);
+            $this->fail('A malformed inherited key cannot be migrated.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('legacycredentialmigrationfailed', $exception->errorcode);
+        }
+
+        $this->assertTrue(
+            $DB->record_exists('external_tokens', ['id' => (int)$legacy->id]),
+            'Failing short of the network call must not take the integration offline.'
+        );
     }
 }

@@ -84,7 +84,6 @@ $functions = [
 $services = [
     'Corolair REST Service' => [
         'functions' => [
-            'core_user_get_users',
             'core_user_get_users_by_field',
             'core_course_get_courses',
             'core_course_get_contents',

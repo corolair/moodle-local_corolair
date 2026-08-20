@@ -905,4 +905,68 @@ final class service_account_provisioner_test extends \advanced_testcase {
 
         $this->assertTrue(true, 'Removing an absent role must not throw.');
     }
+
+    /**
+     * A capability the role used to hold is actually withdrawn, not merely stopped being granted.
+     *
+     * This is the whole reason REVOKED_CAPABILITIES exists. ensure_capabilities() is otherwise
+     * additive, so deleting an entry from READ_CAPABILITIES changes nothing on a site that
+     * already has the row -- the capability would stay granted for the life of the install, and
+     * a test that only checked the constant would pass while every existing site kept it.
+     *
+     * @covers \local_corolair\local\service_account_provisioner::ensure_capabilities
+     * @return void
+     */
+    public function test_revoked_capabilities_are_withdrawn_from_an_existing_role(): void {
+        $this->resetAfterTest();
+
+        $userid = service_account_provisioner::ensure();
+        $roleid = (int)get_config('local_corolair', 'serviceroleid');
+        $this->assertGreaterThan(0, $roleid);
+
+        // Put the site back in the state a pre-1.9.5 install is in.
+        $context = \context_system::instance();
+        foreach (service_account_provisioner::REVOKED_CAPABILITIES as $capability) {
+            assign_capability($capability, CAP_ALLOW, $roleid, $context->id, true);
+        }
+        accesslib_clear_all_caches_for_unit_testing();
+        foreach (service_account_provisioner::REVOKED_CAPABILITIES as $capability) {
+            $this->assertTrue(
+                has_capability($capability, $context, $userid),
+                "The fixture failed to grant {$capability}, so this test proves nothing."
+            );
+        }
+
+        service_account_provisioner::ensure();
+        accesslib_clear_all_caches_for_unit_testing();
+
+        foreach (service_account_provisioner::REVOKED_CAPABILITIES as $capability) {
+            $this->assertFalse(
+                has_capability($capability, $context, $userid),
+                "{$capability} is listed as revoked but the service account still holds it."
+            );
+        }
+    }
+
+    /**
+     * Revocation keeps happening, so a site cannot regain the capability by converging again.
+     *
+     * @covers \local_corolair\local\service_account_provisioner::ensure_capabilities
+     * @return void
+     */
+    public function test_revocation_survives_repeated_convergence(): void {
+        $this->resetAfterTest();
+
+        $userid = service_account_provisioner::ensure();
+        service_account_provisioner::ensure();
+        service_account_provisioner::ensure();
+        accesslib_clear_all_caches_for_unit_testing();
+
+        foreach (service_account_provisioner::REVOKED_CAPABILITIES as $capability) {
+            $this->assertFalse(
+                has_capability($capability, \context_system::instance(), $userid),
+                "{$capability} came back after a repeated convergence run."
+            );
+        }
+    }
 }
