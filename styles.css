@@ -54,6 +54,18 @@
 }
 
 /* Registration retry / troubleshoot state */
+
+/* The rules above strip every scrap of padding from this page so the Raison iframe can sit
+   flush against the viewport. The states that render markup instead of that iframe inherit
+   the same zeroed padding, which leaves a notification pinned to the top-left corner -- the
+   corner the theme parks its floating course-index toggle in, on top of the first line of
+   text. These restore spacing for those states only, and centring keeps the notice clear of
+   the toggle at every width rather than at the one the gutter was measured against. */
+#page-local-corolair-trainer .alert {
+  width: min(720px, calc(100% - 3rem));
+  margin: 5rem auto 1.5rem;
+}
+
 #page-local-corolair-trainer .corolair-retry-registration {
   text-align: center;
   margin: 24px auto;

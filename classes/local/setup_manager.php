@@ -107,6 +107,28 @@ final class setup_manager {
     }
 
     /**
+     * Whether the plugin is installed but no administrator has started setup.
+     *
+     * Deliberately conservative -- everything tested here is a reason *not* to prompt. A site
+     * upgrading from a version that predates the consent record carries none of these flags
+     * yet holds a working credential, and upgrade_migrator grandfathers its consent
+     * asynchronously; reading the flags alone would report that connected site as
+     * unconfigured and chase its administrators until the migration happened to run.
+     *
+     * @return bool True when an administrator still has to open setup.php.
+     */
+    public static function setup_pending(): bool {
+        if (
+            (bool)get_config('local_corolair', 'setupconsented') ||
+            (bool)get_config('local_corolair', 'setupcompleted') ||
+            (bool)get_config('local_corolair', 'legacycredentialmigrationpending')
+        ) {
+            return false;
+        }
+        return !api_key::is_configured();
+    }
+
+    /**
      * Record consent, enable the required site settings, and queue registration.
      *
      * The caller must authenticate, authorize, and sesskey-protect the request.

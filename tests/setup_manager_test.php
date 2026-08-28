@@ -586,4 +586,71 @@ final class setup_manager_test extends \advanced_testcase {
         $CFG->forced_plugin_settings['local_corolair']['disabletokenrotation'] = null;
         $this->assertTrue(webservice_token_manager::rotation_setting_is_forced());
     }
+
+    /**
+     * A site where nobody opened setup.php reports setup as outstanding.
+     *
+     * @covers \local_corolair\local\setup_manager::setup_pending
+     * @return void
+     */
+    public function test_setup_pending_on_a_freshly_installed_site(): void {
+        $this->resetAfterTest();
+        $this->make_site_freshly_installed();
+
+        $this->assertTrue(setup_manager::setup_pending());
+    }
+
+    /**
+     * Recording consent is what ends it, not completing registration.
+     *
+     * Waiting for setupcompleted would keep telling an administrator to do something they
+     * have already done, for as long as their registration takes to run -- which on a site
+     * whose cron is behind is long enough for them to conclude it did not take, and repeat it.
+     *
+     * @covers \local_corolair\local\setup_manager::setup_pending
+     * @return void
+     */
+    public function test_setup_pending_ends_when_consent_is_recorded(): void {
+        $this->resetAfterTest();
+        $this->make_site_freshly_installed();
+        set_config('setupconsented', 1, 'local_corolair');
+
+        $this->assertFalse(setup_manager::setup_pending());
+    }
+
+    /**
+     * A site upgrading from a version that predates the consent record is left alone.
+     *
+     * It carries none of the setup flags, yet it holds a working credential and its consent is
+     * grandfathered asynchronously by the credential migration. Reading the flags alone would
+     * report a demonstrably connected site as never set up, and send its trainers to a page
+     * telling them to go and ask an administrator to set up what is already working.
+     *
+     * @covers \local_corolair\local\setup_manager::setup_pending
+     * @return void
+     */
+    public function test_setup_pending_spares_a_connected_legacy_site(): void {
+        $this->resetAfterTest();
+        $this->make_site_freshly_installed();
+        set_config('apikey', 'a-real-inherited-key', 'local_corolair');
+
+        $this->assertFalse(setup_manager::setup_pending(), 'An inherited credential means a connected site.');
+
+        set_config('apikey', get_string('noapikey', 'local_corolair'), 'local_corolair');
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+
+        $this->assertFalse(setup_manager::setup_pending(), 'A migration in flight is not an unconfigured site.');
+    }
+
+    /**
+     * Put the site in the state a command-line installation leaves behind.
+     *
+     * @return void
+     */
+    private function make_site_freshly_installed(): void {
+        set_config('setupconsented', 0, 'local_corolair');
+        set_config('setupcompleted', 0, 'local_corolair');
+        unset_config('legacycredentialmigrationpending', 'local_corolair');
+        set_config('apikey', get_string('noapikey', 'local_corolair'), 'local_corolair');
+    }
 }

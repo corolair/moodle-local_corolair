@@ -595,21 +595,38 @@ final class plugin_definition_test extends \advanced_testcase {
     }
 
     /**
-     * The message provider used by the token warning is declared and registered.
+     * Every declared message provider is registered on the site and named in every language.
+     *
+     * message_send() rejects a provider the site does not know about, so a provider that is
+     * declared but never installed turns a warning into a fatal error at the moment the
+     * warning was needed. A provider with no messageprovider: string is milder but visible:
+     * the notification preferences page lists it as a raw identifier.
      *
      * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @covers \local_corolair\local\setup_reminder::maintain
      * @return void
      */
-    public function test_message_provider_is_registered(): void {
+    public function test_message_providers_are_registered(): void {
         global $DB;
 
         $providers = $this->load_definition('db/messages.php', ['messageproviders'])['messageproviders'];
 
         $this->assertArrayHasKey('tokenexpirywarning', $providers);
-        $this->assertTrue($DB->record_exists('message_providers', [
-            'component' => 'local_corolair',
-            'name' => 'tokenexpirywarning',
-        ]));
+        $this->assertArrayHasKey('setuppending', $providers);
+        foreach (array_keys($providers) as $name) {
+            $this->assertTrue(
+                $DB->record_exists('message_providers', ['component' => 'local_corolair', 'name' => $name]),
+                "The {$name} message provider is declared but not registered on the site."
+            );
+            foreach (['en', 'fr', 'es'] as $language) {
+                $strings = $this->load_strings($language);
+                $this->assertArrayHasKey(
+                    'messageprovider:' . $name,
+                    $strings,
+                    "lang/{$language} does not name the {$name} message provider."
+                );
+            }
+        }
     }
 
     /**
