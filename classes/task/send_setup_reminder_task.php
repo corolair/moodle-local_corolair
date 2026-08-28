@@ -15,34 +15,37 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Scheduled tasks for local_corolair.
+ * Scheduled reminder for an unfinished Raison setup.
  *
  * @package   local_corolair
  * @copyright 2025 Raison
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+namespace local_corolair\task;
 
-$tasks = [
-    [
-        'classname' => '\local_corolair\task\rotate_webservice_token_task',
-        'blocking' => 0,
-        'minute' => 'R',
-        'hour' => '*',
-        'day' => '*',
-        'month' => '*',
-        'dayofweek' => '*',
-    ],
-    // Daily, not hourly: the reminder it sends is rate-limited to one a week, so the schedule
-    // only governs how soon after installation the first one goes out.
-    [
-        'classname' => '\local_corolair\task\send_setup_reminder_task',
-        'blocking' => 0,
-        'minute' => 'R',
-        'hour' => 'R',
-        'day' => '*',
-        'month' => '*',
-        'dayofweek' => '*',
-    ],
-];
+/**
+ * Notifies site administrators while the plugin remains installed and inactive.
+ */
+final class send_setup_reminder_task extends \core\task\scheduled_task {
+    /**
+     * Return the localized task name.
+     *
+     * @return string
+     */
+    public function get_name(): string {
+        return get_string('tasksendsetupreminder', 'local_corolair');
+    }
+
+    /**
+     * Send a reminder when one is due.
+     *
+     * Scheduled daily but rate-limited to one reminder a week, so the schedule only decides
+     * how soon after installation the first one goes out.
+     *
+     * @return void
+     */
+    public function execute(): void {
+        \local_corolair\local\setup_reminder::maintain();
+    }
+}
