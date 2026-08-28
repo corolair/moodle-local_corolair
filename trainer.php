@@ -113,6 +113,40 @@ if ($apikey === null) {
     }
     if (!$isretrysuccess) {
         $output = $PAGE->get_renderer('local_corolair');
+        // A site nobody ever set up is not a site with a fault to diagnose. Sending the
+        // visitor to the troubleshoot page here answers a question they did not ask -- and
+        // it is the likeliest way to arrive here after a command-line installation, where
+        // the request to open setup.php is emitted into the install request and then lost.
+        if (\local_corolair\local\setup_manager::setup_pending()) {
+            // This page is reached with local/corolair:createtutor, which trainers hold and
+            // setup.php does not accept: it requires moodle/site:config. Pointing a trainer
+            // at it would trade a page that cannot help them for a permission error, so they
+            // are told what is missing and who can fix it, and nothing else.
+            $cansetup = has_capability('moodle/site:config', context_system::instance());
+            echo $OUTPUT->notification(
+                get_string($cansetup ? 'setuprequiredtrainer' : 'setuprequiredtrainernoaccess', 'local_corolair'),
+                \core\output\notification::NOTIFY_WARNING
+            );
+            if (!$cansetup) {
+                echo $OUTPUT->footer();
+                return;
+            }
+            echo html_writer::div(
+                $OUTPUT->single_button(
+                    new moodle_url('/local/corolair/setup.php'),
+                    get_string('setupaction', 'local_corolair'),
+                    'get'
+                ),
+                'corolair-retry-registration'
+            );
+            // The troubleshoot page still follows, below the action that is almost certainly
+            // the right one: an administrator who knows setup was completed elsewhere, and is
+            // here because something else is wrong, should not lose access to it.
+            echo html_writer::div(
+                html_writer::span(get_string('retryseparator', 'local_corolair')),
+                'corolair-retry-separator'
+            );
+        }
         if ($istokenexist) {
             $retryurl = new moodle_url('/local/corolair/trainer.php');
             $retryform = html_writer::tag(

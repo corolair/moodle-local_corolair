@@ -25,6 +25,9 @@
 defined('MOODLE_INTERNAL') || die();
 
 $messageproviders = [
+    'setuppending' => [
+        'capability' => 'moodle/site:config',
+    ],
     'tokenexpirywarning' => [
         'capability' => 'moodle/site:config',
     ],

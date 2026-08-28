@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.9.5
+**Version:** 1.9.6
 
-**Last Updated:** 2026/08/19
+**Last Updated:** 2026/08/28
 
 ## Overview
 
@@ -39,6 +39,8 @@ The plugin requires Moodle 3.8 or later and must be installed by a Moodle site a
 6. Assign the _Raison Manager_ role to the trainers and instructional designers who should create and manage AI Tutors. A trial account is created automatically for each assigned trainer.
 
 Only an authorized Moodle administrator can activate the integration. Existing Moodle web-service settings are preserved, and the setup page clearly identifies any change that requires approval.
+
+Steps 2 to 5 are not performed by the installation itself: until an administrator completes them the site is not registered with Raison and the plugin does nothing. This matters most when the plugin is deployed from the command line, because the prompt to open the setup page is shown in the installation request and lost with it. The plugin follows up on its own in that case: site administrators are notified that setup is outstanding (at most three times, a week apart), and anyone who opens a Raison page beforehand is told what is missing instead of being shown the troubleshooting page.
 
 ### Continuing after the free trial
 
