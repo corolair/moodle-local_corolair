@@ -40,6 +40,24 @@ final class webservice_token_manager {
     /** Start rotation seven days before expiration. */
     public const ROTATE_BEFORE_EXPIRY = 7 * DAYSECS;
 
+    /**
+     * How long a superseded token stays usable after its replacement is verified.
+     *
+     * Deliberately its own constant rather than a reuse of ROTATE_BEFORE_EXPIRY, which this
+     * once was. That constant answers a different question -- when to *start* rotating --
+     * and is read as such by rotation_due(). Sharing one value between "rotate a week early"
+     * and "keep the old credential a week" made the overlap a week by accident rather than
+     * by decision, and meant shortening the overlap would silently change the schedule.
+     *
+     * Not zero, though the exposure argument points that way. Corolair may already have a
+     * request in flight on the old token when the replacement is confirmed; killing it at
+     * that instant turns a successful rotation into a failed call and a
+     * webservice_login_failed event on the site, for no gain. Fifteen minutes is longer than
+     * any single call the integration makes and short enough that the superseded credential
+     * is not meaningfully exposed.
+     */
+    public const PREVIOUS_TOKEN_GRACE = 15 * MINSECS;
+
     /** Warn administrators five days before expiration if rotation is unresolved. */
     public const WARN_BEFORE_EXPIRY = 5 * DAYSECS;
 
@@ -598,9 +616,12 @@ final class webservice_token_manager {
      * @return void
      */
     private static function activate_candidate(\stdClass $current, \stdClass $candidate, string $rotationid): void {
+        // Floored at the token's own expiry rather than set to the grace outright: a token
+        // already closer to expiring than the grace window must not be handed extra life by
+        // being superseded.
         $revokeby = min(
-            empty($current->validuntil) ? time() + self::ROTATE_BEFORE_EXPIRY : (int)$current->validuntil,
-            time() + self::ROTATE_BEFORE_EXPIRY
+            empty($current->validuntil) ? time() + self::PREVIOUS_TOKEN_GRACE : (int)$current->validuntil,
+            time() + self::PREVIOUS_TOKEN_GRACE
         );
         set_config('previouswebservicetokenid', (int)$current->id, 'local_corolair');
         set_config('previouswebservicetokenownerid', (int)$current->userid, 'local_corolair');
@@ -617,6 +638,21 @@ final class webservice_token_manager {
         if (self::is_non_expiring($candidate)) {
             self::trigger_event('nonexpiring_token_activated', $candidate, $rotationid);
         }
+
+        // Without this the revocation would wait for maintain(), which runs hourly and does
+        // its cleanup at the *start* of a run -- so a fifteen-minute deadline would in
+        // practice be honoured somewhere between fifteen and seventy-five minutes later. The
+        // ad-hoc task exists to make the window mean what it says. The hourly path is kept as
+        // the convergence fallback for a site that loses the task or runs cron rarely.
+        //
+        // Deduplicated like every other ad-hoc task this plugin queues: it carries no custom
+        // data and re-reads the deadline from configuration when it runs, so a surviving
+        // earlier record does the same work. Should that earlier record fire before the new
+        // deadline it simply finds revokeby in the future and does nothing, and the hourly
+        // task collects the token instead.
+        $task = new \local_corolair\task\revoke_previous_token_task();
+        $task->set_next_run_time(time() + self::PREVIOUS_TOKEN_GRACE);
+        \core\task\manager::queue_adhoc_task($task, true);
     }
 
     /**
@@ -725,6 +761,34 @@ final class webservice_token_manager {
         }
         set_config('webservicetokenverifiedat', time(), 'local_corolair');
         self::trigger_event('verification_succeeded', null, null);
+    }
+
+    /**
+     * Revoke the superseded token once its grace window has passed.
+     *
+     * The entry point for revoke_previous_token_task, and the only reason cleanup has a
+     * public caller at all. It takes the same lock maintain() does, and for the same reason:
+     * cleanup_previous_token() ends in converge_authorised(), which rewrites the service's
+     * authorised-user rows. A rotation running concurrently is midway through deciding what
+     * those rows should contain, and the two interleaved would leave the service authorising
+     * the wrong account -- an outage, since the service is restrictedusers.
+     *
+     * Failing to take the lock is not an error and must not be treated as one. It means a
+     * rotation is in progress, that rotation calls cleanup itself on entry, and the hourly
+     * task converges regardless. Throwing here would only turn a benign race into cron noise.
+     *
+     * @return void
+     */
+    public static function revoke_previous_token(): void {
+        $lock = \core\lock\lock_config::get_lock_factory('local_corolair_token')->get_lock('rotation', 0);
+        if (!$lock) {
+            return;
+        }
+        try {
+            self::cleanup_previous_token();
+        } finally {
+            $lock->release();
+        }
     }
 
     /**

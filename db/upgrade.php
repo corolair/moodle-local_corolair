@@ -169,6 +169,30 @@ function xmldb_local_corolair_upgrade($oldversion) {
         local_corolair_authorise_existing_token_owners();
         upgrade_plugin_savepoint(true, 2026081700, 'local', 'corolair');
     }
+    // Bring a site that rotated under the old seven-day overlap onto the new grace window.
+    // Without this the superseded credential on every mid-overlap site stays live for up to a
+    // week after the upgrade that was supposed to end exactly that, and the deadline is a
+    // plain configuration value, so shortening it is all the revocation path needs.
+    if ($oldversion < 2026090101) {
+        $revokeby = (int)get_config('local_corolair', 'previouswebservicetokenrevokeby');
+        if ($revokeby > 0) {
+            // Lowered, never raised. A deadline already in the past belongs to a token the
+            // hourly task is about to collect, and pushing it forward would resurrect it.
+            set_config(
+                'previouswebservicetokenrevokeby',
+                min($revokeby, time() + \local_corolair\local\webservice_token_manager::PREVIOUS_TOKEN_GRACE),
+                'local_corolair'
+            );
+            // Queued rather than revoked inline: web services are unavailable during an
+            // upgrade, and converge_authorised() rewrites the rows that gate them. The task
+            // does only local work, so this respects the no-network-IO rule at the top of
+            // this file.
+            $task = new \local_corolair\task\revoke_previous_token_task();
+            $task->set_next_run_time(time() + \local_corolair\local\webservice_token_manager::PREVIOUS_TOKEN_GRACE);
+            \core\task\manager::queue_adhoc_task($task, true);
+        }
+        upgrade_plugin_savepoint(true, 2026090101, 'local', 'corolair');
+    }
     return true;
 }
 
