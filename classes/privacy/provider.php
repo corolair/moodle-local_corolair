@@ -33,6 +33,7 @@ use core_privacy\local\request\userlist;
 use core_privacy\local\request\transform;
 use context;
 use context_system;
+use local_corolair\local\environment;
 use curl;
 
 defined('MOODLE_INTERNAL') || die();
@@ -442,7 +443,7 @@ class provider implements
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
             return $contextlist;
         }
-        $url = 'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
+        $url = environment::url('services', 'moodle-integration/v2/privacy/users/')
              . $userid . '/contexts';
         $curl = new curl();
         $options = self::get_curl_options($apikey);
@@ -529,7 +530,7 @@ class provider implements
                 continue;
             }
             $url = new \moodle_url(
-                'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
+                environment::url('services', 'moodle-integration/v2/privacy/users/')
                     . $userid . '/export',
                 $scope
             );
@@ -625,7 +626,7 @@ class provider implements
             return;
         }
         $url = new \moodle_url(
-            'https://services.corolair.dev/moodle-integration/v2/privacy/contexts/users',
+            environment::url('services', 'moodle-integration/v2/privacy/contexts/users'),
             $urlparams
         );
         $curl = new curl();
@@ -673,7 +674,7 @@ class provider implements
             return;
         }
         $url = new \moodle_url(
-            'https://services.corolair.dev/moodle-integration/v2/privacy/contexts/delete',
+            environment::url('services', 'moodle-integration/v2/privacy/contexts/delete'),
             $urlparams
         );
         $curl = new curl();
@@ -720,7 +721,7 @@ class provider implements
             return;
         }
         $url = new \moodle_url(
-            'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
+            environment::url('services', 'moodle-integration/v2/privacy/users/')
                 . $userid . '/delete',
             $scope
         );

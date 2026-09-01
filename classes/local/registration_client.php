@@ -36,9 +36,8 @@ use JsonException;
  * registration recovery and by the admin-triggered API key rotation.
  */
 final class registration_client {
-    /** Registration endpoint URL. */
-    private const REGISTER_URL =
-        'https://services.corolair.dev/moodle-integration/plugin/organization/register';
+    /** Registration endpoint, below the services host. */
+    private const REGISTER_PATH = 'moodle-integration/plugin/organization/register';
 
     /**
      * Register (or re-register) the Moodle instance and return the issued API key.
@@ -94,7 +93,7 @@ final class registration_client {
         $response = audited_request::execute(
             $curl,
             function () use ($curl, $postdata, $options) {
-                return $curl->post(self::REGISTER_URL, $postdata, $options);
+                return $curl->post(environment::url('services', self::REGISTER_PATH), $postdata, $options);
             },
             audited_request::OP_ORGANIZATION_REGISTER,
             $context,

@@ -108,7 +108,7 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
         $curl,
         function () use ($curl, $postdata, $options) {
             return $curl->post(
-                'https://services.corolair.dev/tutor-handling/widget/moodle/session',
+                \local_corolair\local\environment::url('services', 'tutor-handling/widget/moodle/session'),
                 $postdata,
                 $options
             );

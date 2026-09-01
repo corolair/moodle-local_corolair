@@ -28,11 +28,21 @@ namespace local_corolair\local;
  * Restricts external redirects to explicitly trusted HTTPS hosts.
  */
 final class redirect_url_validator {
-    /** Exact hostnames that may receive trainer redirects. */
-    private const ALLOWED_HOSTS = [
-        'staging.corolair.dev',
-        'embed.corolair.dev',
-    ];
+    /**
+     * Exact hostnames that may receive trainer redirects.
+     *
+     * A method rather than the constant this once was: the hosts now come from environment, and
+     * a constant cannot call one. Deliberately still an exact-match list of two -- the roles are
+     * named separately so that widening the list stays a decision someone has to write down.
+     *
+     * @return string[] Lower-case host names.
+     */
+    private static function allowed_hosts(): array {
+        return [
+            environment::host('app'),
+            environment::host('embed'),
+        ];
+    }
 
     /**
      * Validate and return a trusted trainer redirect URL.
@@ -55,7 +65,7 @@ final class redirect_url_validator {
             $parts === false ||
             filter_var($url, FILTER_VALIDATE_URL) === false ||
             $scheme !== 'https' ||
-            !in_array($host, self::ALLOWED_HOSTS, true) ||
+            !in_array($host, self::allowed_hosts(), true) ||
             ($port !== null && $port !== 443)
         ) {
             throw new \moodle_exception('invalidredirecturl', 'local_corolair');

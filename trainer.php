@@ -238,7 +238,7 @@ $options = [
         'Content-Length: ' . strlen($postdata),
     ],
 ];
-$authurl = "https://services.corolair.dev/moodle-integration/auth/v3";
+$authurl = \local_corolair\local\environment::url('services', 'moodle-integration/auth/v3');
 
 $response = \local_corolair\local\audited_request::execute(
     $curl,

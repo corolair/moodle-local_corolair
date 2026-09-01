@@ -24,6 +24,7 @@
 
 namespace local_corolair;
 
+use local_corolair\local\environment;
 use local_corolair\local\integration_disclosure;
 use local_corolair\local\service_account_provisioner;
 
@@ -57,8 +58,11 @@ final class renderer_test extends \advanced_testcase {
      * @return string
      */
     private function extract_troubleshoot_url(string $html): string {
-        $this->assertMatchesRegularExpression('/https:\/\/embed\.corolair\.dev\/troubleshoot/', $html);
-        preg_match('/(https:\/\/embed\.corolair\.dev\/troubleshoot[^"\'\s>]*)/', $html, $matches);
+        // Built from environment rather than written out: the host differs per deployment, and
+        // preg_quote() is what keeps the dots in it from matching any character.
+        $prefix = preg_quote(environment::url('embed', 'troubleshoot'), '/');
+        $this->assertMatchesRegularExpression('/' . $prefix . '/', $html);
+        preg_match('/(' . $prefix . '[^"\'\s>]*)/', $html, $matches);
         $this->assertNotEmpty($matches);
         return html_entity_decode($matches[1]);
     }

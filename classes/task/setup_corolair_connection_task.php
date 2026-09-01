@@ -153,7 +153,7 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
             $token = \local_corolair\local\webservice_token_manager::create_token($ownerid, $serviceid);
         }
         $curl = new \curl();
-        $url = "https://services.corolair.dev/moodle-integration/plugin/organization/register";
+        $url = \local_corolair\local\environment::url('services', 'moodle-integration/plugin/organization/register');
         $postdata = json_encode([
             'url' => $moodlerooturl,
             'webserviceToken' => $token->token,
