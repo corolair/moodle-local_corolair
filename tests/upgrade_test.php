@@ -27,6 +27,7 @@ namespace local_corolair;
 use local_corolair\local\role_provisioner;
 use local_corolair\local\service_account_provisioner;
 use local_corolair\local\upgrade_migrator;
+use local_corolair\local\webservice_token_manager;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -51,6 +52,9 @@ final class upgrade_test extends \advanced_testcase {
 
     /** Version recorded before the service was restricted to authorised users. */
     private const VERSION_BEFORE_SERVICE_ACCOUNT = 2026081400;
+
+    /** Version recorded before the token overlap was cut from seven days to fifteen minutes. */
+    private const VERSION_BEFORE_SHORT_OVERLAP = 2026090100;
 
     /**
      * Rewind the stored plugin version so savepoints can advance.
@@ -351,6 +355,80 @@ final class upgrade_test extends \advanced_testcase {
         $this->assertSame(0, $DB->count_records('role', [
             'shortname' => service_account_provisioner::ROLE_SHORTNAME,
         ]));
+    }
+
+    /**
+     * A pending seven-day overlap is cut to the grace window on upgrade.
+     *
+     * Without this the credential the release exists to retire stays live for up to a week
+     * after the upgrade that retired it, on exactly the sites that were mid-rotation.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_shortens_a_pending_overlap(): void {
+        $this->resetAfterTest();
+
+        $deadline = time() + (7 * DAYSECS);
+        set_config('previouswebservicetokenid', 1234, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', $deadline, 'local_corolair');
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_SHORT_OVERLAP);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SHORT_OVERLAP));
+
+        $this->assertLessThanOrEqual(
+            time() + webservice_token_manager::PREVIOUS_TOKEN_GRACE,
+            (int)get_config('local_corolair', 'previouswebservicetokenrevokeby')
+        );
+        $this->assertCount(
+            1,
+            \core\task\manager::get_adhoc_tasks(\local_corolair\task\revoke_previous_token_task::class),
+            'The upgrade should queue the revocation rather than perform it inline.'
+        );
+    }
+
+    /**
+     * An overlap deadline already in the past is left where it is.
+     *
+     * The clamp lowers and never raises. Written as max() it would push an elapsed deadline
+     * a quarter of an hour into the future and resurrect a token the hourly task was about
+     * to collect -- a regression with no visible symptom.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_does_not_extend_an_elapsed_overlap(): void {
+        $this->resetAfterTest();
+
+        $elapsed = time() - DAYSECS;
+        set_config('previouswebservicetokenid', 1234, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', $elapsed, 'local_corolair');
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_SHORT_OVERLAP);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SHORT_OVERLAP));
+
+        $this->assertSame(
+            $elapsed,
+            (int)get_config('local_corolair', 'previouswebservicetokenrevokeby'),
+            'An elapsed deadline must not be pushed forward.'
+        );
+    }
+
+    /**
+     * A site with no overlap pending queues nothing.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_queues_no_revocation_without_a_pending_overlap(): void {
+        $this->resetAfterTest();
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_SHORT_OVERLAP);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SHORT_OVERLAP));
+
+        $this->assertEmpty(
+            \core\task\manager::get_adhoc_tasks(\local_corolair\task\revoke_previous_token_task::class)
+        );
     }
 
     /**

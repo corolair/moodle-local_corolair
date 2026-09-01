@@ -495,6 +495,171 @@ final class webservice_token_manager_test extends \advanced_testcase {
     }
 
     /**
+     * The grace window is its own value, not the rotation trigger reused.
+     *
+     * These were one constant until 1.9.7, which is how the overlap came to be a week: the
+     * value was chosen to answer "how early do we rotate?" and silently also answered "how
+     * long does the old credential live?". Re-merging them would restore a seven-day overlap
+     * with no visible change at the call site, so the separation is asserted rather than
+     * left to a comment.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::PREVIOUS_TOKEN_GRACE
+     * @return void
+     */
+    public function test_the_grace_window_is_independent_of_the_rotation_trigger(): void {
+        $this->assertSame(15 * MINSECS, webservice_token_manager::PREVIOUS_TOKEN_GRACE);
+        $this->assertLessThan(
+            webservice_token_manager::ROTATE_BEFORE_EXPIRY,
+            webservice_token_manager::PREVIOUS_TOKEN_GRACE,
+            'The overlap must not be the rotation trigger again.'
+        );
+    }
+
+    /**
+     * Activation bounds the old token to the grace window and queues its revocation.
+     *
+     * Reflection, deliberately. activate_candidate() is private and reachable only through a
+     * successful send_candidate(), which needs Corolair to answer -- and the suite is
+     * network-free on purpose. The alternative is not testing the two things this release
+     * exists to change, so the private call is the lesser evil.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_activation_bounds_the_overlap_and_queues_the_revocation(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $ownerid = $this->make_site_connected_as_service();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        $current = webservice_token_manager::create_token($ownerid, $serviceid);
+        $candidate = webservice_token_manager::create_token($ownerid, $serviceid);
+
+        $before = time();
+        $activate = new \ReflectionMethod(webservice_token_manager::class, 'activate_candidate');
+        $activate->setAccessible(true);
+        $activate->invoke(null, $current, $candidate, 'rotation-id');
+
+        $revokeby = (int)get_config('local_corolair', 'previouswebservicetokenrevokeby');
+        $this->assertGreaterThanOrEqual($before + webservice_token_manager::PREVIOUS_TOKEN_GRACE, $revokeby);
+        $this->assertLessThanOrEqual(time() + webservice_token_manager::PREVIOUS_TOKEN_GRACE, $revokeby);
+
+        $tasks = \core\task\manager::get_adhoc_tasks(\local_corolair\task\revoke_previous_token_task::class);
+        $this->assertCount(1, $tasks, 'Activation should queue exactly one revocation.');
+        $task = reset($tasks);
+        $this->assertGreaterThanOrEqual(
+            $before + webservice_token_manager::PREVIOUS_TOKEN_GRACE,
+            (int)$task->get_next_run_time(),
+            'The revocation must not be able to run before the grace window has passed.'
+        );
+    }
+
+    /**
+     * The task revokes the superseded token once its deadline has passed.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::revoke_previous_token
+     * @return void
+     */
+    public function test_revoke_previous_token_deletes_the_superseded_token(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $ownerid = $this->make_site_connected_as_service();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        $current = webservice_token_manager::create_token($ownerid, $serviceid);
+        webservice_token_manager::record_initial_token($current);
+        $previous = webservice_token_manager::create_token($ownerid, $serviceid);
+        set_config('previouswebservicetokenid', (int)$previous->id, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', time() - 1, 'local_corolair');
+
+        $sink = $this->redirectEvents();
+        (new \local_corolair\task\revoke_previous_token_task())->execute();
+        $actions = $this->lifecycle_actions($sink);
+        $sink->close();
+
+        $this->assertFalse($DB->record_exists('external_tokens', ['id' => (int)$previous->id]));
+        $this->assertTrue($DB->record_exists('external_tokens', ['id' => (int)$current->id]));
+        $this->assertSame(['old_token_revoked'], $actions);
+        $this->assertFalse(get_config('local_corolair', 'previouswebservicetokenid'));
+        $this->assertFalse(get_config('local_corolair', 'previouswebservicetokenrevokeby'));
+        $this->assert_rotation_lock_is_free();
+    }
+
+    /**
+     * The task leaves the token alone while the grace window is still open.
+     *
+     * Ad-hoc tasks can run early -- a deduplicated record from an earlier rotation carries
+     * that rotation's deadline -- so running before the deadline has to be a no-op rather
+     * than an early revocation.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::revoke_previous_token
+     * @return void
+     */
+    public function test_revoke_previous_token_is_a_noop_before_the_deadline(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $ownerid = $this->make_site_connected_as_service();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        $previous = webservice_token_manager::create_token($ownerid, $serviceid);
+        set_config('previouswebservicetokenid', (int)$previous->id, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', time() + MINSECS, 'local_corolair');
+
+        (new \local_corolair\task\revoke_previous_token_task())->execute();
+
+        $this->assertTrue($DB->record_exists('external_tokens', ['id' => (int)$previous->id]));
+        $this->assertEquals(
+            (int)$previous->id,
+            (int)get_config('local_corolair', 'previouswebservicetokenid'),
+            'The overlap must still be tracked so the token is revoked later.'
+        );
+    }
+
+    /**
+     * The task always hands the rotation lock back, including when it does nothing.
+     *
+     * Revocation takes the lock rotation needs, so leaking it would stop the site rotating
+     * ever again -- a silent failure that only surfaces when the token expires.
+     *
+     * What is deliberately not asserted here is the contention case itself. Locking is
+     * cross-process: lock_config::get_lock_factory() returns a *new* factory per call, so its
+     * per-instance openlocks guard cannot see a lock this test already holds, and MariaDB
+     * re-grants GET_LOCK within one connection. A single-process PHPUnit run therefore cannot
+     * observe the block that a real rotation in another process would hit. Asserting it would
+     * only encode the reentrancy quirk.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::revoke_previous_token
+     * @return void
+     */
+    public function test_revoke_previous_token_always_releases_the_rotation_lock(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $ownerid = $this->make_site_connected_as_service();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        // Nothing pending: the early return inside cleanup still has to release the lock.
+        (new \local_corolair\task\revoke_previous_token_task())->execute();
+        $this->assert_rotation_lock_is_free();
+
+        // And again on the path that actually revokes.
+        $previous = webservice_token_manager::create_token($ownerid, $serviceid);
+        set_config('previouswebservicetokenid', (int)$previous->id, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', time() - 1, 'local_corolair');
+
+        (new \local_corolair\task\revoke_previous_token_task())->execute();
+        $this->assertFalse($DB->record_exists('external_tokens', ['id' => (int)$previous->id]));
+        $this->assert_rotation_lock_is_free();
+    }
+
+    /**
      * The superseded token survives until its overlap window has passed.
      *
      * @covers \local_corolair\local\webservice_token_manager::maintain
