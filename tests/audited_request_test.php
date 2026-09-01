@@ -106,7 +106,7 @@ final class audited_request_test extends \advanced_testcase {
                 "The audit field {$field} is no longer a scalar; a structure could carry content."
             );
             $haystack = strtolower((string)$value);
-            foreach (['://', '@', 'bearer', 'corolair.dev', 'apikey'] as $forbidden) {
+            foreach (['://', '@', 'bearer', 'raison.is', 'apikey'] as $forbidden) {
                 $this->assertStringNotContainsString(
                     $forbidden,
                     $haystack,

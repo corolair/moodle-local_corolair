@@ -100,7 +100,7 @@ class renderer extends plugin_renderer_base {
         if ($istokenexist) {
             $istokenexiststring = 'true';
         }
-        $troubleshooturl = new \moodle_url('https://embed.corolair.dev/troubleshoot/moodle', [
+        $troubleshooturl = new \moodle_url('https://share.raison.is/troubleshoot/moodle', [
             'isWebServiceEnabled' => $iswebserviceenabledstring,
             'isRestProtocolEnabled' => $isrestprotocolenabledstring,
             'isCorolairServiceExist' => $israisonserviceexiststring,

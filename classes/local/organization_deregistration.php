@@ -29,7 +29,7 @@ namespace local_corolair\local;
  */
 final class organization_deregistration {
     /** Remote deregistration endpoint. */
-    private const ENDPOINT = 'https://services.corolair.dev/moodle-integration/v2/plugin/organization/deregister';
+    private const ENDPOINT = 'https://services.raison.is/moodle-integration/v2/plugin/organization/deregister';
 
     /** Maximum number of synchronous attempts. */
     private const MAX_ATTEMPTS = 3;
