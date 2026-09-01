@@ -183,15 +183,16 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
-     * The retired footer hook renders nothing on any page.
+     * Without a course on the page, the footer hook renders nothing.
      *
      * @covers ::local_corolair_before_footer
      * @return void
      */
-    public function test_footer_hook_renders_nothing(): void {
+    public function test_footer_hook_renders_nothing_without_a_course(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        $this->set_page_url('/my/index.php');
 
         $this->assert_silent(function () {
             return local_corolair_before_footer();
@@ -213,7 +214,10 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
-     * Run the course navigation callback and return the node plus any output.
+     * Run the course navigation callback and capture any accidental output.
+     *
+     * Navigation callbacks must never echo: early output before DOCTYPE puts the
+     * page into quirks mode and TinyMCE refuses to initialize.
      *
      * @param \stdClass $course Course being viewed.
      * @return array{0: \navigation_node, 1: string} Navigation node and captured output.
@@ -230,6 +234,22 @@ final class lib_test extends \advanced_testcase {
         $output = (string)ob_get_clean();
 
         return [$navigation, $output];
+    }
+
+    /**
+     * Point $PAGE at a course so before_footer can resolve course context.
+     *
+     * @param \stdClass $course Course being viewed.
+     * @param string $url Page URL, relative to wwwroot.
+     * @return void
+     */
+    private function set_course_page(\stdClass $course, string $url): void {
+        global $PAGE;
+
+        $context = \context_course::instance($course->id);
+        $PAGE->set_course($course);
+        $PAGE->set_context($context);
+        $PAGE->set_url(new \moodle_url($url, ['id' => $course->id]));
     }
 
     /**
@@ -277,51 +297,17 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
-     * An excluded activity module suppresses the widget entirely.
-     *
-     * The exclusion has to short-circuit before the session request, not merely discard
-     * its result: an administrator who excludes /mod/quiz/ is saying that no identity
-     * should be sent to Raison from quiz pages at all.
+     * Course navigation never flushes embed HTML (preserves standards mode).
      *
      * @covers ::local_corolair_extend_navigation_course
      * @return void
      */
-    public function test_excluded_module_makes_no_request(): void {
+    public function test_course_navigation_never_echoes_the_widget(): void {
         $this->resetAfterTest();
         $course = $this->getDataGenerator()->create_course();
         $this->setAdminUser();
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
-        set_config('excludedmods', 'quiz, forum', 'local_corolair');
-        $this->set_page_url('/mod/quiz/view.php');
-
-        $sink = $this->redirectEvents();
-        [$navigation, $output] = $this->extend_course_navigation($course);
-        $events = $sink->get_events();
-        $sink->close();
-
-        $this->assertSame('', $output);
-        foreach ($events as $event) {
-            $this->assertNotInstanceOf(remote_request_completed::class, $event);
-        }
-        $this->assertContains(
-            get_string('coursenodetitle', 'local_corolair'),
-            $this->child_texts($navigation),
-            'Excluding a module hides the widget, not the trainer link.'
-        );
-    }
-
-    /**
-     * A page that is neither a course view nor an activity renders no widget.
-     *
-     * @covers ::local_corolair_extend_navigation_course
-     * @return void
-     */
-    public function test_unrelated_page_renders_no_widget(): void {
-        $this->resetAfterTest();
-        $course = $this->getDataGenerator()->create_course();
-        $this->setAdminUser();
-        set_config('apikey', 'org_test.realsecret', 'local_corolair');
-        $this->set_page_url('/my/index.php');
+        $this->set_course_page($course, '/course/view.php');
 
         $sink = $this->redirectEvents();
         [, $output] = $this->extend_course_navigation($course);
@@ -332,6 +318,56 @@ final class lib_test extends \advanced_testcase {
         foreach ($events as $event) {
             $this->assertNotInstanceOf(remote_request_completed::class, $event);
         }
+    }
+
+    /**
+     * An excluded activity module suppresses the widget entirely.
+     *
+     * The exclusion has to short-circuit before the session request, not merely discard
+     * its result: an administrator who excludes /mod/quiz/ is saying that no identity
+     * should be sent to Raison from quiz pages at all.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_excluded_module_makes_no_request(): void {
+        $this->resetAfterTest();
+        $course = $this->getDataGenerator()->create_course();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        set_config('excludedmods', 'quiz, forum', 'local_corolair');
+        $this->set_course_page($course, '/mod/quiz/view.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+
+        [$navigation] = $this->extend_course_navigation($course);
+        $this->assertContains(
+            get_string('coursenodetitle', 'local_corolair'),
+            $this->child_texts($navigation),
+            'Excluding a module hides the widget, not the trainer link.'
+        );
+    }
+
+    /**
+     * A page that is neither a course view nor an activity renders no widget.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_unrelated_page_renders_no_widget(): void {
+        $this->resetAfterTest();
+        $course = $this->getDataGenerator()->create_course();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        $this->set_course_page($course, '/my/index.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
     }
 
     /**
