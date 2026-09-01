@@ -1,7 +1,12 @@
 name: Moodle Plugin CI
 
 on:
+  # Scoped rather than every branch: an unscoped push trigger runs the full matrix a second time
+  # for any pull request opened from this repository, and a release branch would add a third.
+  # These are the branches whose state actually has to be known -- release/** included, so the
+  # production tree is exercised as production before anyone is asked to merge it.
   push:
+    branches: [develop, main, 'release/**']
   pull_request:
 
 defaults:
@@ -93,3 +98,22 @@ jobs:
       - name: PHPUnit tests
         if: ${{ !cancelled() }}
         run: moodle-plugin-ci phpunit --fail-on-warning
+
+  # A single check with a name that never changes, so branch protection can require one context
+  # instead of one per matrix entry. Matrix job names carry their parameters -- adding PHP 8.3 or
+  # moving to a newer Moodle branch renames every check, and any required context that no longer
+  # reports leaves pull requests permanently unmergeable with no obvious cause. Requiring this job
+  # instead lets the matrix change freely underneath it.
+  ci-passed:
+    name: ci-passed
+    needs: test
+    # Runs even when the matrix failed or was cancelled -- without this the job is skipped on
+    # failure, reports nothing, and a required check that never arrives blocks the merge in the
+    # same way it would if it had been misnamed.
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Fail unless every matrix job succeeded
+        run: |
+          echo "Matrix result: ${{ needs.test.result }}"
+          [ "${{ needs.test.result }}" = "success" ]

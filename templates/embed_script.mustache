@@ -25,12 +25,13 @@
     {
         "sidepanel": "true",
         "animate": "false",
-        "datausertoken": "short-lived-signed-token"
+        "datausertoken": "short-lived-signed-token",
+        "widgeturl": "https://static.example.com/widget.js"
     }
 }}
 
 <script
-    src="https://static.raison.is/widget.js"
+    src="{{widgeturl}}"
     data-name="COROLAIR_EMBED"
     data-sidepanel="{{sidepanel}}"
     data-animate="{{animate}}"

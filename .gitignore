@@ -1,5 +1,7 @@
 local_corolair.zip
+local_corolair-prod.zip
 local_corolair/
+.package-prod/
 .codex
 .DS_Store
 plans

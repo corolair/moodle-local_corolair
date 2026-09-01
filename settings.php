@@ -176,7 +176,7 @@ if ($hassiteconfig) {
         'local_corolair/ltitoolhost',
         get_string('ltitoolhost', 'local_corolair'), // Setting title.
         get_string('ltitoolhostdesc', 'local_corolair'), // Setting description.
-        \local_corolair\local\placement_registry::DEFAULT_TOOL_HOST, // Default value.
+        \local_corolair\local\placement_registry::default_tool_host(), // Default value.
         PARAM_HOST // Validation type: a bare host name, so a pasted URL is rejected by the form.
     ));
     require_once($CFG->dirroot . '/local/corolair/lib.php');

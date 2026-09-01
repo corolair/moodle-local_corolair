@@ -22,9 +22,11 @@
     render demo page.
 
     Example context (json):
-    {}
+    {
+        "bookmeetingurl": "https://embed.example.com/troubleshoot/book-meeting"
+    }
 }}
 
 <iframe id='corolair-iframe'
-    src='https://share.raison.is/troubleshoot/book-meeting'>
+    src='{{bookmeetingurl}}'>
 </iframe>
