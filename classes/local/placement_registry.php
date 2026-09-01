@@ -52,11 +52,20 @@ final class placement_registry {
     /**
      * Host the Raison LTI tool launches from.
      *
-     * Kept as a constant, and shipped as the default of an administrator-visible setting rather
-     * than a hidden one: an administrator who has to change it is an administrator whose site is
-     * already broken, and a setting they cannot see is a setting they cannot use to recover.
+     * Shipped as the default of an administrator-visible setting rather than a hidden one: an
+     * administrator who has to change it is an administrator whose site is already broken, and a
+     * setting they cannot see is a setting they cannot use to recover.
+     *
+     * A method rather than the constant this once was, because the host now comes from
+     * environment and a constant cannot call one. The tool launches from the same host that
+     * serves the integration API, so re-hosting the service moves this with it -- which is the
+     * coupling that used to have to be remembered and now cannot be forgotten.
+     *
+     * @return string Lower-case host name.
      */
-    public const DEFAULT_TOOL_HOST = 'services.corolair.dev';
+    public static function default_tool_host(): string {
+        return environment::host('services');
+    }
 
     /** Setting holding the administrator override for the host above. */
     private const HOST_SETTING = 'ltitoolhost';
@@ -76,10 +85,10 @@ final class placement_registry {
     public static function allowed_host(): string {
         $configured = strtolower(trim((string)get_config('local_corolair', self::HOST_SETTING)));
         if ($configured === '') {
-            return self::DEFAULT_TOOL_HOST;
+            return self::default_tool_host();
         }
         if (!\core\ip_utils::is_domain_name($configured)) {
-            return self::DEFAULT_TOOL_HOST;
+            return self::default_tool_host();
         }
         return $configured;
     }
@@ -123,9 +132,9 @@ final class placement_registry {
      * Return the host of an https URL, or the empty string if it is not one we accept.
      *
      * Mirrors redirect_url_validator::validate() deliberately, rather than reimplementing URL
-     * parsing a second way. The port rule matters more than it looks: without it
-     * https://services.corolair.dev:8443/ passes a bare host comparison. The userinfo case is
-     * handled for free by comparing the parsed host, since https://services.corolair.dev@evil.com/
+     * parsing a second way. The port rule matters more than it looks: without it a URL carrying
+     * the right host and an arbitrary port passes a bare host comparison. The userinfo case is
+     * handled for free by comparing the parsed host, since https://trusted.example@evil.com/
      * parses to evil.com.
      *
      * @param string $url URL to inspect.

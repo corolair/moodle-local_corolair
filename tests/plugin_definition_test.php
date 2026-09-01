@@ -25,6 +25,9 @@
 namespace local_corolair;
 
 use local_corolair\external\get_integration_status;
+use local_corolair\local\environment;
+use local_corolair\local\hosts_dev;
+use local_corolair\local\hosts_prod;
 use local_corolair\local\integration_disclosure;
 use local_corolair\local\role_provisioner;
 use local_corolair\local\service_account_provisioner;
@@ -794,6 +797,115 @@ final class plugin_definition_test extends \advanced_testcase {
                 );
                 $this->assertNotSame('', trim((string)$strings[$key]));
             }
+        }
+    }
+
+    /**
+     * Every host this plugin knows about, whichever tables this tree carries.
+     *
+     * @return string[] Lower-case host names.
+     */
+    private function known_hosts(): array {
+        $hosts = array_values(hosts_prod::HOSTS);
+        // Absent on a release tree, where the workflow deletes it. Guarding rather than assuming
+        // keeps this test meaningful on both.
+        if (class_exists(hosts_dev::class)) {
+            $hosts = array_merge($hosts, array_values(hosts_dev::HOSTS));
+        }
+        return $hosts;
+    }
+
+    /**
+     * No host name is written down outside the two host tables.
+     *
+     * This is the test that keeps the environment split working. The endpoints were once string
+     * constants in eighteen files, which made the deployment a property of the branch: two
+     * branches disagreeing in eighteen places conflict on every merge, and a line the release
+     * branch never counter-changed is taken from the development branch silently. That is how
+     * development endpoints reached a release once already.
+     *
+     * A single pasted URL anywhere re-creates that, in a file nobody thinks to check at release
+     * time -- so the rule is enforced rather than documented.
+     *
+     * lang/ is exempt: the documentation links and contact addresses there are deliberately the
+     * same on every deployment and are not endpoints this plugin calls.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_no_host_is_hardcoded_outside_the_host_tables(): void {
+        global $CFG;
+
+        $root = $CFG->dirroot . '/local/corolair';
+        $exempt = [
+            $root . '/classes/local/hosts_prod.php',
+            $root . '/classes/local/hosts_dev.php',
+        ];
+        $hosts = $this->known_hosts();
+
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root));
+        foreach ($files as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+            $path = $file->getPathname();
+            if (in_array($path, $exempt, true) || strpos($path, $root . '/lang/') === 0) {
+                continue;
+            }
+            if (!in_array($file->getExtension(), ['php', 'mustache', 'js'], true)) {
+                continue;
+            }
+            $contents = file_get_contents($path);
+            foreach ($hosts as $host) {
+                $this->assertStringNotContainsString(
+                    $host,
+                    $contents,
+                    substr($path, strlen($root) + 1) . " writes down the host {$host}. Endpoints"
+                        . ' must come from local\\environment::url() or ::host() so that the'
+                        . ' deployment stays a property of the build rather than of the branch.'
+                );
+            }
+        }
+    }
+
+    /**
+     * The two host tables declare the same roles.
+     *
+     * A role in one table and not the other resolves fine on the branch that has it and fatals on
+     * the branch that does not -- discovered, at the earliest, by whoever runs the other branch.
+     * Skipped rather than failed on a release tree, where the development table is deliberately
+     * absent and there is nothing to compare.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_host_tables_declare_the_same_roles(): void {
+        if (!class_exists(hosts_dev::class)) {
+            $this->markTestSkipped('This tree carries the production host table only.');
+        }
+
+        $this->assertSame(
+            array_keys(hosts_prod::HOSTS),
+            array_keys(hosts_dev::HOSTS),
+            'The host tables disagree on which roles exist.'
+        );
+    }
+
+    /**
+     * Every declared role resolves to a usable host.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_every_declared_role_resolves(): void {
+        foreach (array_keys(hosts_prod::HOSTS) as $role) {
+            $host = environment::host($role);
+            $this->assertNotEmpty($host, "The role {$role} resolves to no host.");
+            $this->assertSame(strtolower($host), $host, "The role {$role} is not lower case.");
+            $this->assertTrue(
+                \core\ip_utils::is_domain_name($host),
+                "The role {$role} resolves to something that is not a domain name: {$host}."
+            );
         }
     }
 }

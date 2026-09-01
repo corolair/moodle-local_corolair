@@ -26,6 +26,7 @@ namespace local_corolair;
 
 use local_corolair\event\remote_request_completed;
 use local_corolair\local\audited_request;
+use local_corolair\local\environment;
 
 /**
  * Verifies every outbound request is recorded exactly once, and without secrets.
@@ -106,7 +107,8 @@ final class audited_request_test extends \advanced_testcase {
                 "The audit field {$field} is no longer a scalar; a structure could carry content."
             );
             $haystack = strtolower((string)$value);
-            foreach (['://', '@', 'bearer', 'corolair.dev', 'apikey'] as $forbidden) {
+            $forbiddens = ['://', '@', 'bearer', 'apikey', environment::host('services')];
+            foreach ($forbiddens as $forbidden) {
                 $this->assertStringNotContainsString(
                     $forbidden,
                     $haystack,

@@ -73,13 +73,11 @@ final class webservice_token_manager {
     /** External service shortname. */
     private const SERVICE_SHORTNAME = 'corolair_rest';
 
-    /** Corolair rotation endpoint. */
-    private const ROTATION_ENDPOINT =
-        'https://services.corolair.dev/moodle-integration/v2/plugin/organization/webservice-token/rotate';
+    /** Corolair rotation endpoint, below the services host. */
+    private const ROTATION_PATH = 'moodle-integration/v2/plugin/organization/webservice-token/rotate';
 
-    /** Corolair read-only token verification endpoint. */
-    private const VERIFICATION_ENDPOINT =
-        'https://services.corolair.dev/moodle-integration/v2/plugin/organization/webservice-token/verify';
+    /** Corolair read-only token verification endpoint, below the services host. */
+    private const VERIFICATION_PATH = 'moodle-integration/v2/plugin/organization/webservice-token/verify';
 
     /**
      * Create a token that expires after the configured lifetime.
@@ -573,7 +571,7 @@ final class webservice_token_manager {
         $response = audited_request::execute(
             $curl,
             function () use ($curl, $payload, $options) {
-                return $curl->post(self::ROTATION_ENDPOINT, $payload, $options);
+                return $curl->post(environment::url('services', self::ROTATION_PATH), $payload, $options);
             },
             audited_request::OP_WEBSERVICE_TOKEN_ROTATION,
             \context_system::instance(),
@@ -734,7 +732,7 @@ final class webservice_token_manager {
         $response = audited_request::execute(
             $curl,
             function () use ($curl, $options) {
-                return $curl->post(self::VERIFICATION_ENDPOINT, '{}', $options);
+                return $curl->post(environment::url('services', self::VERIFICATION_PATH), '{}', $options);
             },
             audited_request::OP_WEBSERVICE_TOKEN_VERIFY,
             \context_system::instance(),

@@ -28,8 +28,8 @@ namespace local_corolair\local;
  * Deregisters this Moodle organization while its API credential is still available.
  */
 final class organization_deregistration {
-    /** Remote deregistration endpoint. */
-    private const ENDPOINT = 'https://services.corolair.dev/moodle-integration/v2/plugin/organization/deregister';
+    /** Remote deregistration endpoint, below the services host. */
+    private const ENDPOINT_PATH = 'moodle-integration/v2/plugin/organization/deregister';
 
     /** Maximum number of synchronous attempts. */
     private const MAX_ATTEMPTS = 3;
@@ -117,7 +117,7 @@ final class organization_deregistration {
         $response = audited_request::execute(
             $curl,
             function () use ($curl, $postdata, $options) {
-                return $curl->post(self::ENDPOINT, $postdata, $options);
+                return $curl->post(environment::url('services', self::ENDPOINT_PATH), $postdata, $options);
             },
             audited_request::OP_ORGANIZATION_DEREGISTER,
             \context_system::instance()

@@ -184,3 +184,43 @@ package: ## Build local_corolair.zip for the Moodle plugin directory
 	fi
 	@echo "    dev files excluded, tests included:"
 	@unzip -l local_corolair.zip | grep -cE "local_corolair/tests/.*\.php" | sed 's/^/      test files: /'
+
+.PHONY: package-prod
+package-prod: ## Build local_corolair-prod.zip: the production tree, from HEAD, without releasing
+	@# The same transform the release workflow applies, done locally against HEAD, so a
+	@# production build can be installed and tried before it exists on main.
+	@#
+	@# It releases nothing. Nothing is pushed, no branch moves, and main is still only ever
+	@# updated by merging the generated pull request -- this only writes a zip. Use it to test an
+	@# install, not to ship: a zip built here has not been through CI or review.
+	@if ! git diff-index --quiet HEAD -- || [ -n "$$(git ls-files --others --exclude-standard)" ]; then \
+		echo "Working tree is not clean. 'git archive' packages HEAD, so the zip"; \
+		echo "would not match your files. Commit (or stash) first."; \
+		git status --short; \
+		exit 1; \
+	fi
+	@rm -rf .package-prod local_corolair-prod.zip
+	@mkdir -p .package-prod
+	@# export-ignore is honoured here exactly as in `package`, so development files stay out.
+	@git archive --format=tar --prefix=local_corolair/ HEAD | tar -C .package-prod -xf -
+	@# -i.bak rather than -i: BSD sed on macOS requires the suffix, GNU sed accepts it.
+	@sed -i.bak "s/public const ENV = 'develop';/public const ENV = 'production';/" \
+		.package-prod/local_corolair/classes/local/environment.php
+	@rm -f .package-prod/local_corolair/classes/local/environment.php.bak
+	@rm -f .package-prod/local_corolair/classes/local/hosts_dev.php
+	@# Both halves of the transform are verified, for the same reason the workflow verifies them:
+	@# a silent no-op here ships development endpoints to a customer.
+	@if ! grep -q "public const ENV = 'production';" \
+		.package-prod/local_corolair/classes/local/environment.php; then \
+		echo "The environment was not switched to production. Not packaging."; \
+		rm -rf .package-prod; \
+		exit 1; \
+	fi
+	@if grep -rIn -e 'corolair\.dev' -e 'corolair\.workers' .package-prod; then \
+		echo "A development host survived the transform. Not packaging."; \
+		rm -rf .package-prod; \
+		exit 1; \
+	fi
+	@cd .package-prod && zip -qr ../local_corolair-prod.zip local_corolair
+	@rm -rf .package-prod
+	@echo "==> local_corolair-prod.zip ($$(unzip -l local_corolair-prod.zip | tail -1 | awk '{print $$2}') files, production endpoints)"
