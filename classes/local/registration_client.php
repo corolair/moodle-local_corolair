@@ -38,7 +38,7 @@ use JsonException;
 final class registration_client {
     /** Registration endpoint URL. */
     private const REGISTER_URL =
-        'https://services.raison.is/moodle-integration/plugin/organization/register';
+        'https://services.corolair.dev/moodle-integration/plugin/organization/register';
 
     /**
      * Register (or re-register) the Moodle instance and return the issued API key.
