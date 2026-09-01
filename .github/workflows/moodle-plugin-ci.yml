@@ -2,8 +2,8 @@ name: Moodle Plugin CI
 
 on:
   # Scoped rather than every branch: an unscoped push trigger runs the full matrix a second time
-  # for any pull request opened from this repository, and release/next would add a third. These
-  # are the branches whose state actually has to be known -- release/next included, so the
+  # for any pull request opened from this repository, and a release branch would add a third.
+  # These are the branches whose state actually has to be known -- release/** included, so the
   # production tree is exercised as production before anyone is asked to merge it.
   push:
     branches: [develop, main, 'release/**']

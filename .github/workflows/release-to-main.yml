@@ -6,9 +6,10 @@
 # already. This workflow performs that transform the same way every time, and proves it before
 # asking for a merge.
 #
-# It never pushes to main and never merges. It only creates release/next and opens the PR; the
-# merge button stays a human decision. Turn on branch protection for main (require a PR, require
-# the Moodle Plugin CI check) so that stays true regardless of what this file later says.
+# It never pushes to main and never merges. It only creates release/<version> and opens the pull
+# request; the merge stays a human decision. Branch protection on main (require a pull request,
+# require the ci-passed check) is what makes that a property of the repository rather than of
+# this file.
 name: Release to main
 
 on:
@@ -42,11 +43,22 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # The branch is named for the release it carries, read from develop rather than from the
+          # checkout, so the name is decided before the tree is touched.
+          release=$(git show origin/develop:version.php \
+            | sed -n "s/.*\$plugin->release *= *'\([^']*\)'.*/\1/p")
+          if [ -z "$release" ]; then
+            echo "::error::Could not read \$plugin->release from version.php. Not publishing."
+            exit 1
+          fi
+          echo "RELEASE=$release"            >> "$GITHUB_ENV"
+          echo "BRANCH=release/$release"     >> "$GITHUB_ENV"
+
           # Branch from main, then make the tree exactly develop's. Starting from main keeps the
           # pull request diff readable as "what changes in production" rather than replaying
           # every development commit, and read-tree applies deletions as well as changes -- which
           # a `git checkout develop -- .` would silently miss.
-          git checkout -B release/next origin/main
+          git checkout -B "release/$release" origin/main
           git read-tree --reset -u origin/develop
 
           # The transform. Both halves matter: the ENV line decides which table is read, and
@@ -83,11 +95,9 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          release=$(sed -n "s/.*\$plugin->release *= *'\([^']*\)'.*/\1/p" version.php)
-          git commit -q -m "Production tree from develop@${GITHUB_SHA:0:7} (${release})"
-          git push --force origin release/next
-          echo "changed=true"      >> "$GITHUB_OUTPUT"
-          echo "release=${release}" >> "$GITHUB_OUTPUT"
+          git commit -q -m "Production tree from develop@${GITHUB_SHA:0:7} (${RELEASE})"
+          git push --force origin "HEAD:refs/heads/${BRANCH}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Open or update the pull request
         if: steps.publish.outputs.changed == 'true'
@@ -95,16 +105,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # An open pull request already tracks the branch, so a force-push is all the update it
-          # needs -- creating a second one would fail and mask the real result.
-          if [ -n "$(gh pr list --head release/next --base main --state open --json number --jq '.[0].number')" ]; then
-            echo "Pull request already open; it now shows the updated tree."
+          # An open pull request already tracks the branch, so the force-push above is all the
+          # update it needs -- creating a second one would fail and mask the real result.
+          if [ -n "$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number')" ]; then
+            echo "Pull request for ${BRANCH} already open; it now shows the updated tree."
             exit 0
           fi
           gh pr create \
             --base main \
-            --head release/next \
-            --title "Release ${{ steps.publish.outputs.release }} to production" \
+            --head "$BRANCH" \
+            --title "Release ${RELEASE} to production" \
             --body "$(cat <<'BODY'
           Generated from `develop` by the **Release to main** workflow. Do not hand-edit this branch.
 
@@ -120,3 +130,26 @@ jobs:
           Review the diff and merge when you are ready. Nothing merges on its own.
           BODY
           )"
+
+      - name: Close superseded release pull requests
+        if: steps.publish.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # A release branch stops being updated the moment version.php names a different one, so
+          # its pull request freezes holding an older tree. Left open it is indistinguishable from
+          # the current one on the pull request list, and merging it would ship a build older than
+          # develop -- quietly, because it was green when it was built.
+          #
+          # The branch is left in place: for a release that was merged it is the record of what
+          # shipped, and for one that was not it costs nothing.
+          gh pr list --base main --state open --json number,headRefName \
+            --jq '.[] | select(.headRefName | startswith("release/")) | select(.headRefName != env.BRANCH) | .number' \
+          | while read -r number; do
+              [ -n "$number" ] || continue
+              echo "Closing superseded release pull request #${number}."
+              gh pr comment "$number" --body \
+                "Superseded by \`${BRANCH}\`. This branch is no longer updated, so it holds a tree older than \`develop\` — closing so it cannot be merged by mistake."
+              gh pr close "$number"
+            done
