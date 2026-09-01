@@ -1,0 +1,122 @@
+# Builds the production tree from develop and opens a pull request into main.
+#
+# main is generated, never hand-merged. The endpoints used to be branch-specific in eighteen
+# files, so every develop -> main merge was a conflict, and a line main had never counter-changed
+# was taken from develop silently -- which is how development endpoints reached a release once
+# already. This workflow performs that transform the same way every time, and proves it before
+# asking for a merge.
+#
+# It never pushes to main and never merges. It only creates release/next and opens the PR; the
+# merge button stays a human decision. Turn on branch protection for main (require a PR, require
+# the Moodle Plugin CI check) so that stays true regardless of what this file later says.
+name: Release to main
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+# A second push while the first run is mid-transform would race on the same branch.
+concurrency:
+  group: release-to-main
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v4
+        with:
+          # Both branches are needed as real refs, so no shallow clone.
+          fetch-depth: 0
+
+      - name: Build the production tree
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Branch from main, then make the tree exactly develop's. Starting from main keeps the
+          # pull request diff readable as "what changes in production" rather than replaying
+          # every development commit, and read-tree applies deletions as well as changes -- which
+          # a `git checkout develop -- .` would silently miss.
+          git checkout -B release/next origin/main
+          git read-tree --reset -u origin/develop
+
+          # The transform. Both halves matter: the ENV line decides which table is read, and
+          # deleting the development table means a released tree cannot resolve to a development
+          # host even if that line were somehow wrong.
+          sed -i "s/public const ENV = 'develop';/public const ENV = 'production';/" \
+            classes/local/environment.php
+          rm -f classes/local/hosts_dev.php
+
+          git add -A
+
+      - name: Refuse to publish a tree that still knows a development host
+        run: |
+          set -euo pipefail
+          # The last line of defence, and deliberately not the phpunit guard test: that one ships
+          # to customers, so it derives its patterns from the host tables and carries no host name
+          # itself. This check can name them outright because .github is export-ignore'd and never
+          # reaches the plugin zip.
+          if grep -rIn --exclude-dir=.git -e 'corolair\.dev' -e 'corolair\.workers' .; then
+            echo "::error::A development host survived the transform. Not publishing."
+            exit 1
+          fi
+          if ! grep -q "public const ENV = 'production';" classes/local/environment.php; then
+            echo "::error::The environment was not switched to production. Not publishing."
+            exit 1
+          fi
+
+      - name: Publish the release branch
+        id: publish
+        run: |
+          set -euo pipefail
+          if git diff --quiet origin/main -- .; then
+            echo "main already matches this tree; nothing to release."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          release=$(sed -n "s/.*\$plugin->release *= *'\([^']*\)'.*/\1/p" version.php)
+          git commit -q -m "Production tree from develop@${GITHUB_SHA:0:7} (${release})"
+          git push --force origin release/next
+          echo "changed=true"      >> "$GITHUB_OUTPUT"
+          echo "release=${release}" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the pull request
+        if: steps.publish.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # An open pull request already tracks the branch, so a force-push is all the update it
+          # needs -- creating a second one would fail and mask the real result.
+          if [ -n "$(gh pr list --head release/next --base main --state open --json number --jq '.[0].number')" ]; then
+            echo "Pull request already open; it now shows the updated tree."
+            exit 0
+          fi
+          gh pr create \
+            --base main \
+            --head release/next \
+            --title "Release ${{ steps.publish.outputs.release }} to production" \
+            --body "$(cat <<'BODY'
+          Generated from `develop` by the **Release to main** workflow. Do not hand-edit this branch.
+
+          The transform applied:
+
+          - `environment::ENV` set to `production`, so the production host table is the one read
+          - `classes/local/hosts_dev.php` deleted, so no development host reaches the released plugin
+
+          The workflow refuses to publish if either half fails, and `Moodle Plugin CI` runs the
+          full suite against this tree — the production configuration, exercised as production,
+          before it ships.
+
+          Review the diff and merge when you are ready. Nothing merges on its own.
+          BODY
+          )"
