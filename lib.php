@@ -150,15 +150,66 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
 }
 
 /**
- * Does not add a widget to non-course pages.
+ * Whether the current page URL may host the course widget.
  *
- * Organization-wide super widgets and super tutors are retired. Course widgets
- * are rendered by local_corolair_extend_navigation_course().
+ * @param moodle_url $pageurl The current page URL.
+ * @param int $courseid The course id for course-view matching.
+ * @return array{0: bool, 1: string} Whether to render, and the animate flag.
+ */
+function local_corolair_course_widget_placement(moodle_url $pageurl, int $courseid): array {
+    $pageurlstr = $pageurl->out();
+
+    // Get excluded mods from config (comma-separated).
+    $excludedmodsraw = get_config('local_corolair', 'excludedmods') ?? '';
+    $excludedmods = array_filter(array_map('trim', preg_split('/[,\s]+/', $excludedmodsraw)));
+
+    // If current URL contains /mod/{excluded}/ then skip rendering.
+    foreach ($excludedmods as $modname) {
+        if ($modname === '') {
+            continue;
+        }
+        // For example: /mod/quiz/ or /mod/quiz/view.php?id=....
+        if (strpos($pageurlstr, '/mod/' . $modname . '/') !== false) {
+            return [false, 'false'];
+        }
+    }
+
+    $coursemodurlstr = (new moodle_url('/mod/'))->out();
+    $courseviewurlstr = (new moodle_url('/course/view.php', ['id' => $courseid]))->out();
+
+    $isonmodpage = strpos($pageurlstr, $coursemodurlstr) !== false;
+    $isoncourseview = strpos($pageurlstr, $courseviewurlstr) !== false;
+    if (!$isonmodpage && !$isoncourseview) {
+        return [false, 'false'];
+    }
+
+    return [true, $isoncourseview ? 'true' : 'false'];
+}
+
+/**
+ * Renders the course widget after the page document has started.
+ *
+ * Must return HTML from before_footer — never echo from navigation callbacks.
+ * Echoing during extend_navigation_course can flush output before <!DOCTYPE html>,
+ * which puts Moodle into quirks mode and breaks TinyMCE.
  *
  * @return string The rendered embed script, or an empty string when disabled.
  */
 function local_corolair_before_footer() {
-    return '';
+    global $PAGE;
+
+    $course = $PAGE->course ?? null;
+    if (empty($course) || empty($course->id)) {
+        return '';
+    }
+
+    $courseid = (int)$course->id;
+    [$shouldrender, $animate] = local_corolair_course_widget_placement($PAGE->url, $courseid);
+    if (!$shouldrender) {
+        return '';
+    }
+
+    return local_corolair_render_embed_script($courseid, $PAGE->context, $animate);
 }
 
 /**
@@ -169,7 +220,6 @@ function local_corolair_before_footer() {
  * @param context $context The context of the course.
  */
 function local_corolair_extend_navigation_course($navigation, $course, $context) {
-    global $PAGE;
     $courseid = $course->id;
 
     // Key to identify the node.
@@ -193,39 +243,6 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
         if ($nodetoremove = $navigation->find($raisonnodekey, navigation_node::TYPE_SETTING)) {
             $nodetoremove->remove();
         }
-    }
-
-    // Get the current page URL.
-    $pageurlstr = $PAGE->url->out();
-    // Get excluded mods from config (comma-separated).
-    $excludedmodsraw = get_config('local_corolair', 'excludedmods') ?? '';
-    $excludedmods = array_filter(array_map('trim', preg_split('/[,\s]+/', $excludedmodsraw)));
-
-    // If current URL contains /mod/{excluded}/ then skip rendering.
-    foreach ($excludedmods as $modname) {
-        if ($modname === '') {
-            continue;
-        }
-        // For example: /mod/quiz/ or /mod/quiz/view.php?id=....
-        if (strpos($pageurlstr, '/mod/' . $modname . '/') !== false) {
-            return; // Skip plugin rendering.
-        }
-    }
-
-    $coursemodurl = new moodle_url('/mod/');
-    $coursemodurlstr = $coursemodurl->out();
-    $courseviewurl = new moodle_url('/course/view.php', ['id' => $courseid]);
-    $courseviewurlstr = $courseviewurl->out();
-
-    // Check if the current page is a course view or module page.
-    $comparepositionpagewithmod = strpos($pageurlstr, $coursemodurlstr);
-    $comparepositionpagewithcourseview = strpos($pageurlstr, $courseviewurlstr);
-
-    // Access to all.
-    if (($comparepositionpagewithcourseview !== false) || ($comparepositionpagewithmod !== false)) {
-        // Decide whether to animate message or not.
-        $animate = ($comparepositionpagewithcourseview !== false) ? 'true' : 'false';
-        echo local_corolair_render_embed_script($courseid, $context, $animate);
     }
 }
 
