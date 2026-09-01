@@ -37,6 +37,7 @@
  */
 function xmldb_local_corolair_upgrade($oldversion) {
     global $DB;
+    $dbman = $DB->get_manager();
     // Step 1: Remove the "Corolair" menu item if present in custommenuitems.
     if ($oldversion < 2024091600) {
         // Use set_config() rather than a raw update_record() on {config}, so the core
@@ -192,6 +193,29 @@ function xmldb_local_corolair_upgrade($oldversion) {
             \core\task\manager::queue_adhoc_task($task, true);
         }
         upgrade_plugin_savepoint(true, 2026090101, 'local', 'corolair');
+    }
+    // The plugin's first table. It records which LTI activities this plugin created, which is what
+    // now authorises the manage and delete operations -- previously any {lti}.id on the site was a
+    // valid target, because the capability those functions check is held at system context and so
+    // passes in every course.
+    //
+    // Deliberately no back-fill. Adopting pre-existing activities would mean guessing which ones
+    // were ours, and the guess would have to be permissive enough to be useless as a boundary.
+    // Placements created before this upgrade stop being manageable through the API and have to be
+    // recreated -- a one-off cost paid only by sites that already had exams placed.
+    if ($oldversion < 2026090102) {
+        $table = new xmldb_table(\local_corolair\local\placement_registry::TABLE);
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('ltiinstanceid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('typeid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('ltiinstanceid', XMLDB_INDEX_UNIQUE, ['ltiinstanceid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+        upgrade_plugin_savepoint(true, 2026090102, 'local', 'corolair');
     }
     return true;
 }

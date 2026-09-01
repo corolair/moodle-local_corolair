@@ -653,6 +653,39 @@ final class plugin_definition_test extends \advanced_testcase {
     }
 
     /**
+     * The declared schema matches the table name the code actually reads and writes.
+     *
+     * db/install.xml and the upgrade step are the two independent places that create this table,
+     * and neither one is exercised by a fresh unit-test run against an already-installed site. A
+     * rename in one place and not the other would therefore only surface on a real installation.
+     *
+     * @covers \local_corolair\local\placement_registry
+     * @return void
+     */
+    public function test_declared_schema_matches_the_table_the_code_uses(): void {
+        global $CFG, $DB;
+
+        $schema = simplexml_load_file($CFG->dirroot . '/local/corolair/db/install.xml');
+        $this->assertNotFalse($schema, 'db/install.xml must be well-formed XML.');
+
+        $declared = [];
+        foreach ($schema->TABLES->TABLE as $table) {
+            $declared[] = (string)$table['NAME'];
+        }
+
+        $this->assertContains(\local_corolair\local\placement_registry::TABLE, $declared);
+        foreach ($declared as $name) {
+            // The CI validator enforces this prefix too, but only against install.xml; asserting
+            // it here keeps the rule next to the constant a future table would be added from.
+            $this->assertStringStartsWith('local_corolair', $name);
+            $this->assertTrue(
+                $DB->get_manager()->table_exists($name),
+                'A declared table should exist once the plugin is installed: ' . $name
+            );
+        }
+    }
+
+    /**
      * Every language string used by the disclosure resolves in English.
      *
      * @covers \local_corolair\local\integration_disclosure::get_function_groups

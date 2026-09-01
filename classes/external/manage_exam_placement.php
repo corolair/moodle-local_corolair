@@ -86,6 +86,19 @@ class manage_exam_placement extends external_api {
             throw new \invalid_parameter_exception('The activity name cannot be empty.');
         }
 
+        // Ownership first. Without it the capability check below is not a boundary at all: the
+        // service account holds moodle/course:manageactivities at system context, so it passes in
+        // every course, and any {lti}.id on the site would be renameable.
+        \local_corolair\local\placement_registry::owned_or_fail((int)$params['ltiinstanceid']);
+
+        // An owned placement whose activity a teacher has since deleted in Moodle. Reported as
+        // "not ours" rather than surfacing a raw DML error, and the stale row is dropped so the
+        // next call is decided by the ownership check instead of by this branch.
+        if (!\local_corolair\local\placement_registry::instance_exists((int)$params['ltiinstanceid'])) {
+            \local_corolair\local\placement_registry::forget((int)$params['ltiinstanceid']);
+            throw new \moodle_exception('placementnotowned', 'local_corolair');
+        }
+
         $lti = $DB->get_record('lti', ['id' => $params['ltiinstanceid']], '*', MUST_EXIST);
         $module = $DB->get_record('modules', ['name' => 'lti'], 'id', MUST_EXIST);
         $coursemodule = $DB->get_record('course_modules', [
