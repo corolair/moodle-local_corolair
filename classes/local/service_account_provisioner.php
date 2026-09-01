@@ -231,11 +231,13 @@ final class service_account_provisioner {
      * exists for exam placement: creating, renaming and deleting the External tool activity
      * that carries a Raison exam. Nothing else in the integration writes to a course.
      *
-     * The blast radius is bounded by the functions rather than by the capabilities. Raison
-     * can only reach these through local_corolair_create_exam_placement,
-     * local_corolair_manage_exam_placement and local_corolair_delete_exam_placement, and
-     * delete_exam_placement resolves its target through the {lti} table with MUST_EXIST, so
-     * it can only ever remove an LTI activity -- never an arbitrary course module.
+     * The blast radius is bounded by the functions rather than by the capabilities, and that
+     * distinction matters here: these capabilities are held at system context, so they are
+     * satisfied in every course on the site and narrow nothing by themselves. Raison can only
+     * reach them through local_corolair_create_exam_placement, local_corolair_manage_exam_placement
+     * and local_corolair_delete_exam_placement, and those functions refuse any activity this
+     * plugin did not create -- see placement_registry. Creation is bounded separately, by refusing
+     * any LTI tool type that launches outside Raison.
      */
     public const WRITE_CAPABILITIES = [
         'moodle/course:manageactivities',

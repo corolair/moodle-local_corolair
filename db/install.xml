@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/corolair/db" VERSION="20260901" COMMENT="XMLDB file for Moodle local/corolair"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="local_corolair_placement" COMMENT="One row per LTI exam activity this plugin created for Raison. Membership of this table -- not a capability check -- is what authorises the manage and delete operations, so an LTI activity created by anyone else is out of reach.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="ltiinstanceid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="{lti}.id of the created activity. The sole lookup key: an activity moved between courses keeps this value while courseid below goes stale."/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Course the activity was created in. Diagnostic only -- never part of a lookup predicate, because Moodle lets an activity move between courses without telling this plugin."/>
+        <FIELD NAME="typeid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="{lti_types}.id the activity was created from. Diagnostic only; the host allow-list is what actually validates the tool at creation time."/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <!-- Deliberately a unique index rather than a foreign-unique key on {lti}. XMLDB creates no
+             real foreign-key constraint, so the key type would buy no enforcement while coupling
+             this plugin's schema to mod_lti's. -->
+        <INDEX NAME="ltiinstanceid" UNIQUE="true" FIELDS="ltiinstanceid"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

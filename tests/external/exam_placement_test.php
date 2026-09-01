@@ -25,20 +25,26 @@
 namespace local_corolair\external;
 
 use core_external\external_api;
+use local_corolair\local\placement_registry;
 
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/mod/lti/locallib.php');
+// Provides course_delete_module(), used to simulate a teacher removing a placement by hand.
+require_once($CFG->dirroot . '/course/lib.php');
 
 /**
  * Verifies exam placements are created, renamed and removed within their declared bounds.
  *
  * These three functions are the plugin's only write surface on course content, so the
  * question each test answers is not just "does it work" but "can it reach anything it
- * should not". Deletion in particular is scoped by resolving the target through the
- * {lti} table: it replaced core_course_delete_modules in the service allow-list, which
- * would have let the token delete any activity in any course.
+ * should not".
+ *
+ * The bound is the ownership record written at creation time, not the capability check. That
+ * distinction is the point: the service account holds moodle/course:manageactivities at system
+ * context, so the capability passes in every course on the site and never narrowed anything.
+ * Creation is bounded separately, by refusing any tool type that launches outside Raison.
  */
 final class exam_placement_test extends \core_external\tests\externallib_testcase {
     /** @var \stdClass Course the placements are created in. */
@@ -68,7 +74,9 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
         $this->section = $this->section_record(1);
         $this->typeid = $this->getDataGenerator()->get_plugin_generator('mod_lti')->create_tool_types([
             'name' => 'Raison exam tool',
-            'baseurl' => 'https://lti.example.com/launch',
+            // Must be a Raison launch URL: placement now refuses any tool type that launches
+            // elsewhere, so a generic fixture host would fail every creation test.
+            'baseurl' => 'https://services.corolair.dev/integration/lti/launch',
             'state' => LTI_TOOL_STATE_CONFIGURED,
         ]);
     }
@@ -418,8 +426,15 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
      * @return void
      */
     public function test_manage_rejects_an_unknown_instance(): void {
-        $this->expectException(\dml_missing_record_exception::class);
-        manage_exam_placement::execute(-1, 'Exam');
+        try {
+            manage_exam_placement::execute(-1, 'Exam');
+            $this->fail('An unowned instance must not be renameable.');
+        } catch (\moodle_exception $exception) {
+            // Asserted on the error code rather than the class: dml_missing_record_exception is
+            // itself a moodle_exception, so an instanceof check would have passed against the old
+            // behaviour this test exists to rule out.
+            $this->assertSame('placementnotowned', $exception->errorcode);
+        }
     }
 
     /**
@@ -488,16 +503,21 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
      * @return void
      */
     public function test_delete_rejects_an_unknown_instance(): void {
-        $this->expectException(\dml_missing_record_exception::class);
-        delete_exam_placement::execute(-1);
+        try {
+            delete_exam_placement::execute(-1);
+            $this->fail('An unowned instance must not be deletable.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('placementnotowned', $exception->errorcode);
+        }
     }
 
     /**
      * The function cannot be turned on a non-LTI activity.
      *
-     * The target is resolved through the {lti} table, so an instance ID that belongs to
-     * another module type simply does not resolve. This is what bounds the destructive
-     * reach of the web-service token.
+     * The bound is now ownership rather than module type: nothing this plugin did not create is
+     * reachable, whatever table it lives in. That also removes the identifier-collision caveat
+     * this test used to carry, because a page instance ID sharing a value with a real LTI row is
+     * still refused unless that LTI row is a recorded placement.
      *
      * @covers \local_corolair\external\delete_exam_placement::execute
      * @return void
@@ -509,17 +529,12 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
             'course' => $this->course->id,
             'section' => 1,
         ]);
-        // The page's instance ID is meaningless as an LTI instance ID; if one happens to
-        // collide with a real LTI row, skip rather than assert the wrong thing.
-        if ($DB->record_exists('lti', ['id' => (int)$page->id])) {
-            $this->markTestSkipped('The generated page instance ID collides with an LTI instance.');
-        }
 
         try {
             delete_exam_placement::execute((int)$page->id);
             $this->fail('A non-LTI activity must not be reachable through this function.');
-        } catch (\dml_missing_record_exception $exception) {
-            $this->assertNotEmpty($exception->getMessage());
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('placementnotowned', $exception->errorcode);
         }
         $this->assertTrue(
             $DB->record_exists('page', ['id' => (int)$page->id]),
@@ -549,5 +564,190 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
             $this->assertNotEmpty($exception->getMessage());
         }
         $this->assertTrue($DB->record_exists('lti', ['id' => $created['ltiinstanceid']]));
+    }
+
+    /**
+     * Creation records the placement so the manage and delete functions can recognise it.
+     *
+     * @covers \local_corolair\external\create_exam_placement::execute
+     * @return void
+     */
+    public function test_create_records_ownership(): void {
+        global $DB;
+
+        $created = $this->create('Recorded exam');
+
+        $record = $DB->get_record(placement_registry::TABLE, [
+            'ltiinstanceid' => $created['ltiinstanceid'],
+        ], '*', MUST_EXIST);
+        $this->assertSame((int)$this->course->id, (int)$record->courseid);
+        $this->assertSame((int)$this->typeid, (int)$record->typeid);
+        $this->assertSame(
+            1,
+            $DB->count_records(placement_registry::TABLE, ['ltiinstanceid' => $created['ltiinstanceid']])
+        );
+    }
+
+    /**
+     * A tool type that launches somewhere other than Raison cannot be placed.
+     *
+     * This is what stops the integration attaching an arbitrary external tool to a course, given
+     * that the plugin has no way to know which tool type ID belongs to Raison.
+     *
+     * @covers \local_corolair\external\create_exam_placement::execute
+     * @return void
+     */
+    public function test_create_rejects_a_foreign_tool_host(): void {
+        global $DB;
+
+        $foreign = $this->getDataGenerator()->get_plugin_generator('mod_lti')->create_tool_types([
+            'name' => 'Unrelated tool',
+            'baseurl' => 'https://tool.example.com/launch',
+            'state' => LTI_TOOL_STATE_CONFIGURED,
+        ]);
+
+        try {
+            create_exam_placement::execute(
+                (int)$this->course->id,
+                (int)$this->section->id,
+                $foreign,
+                'Exam'
+            );
+            $this->fail('A tool launching from another host must not be placeable.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('placementtoolnotallowed', $exception->errorcode);
+        }
+        $this->assertSame([], $this->section_sequence(), 'No activity may be left behind.');
+        $this->assertSame(0, $DB->count_records(placement_registry::TABLE));
+    }
+
+    /**
+     * An LTI activity created outside this plugin is out of reach of both write functions.
+     *
+     * The capability check alone never bounded this: the service account holds
+     * moodle/course:manageactivities at system context, so it passes in every course.
+     *
+     * @covers \local_corolair\external\manage_exam_placement::execute
+     * @covers \local_corolair\external\delete_exam_placement::execute
+     * @return void
+     */
+    public function test_write_functions_cannot_reach_a_foreign_lti_activity(): void {
+        global $DB;
+
+        $foreign = $this->getDataGenerator()->create_module('lti', [
+            'course' => $this->course->id,
+            'section' => 1,
+        ]);
+
+        try {
+            manage_exam_placement::execute((int)$foreign->id, 'Renamed');
+            $this->fail('A foreign LTI activity must not be renameable.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('placementnotowned', $exception->errorcode);
+        }
+
+        try {
+            delete_exam_placement::execute((int)$foreign->id);
+            $this->fail('A foreign LTI activity must not be deletable.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('placementnotowned', $exception->errorcode);
+        }
+
+        $this->assertTrue($DB->record_exists('lti', ['id' => (int)$foreign->id]));
+        $foreignname = $DB->get_field('lti', 'name', ['id' => (int)$foreign->id], MUST_EXIST);
+        $this->assertSame($foreign->name, $foreignname, 'The unrelated activity must be untouched.');
+    }
+
+    /**
+     * Deleting a placement whose activity a teacher already removed reports success.
+     *
+     * Raison has to be able to converge its own state. Throwing here would leave it retrying
+     * against an activity that is never coming back.
+     *
+     * @covers \local_corolair\external\delete_exam_placement::execute
+     * @return void
+     */
+    public function test_delete_is_idempotent_once_the_activity_is_gone(): void {
+        global $DB;
+
+        $created = $this->create('Removed by hand');
+        course_delete_module($created['coursemoduleid']);
+        $this->assertTrue(
+            $DB->record_exists(placement_registry::TABLE, ['ltiinstanceid' => $created['ltiinstanceid']]),
+            'The ownership row outlives the activity until the next call collects it.'
+        );
+
+        $result = external_api::clean_returnvalue(
+            delete_exam_placement::execute_returns(),
+            delete_exam_placement::execute($created['ltiinstanceid'])
+        );
+
+        $this->assertTrue($result['deleted']);
+        $this->assertFalse(
+            $DB->record_exists(placement_registry::TABLE, ['ltiinstanceid' => $created['ltiinstanceid']])
+        );
+    }
+
+    /**
+     * A successful deletion drops the ownership row with the activity.
+     *
+     * @covers \local_corolair\external\delete_exam_placement::execute
+     * @return void
+     */
+    public function test_delete_forgets_the_placement(): void {
+        global $DB;
+
+        $created = $this->create('Transient exam');
+        delete_exam_placement::execute($created['ltiinstanceid']);
+
+        $this->assertFalse(
+            $DB->record_exists(placement_registry::TABLE, ['ltiinstanceid' => $created['ltiinstanceid']])
+        );
+    }
+
+    /**
+     * A host setting that cannot be trusted falls back to the shipped default.
+     *
+     * The stored value bypasses admin_setting_configtext::validate() whenever it is written by
+     * set_config(), the CLI or $CFG->forced_plugin_settings, so the reader has to treat it as
+     * untrusted. Falling back to the default keeps a misconfigured site working against the real
+     * host; the alternatives are silently disabling the check or bricking placement entirely.
+     *
+     * @dataProvider untrusted_host_setting_provider
+     * @covers \local_corolair\local\placement_registry::allowed_host
+     * @param string $stored Value written to the setting.
+     * @return void
+     */
+    public function test_allowed_host_falls_back_to_the_default(string $stored): void {
+        set_config('ltitoolhost', $stored, 'local_corolair');
+
+        $this->assertSame(placement_registry::DEFAULT_TOOL_HOST, placement_registry::allowed_host());
+    }
+
+    /**
+     * Untrusted values for the host setting.
+     *
+     * @return array[]
+     */
+    public static function untrusted_host_setting_provider(): array {
+        return [
+            'unset' => [''],
+            'whitespace' => ['   '],
+            'a pasted URL' => ['https://services.corolair.dev/integration/lti/launch'],
+            'a host and port' => ['services.corolair.dev:8443'],
+            'not a host at all' => ['not a host'],
+        ];
+    }
+
+    /**
+     * An administrator may still point the integration at a different host.
+     *
+     * @covers \local_corolair\local\placement_registry::allowed_host
+     * @return void
+     */
+    public function test_allowed_host_honours_a_valid_override(): void {
+        set_config('ltitoolhost', '  Services.Example.Org  ', 'local_corolair');
+
+        $this->assertSame('services.example.org', placement_registry::allowed_host());
     }
 }

@@ -24,9 +24,11 @@
 
 namespace local_corolair;
 
+use local_corolair\local\placement_registry;
 use local_corolair\local\role_provisioner;
 use local_corolair\local\service_account_provisioner;
 use local_corolair\local\upgrade_migrator;
+use local_corolair\local\webservice_token_manager;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -51,6 +53,12 @@ final class upgrade_test extends \advanced_testcase {
 
     /** Version recorded before the service was restricted to authorised users. */
     private const VERSION_BEFORE_SERVICE_ACCOUNT = 2026081400;
+
+    /** Version recorded before the token overlap was cut from seven days to fifteen minutes. */
+    private const VERSION_BEFORE_SHORT_OVERLAP = 2026090100;
+
+    /** Version recorded before the plugin gained its placement ownership table. */
+    private const VERSION_BEFORE_PLACEMENT_TABLE = 2026090101;
 
     /**
      * Rewind the stored plugin version so savepoints can advance.
@@ -354,6 +362,80 @@ final class upgrade_test extends \advanced_testcase {
     }
 
     /**
+     * A pending seven-day overlap is cut to the grace window on upgrade.
+     *
+     * Without this the credential the release exists to retire stays live for up to a week
+     * after the upgrade that retired it, on exactly the sites that were mid-rotation.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_shortens_a_pending_overlap(): void {
+        $this->resetAfterTest();
+
+        $deadline = time() + (7 * DAYSECS);
+        set_config('previouswebservicetokenid', 1234, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', $deadline, 'local_corolair');
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_SHORT_OVERLAP);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SHORT_OVERLAP));
+
+        $this->assertLessThanOrEqual(
+            time() + webservice_token_manager::PREVIOUS_TOKEN_GRACE,
+            (int)get_config('local_corolair', 'previouswebservicetokenrevokeby')
+        );
+        $this->assertCount(
+            1,
+            \core\task\manager::get_adhoc_tasks(\local_corolair\task\revoke_previous_token_task::class),
+            'The upgrade should queue the revocation rather than perform it inline.'
+        );
+    }
+
+    /**
+     * An overlap deadline already in the past is left where it is.
+     *
+     * The clamp lowers and never raises. Written as max() it would push an elapsed deadline
+     * a quarter of an hour into the future and resurrect a token the hourly task was about
+     * to collect -- a regression with no visible symptom.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_does_not_extend_an_elapsed_overlap(): void {
+        $this->resetAfterTest();
+
+        $elapsed = time() - DAYSECS;
+        set_config('previouswebservicetokenid', 1234, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', $elapsed, 'local_corolair');
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_SHORT_OVERLAP);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SHORT_OVERLAP));
+
+        $this->assertSame(
+            $elapsed,
+            (int)get_config('local_corolair', 'previouswebservicetokenrevokeby'),
+            'An elapsed deadline must not be pushed forward.'
+        );
+    }
+
+    /**
+     * A site with no overlap pending queues nothing.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_queues_no_revocation_without_a_pending_overlap(): void {
+        $this->resetAfterTest();
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_SHORT_OVERLAP);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SHORT_OVERLAP));
+
+        $this->assertEmpty(
+            \core\task\manager::get_adhoc_tasks(\local_corolair\task\revoke_previous_token_task::class)
+        );
+    }
+
+    /**
      * A site that never registered has nothing to authorise and records nothing.
      *
      * @covers ::local_corolair_authorise_existing_token_owners
@@ -373,5 +455,65 @@ final class upgrade_test extends \advanced_testcase {
 
         $this->assertSame(0, $DB->count_records('external_services_users', ['externalserviceid' => $serviceid]));
         $this->assertFalse(get_config('local_corolair', 'serviceaccountmigrationpending'));
+    }
+
+    /**
+     * Upgrading an existing site creates the placement table.
+     *
+     * The test site is installed from db/install.xml, so the table is already present and the
+     * upgrade step's table_exists() guard short-circuits -- which means create_table() is never
+     * reached by any other test, despite being the only path a real upgrading site takes. The
+     * table is therefore dropped here first, so this asserts what those sites actually run.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_creates_the_placement_table(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $dbman = $DB->get_manager();
+        $table = new \xmldb_table(placement_registry::TABLE);
+        $dbman->drop_table($table);
+        $this->assertFalse($dbman->table_exists($table));
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_PLACEMENT_TABLE);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_PLACEMENT_TABLE));
+
+        $this->assertTrue($dbman->table_exists($table));
+        // Written and read back, so the columns the registry uses are proven to exist rather
+        // than merely the table name.
+        $DB->insert_record(placement_registry::TABLE, (object)[
+            'ltiinstanceid' => 1,
+            'courseid' => 2,
+            'typeid' => 3,
+            'timecreated' => time(),
+        ]);
+        $this->assertSame(1, $DB->count_records(placement_registry::TABLE, ['ltiinstanceid' => 1]));
+    }
+
+    /**
+     * The upgrade step is safe to re-run against a site that already has the table.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_leaves_an_existing_placement_table_alone(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $DB->insert_record(placement_registry::TABLE, (object)[
+            'ltiinstanceid' => 42,
+            'courseid' => 7,
+            'typeid' => 9,
+            'timecreated' => time(),
+        ]);
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_PLACEMENT_TABLE);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_PLACEMENT_TABLE));
+
+        $this->assertSame(1, $DB->count_records(placement_registry::TABLE, ['ltiinstanceid' => 42]));
     }
 }

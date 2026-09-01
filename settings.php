@@ -167,6 +167,18 @@ if ($hassiteconfig) {
         '', // Default value: none excluded.
         PARAM_TEXT // Validation type.
     ));
+    // Host the Raison LTI exam tool launches from. Exam placement refuses any tool type that
+    // launches somewhere else, which is what stops the integration touching unrelated LTI
+    // activities. Visible rather than hidden on purpose: an administrator who needs to change it
+    // has a site that is already failing, and a setting they cannot see is one they cannot use to
+    // recover. Any value that is not a bare host name falls back to the shipped default.
+    $settings->add(new admin_setting_configtext(
+        'local_corolair/ltitoolhost',
+        get_string('ltitoolhost', 'local_corolair'), // Setting title.
+        get_string('ltitoolhostdesc', 'local_corolair'), // Setting description.
+        \local_corolair\local\placement_registry::DEFAULT_TOOL_HOST, // Default value.
+        PARAM_HOST // Validation type: a bare host name, so a pasted URL is rejected by the form.
+    ));
     require_once($CFG->dirroot . '/local/corolair/lib.php');
     // Opt out of the token lifecycle. A checkbox rather than the true/false dropdowns above:
     // those store the literal string "false", and (bool)'false' is true, which is why
