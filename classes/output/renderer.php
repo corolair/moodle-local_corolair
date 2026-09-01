@@ -27,6 +27,7 @@
 
 namespace local_corolair\output;
 
+use local_corolair\local\environment;
 use plugin_renderer_base;
 
 /**
@@ -60,6 +61,9 @@ class renderer extends plugin_renderer_base {
             'sidepanel' => htmlspecialchars($sidepanel, ENT_QUOTES, 'UTF-8'),
             'animate' => $animate,
             'datausertoken' => $datausertoken,
+            // Passed in rather than written in the template: a mustache file is not PHP, so a
+            // hardcoded src there is a host name outside the environment tables.
+            'widgeturl' => environment::url('widget', 'widget.js'),
         ];
         return $this->render_from_template('local_corolair/embed_script', $data);
     }
@@ -100,7 +104,7 @@ class renderer extends plugin_renderer_base {
         if ($istokenexist) {
             $istokenexiststring = 'true';
         }
-        $troubleshooturl = new \moodle_url('https://share.raison.is/troubleshoot/moodle', [
+        $troubleshooturl = new \moodle_url(environment::url('embed', 'troubleshoot/moodle'), [
             'isWebServiceEnabled' => $iswebserviceenabledstring,
             'isRestProtocolEnabled' => $isrestprotocolenabledstring,
             'isCorolairServiceExist' => $israisonserviceexiststring,
@@ -118,6 +122,10 @@ class renderer extends plugin_renderer_base {
      * @return string The rendered HTML content.
      */
     public function render_demo() {
-        return $this->render_from_template('local_corolair/demo', []);
+        $data = [
+            // See render_embed_script(): the URL cannot live in the template.
+            'bookmeetingurl' => environment::url('embed', 'troubleshoot/book-meeting'),
+        ];
+        return $this->render_from_template('local_corolair/demo', $data);
     }
 }

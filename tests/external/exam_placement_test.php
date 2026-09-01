@@ -25,6 +25,7 @@
 namespace local_corolair\external;
 
 use core_external\external_api;
+use local_corolair\local\environment;
 use local_corolair\local\placement_registry;
 
 defined('MOODLE_INTERNAL') || die();
@@ -67,6 +68,13 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
         $this->resetAfterTest();
         $this->setAdminUser();
 
+        // Pin the tool host to this tree's environment. The setting's default is written into
+        // {config_plugins} once, when the setting first appears, and Moodle never revisits a
+        // stored value -- so a test database installed under a different environment keeps the
+        // other branch's host and fails every creation test here for a reason that has nothing
+        // to do with the code under test.
+        set_config('ltitoolhost', environment::host('services'), 'local_corolair');
+
         $this->course = $this->getDataGenerator()->create_course(
             ['numsections' => 3],
             ['createsections' => true]
@@ -75,8 +83,9 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
         $this->typeid = $this->getDataGenerator()->get_plugin_generator('mod_lti')->create_tool_types([
             'name' => 'Raison exam tool',
             // Must be a Raison launch URL: placement now refuses any tool type that launches
-            // elsewhere, so a generic fixture host would fail every creation test.
-            'baseurl' => 'https://services.raison.is/integration/lti/launch',
+            // elsewhere, so a generic fixture host would fail every creation test. Derived from
+            // environment rather than written out, so this fixture is correct on any deployment.
+            'baseurl' => environment::url('services', 'integration/lti/launch'),
             'state' => LTI_TOOL_STATE_CONFIGURED,
         ]);
     }
@@ -721,7 +730,7 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
     public function test_allowed_host_falls_back_to_the_default(string $stored): void {
         set_config('ltitoolhost', $stored, 'local_corolair');
 
-        $this->assertSame(placement_registry::DEFAULT_TOOL_HOST, placement_registry::allowed_host());
+        $this->assertSame(placement_registry::default_tool_host(), placement_registry::allowed_host());
     }
 
     /**
@@ -733,8 +742,8 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
         return [
             'unset' => [''],
             'whitespace' => ['   '],
-            'a pasted URL' => ['https://services.raison.is/integration/lti/launch'],
-            'a host and port' => ['services.raison.is:8443'],
+            'a pasted URL' => [environment::url('services', 'integration/lti/launch')],
+            'a host and port' => [environment::host('services') . ':8443'],
             'not a host at all' => ['not a host'],
         ];
     }

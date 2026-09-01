@@ -225,7 +225,23 @@ Notes:
 - `make down` stops the containers; the Moodle checkout and the database both survive, so `make ci` works again straight away without re-running `setup`. `make clean` deletes them and does require a fresh `setup`.
 - Every Tier 2 target starts the containers itself, so `make ci` works from cold. If the Moodle install is missing or incomplete, they stop with one clear message rather than reporting passes against a half-installed tree.
 
-**Packaging.** `make package` builds `local_corolair.zip` from the committed tree using `git archive`, honouring the `export-ignore` rules in `.gitattributes` so development files stay out of the release. It refuses to run against a dirty working tree, because `git archive` packages `HEAD` and the zip would otherwise not match your files.
+**Environments.** Every host the plugin talks to comes from one place. `classes/local/environment.php` selects between `hosts_prod` and `hosts_dev` on a single `ENV` constant, and nothing else in the tree writes a host name down — `plugin_definition_test` fails the build if anything does. `develop` carries `ENV = 'develop'` and both tables; a release carries `ENV = 'production'` and the production table alone. `environment::host()` falls back to production whenever `hosts_dev` is absent, so a released plugin cannot reach a development host even if that constant were wrong.
+
+**Packaging.** `make package` builds `local_corolair.zip` from the committed tree using `git archive`, honouring the `export-ignore` rules in `.gitattributes` so development files stay out of the release. It refuses to run against a dirty working tree, because `git archive` packages `HEAD` and the zip would otherwise not match your files. Run from `main`, it produces the customer artifact.
+
+Run from `develop` it packages the *development* endpoints, which is rarely what you want. To build a production zip without waiting for a release:
+
+```bash
+make package-prod
+```
+
+That writes `local_corolair-prod.zip` by applying the same transform the release workflow does — switch `ENV` to production, drop `hosts_dev` — and refuses to write anything if either half silently failed. It releases nothing: no branch moves and nothing is pushed. Use it to try an install, not to ship, because a zip built this way has been through neither CI nor review.
+
+**Releases.** `main` is generated rather than merged into. Every push to `develop` runs the *Release to main* workflow, which branches from `main`, replaces the tree with `develop`'s, applies the transform above, and opens a pull request from `release/<version>` — the version being `$plugin->release` as it stands on `develop`. CI runs the full suite against that branch — the production configuration, exercised as production — and `main` is protected so that pull request is the only way in. Nothing merges on its own; the merge stays a human decision.
+
+Pushes within a release cycle keep updating that same pull request. Bumping `$plugin->release` starts a new branch and a new pull request, and the workflow closes the previous one: a superseded release branch stops being updated, so its pull request freezes holding a tree older than `develop`, and merging it would quietly ship a build behind the one you meant. The branch itself is left in place — for a release that was merged it records what shipped.
+
+This exists because the endpoints were once branch-specific constants in eighteen files. Two branches disagreeing in eighteen places conflict on every merge, and a line `main` has never counter-changed is taken from `develop` silently, with no conflict marker at all — which is how development endpoints reached a release once already. Hotfixes therefore go through `develop` like everything else: a change committed straight to `main` is overwritten by the next release.
 
 ---
 

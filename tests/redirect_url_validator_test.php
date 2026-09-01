@@ -24,6 +24,7 @@
 
 namespace local_corolair;
 
+use local_corolair\local\environment;
 use local_corolair\local\redirect_url_validator;
 
 /**
@@ -39,26 +40,29 @@ final class redirect_url_validator_test extends \advanced_testcase {
      * @return array[] Data sets of [url, expected host].
      */
     public static function trusted_url_provider(): array {
+        $app = environment::host('app');
+        $embed = environment::host('embed');
+
         return [
-            'staging' => [
-                'https://app.raison.is/auth/ticket-auth?token=test',
-                'app.raison.is',
+            'app host' => [
+                'https://' . $app . '/auth/ticket-auth?token=test',
+                $app,
             ],
-            'embed' => [
-                'https://share.raison.is/auth/ticket-auth?token=test',
-                'share.raison.is',
+            'embed host' => [
+                'https://' . $embed . '/auth/ticket-auth?token=test',
+                $embed,
             ],
             'explicit default port' => [
-                'https://app.raison.is:443/auth/ticket-auth?token=test',
-                'app.raison.is',
+                'https://' . $app . ':443/auth/ticket-auth?token=test',
+                $app,
             ],
             'uppercase host' => [
-                'https://SHARE.raison.is/auth/ticket-auth',
-                'share.raison.is',
+                'https://' . strtoupper($embed) . '/auth/ticket-auth',
+                $embed,
             ],
             'bare root' => [
-                'https://share.raison.is/',
-                'share.raison.is',
+                'https://' . $embed . '/',
+                $embed,
             ],
         ];
     }
@@ -92,7 +96,7 @@ final class redirect_url_validator_test extends \advanced_testcase {
      */
     public function test_query_string_is_preserved(): void {
         $validated = redirect_url_validator::validate(
-            'https://share.raison.is/auth/ticket-auth?token=abc123&source=moodle'
+            environment::url('embed', 'auth/ticket-auth?token=abc123&source=moodle')
         );
 
         $out = $validated->out(false);
@@ -107,24 +111,30 @@ final class redirect_url_validator_test extends \advanced_testcase {
      * @return array[] Data sets of [url].
      */
     public static function untrusted_url_provider(): array {
+        $app = environment::host('app');
+        $embed = environment::host('embed');
+        // The registrable domain the trusted hosts sit under, derived by dropping the first
+        // label. Written out it would be a fifth host name in a file that is meant to have none.
+        $parent = substr($app, strpos($app, '.') + 1);
+
         return [
             'empty' => [''],
             'malformed' => ['not a url'],
             'relative' => ['/auth/ticket-auth'],
             'scheme only' => ['https://'],
-            'plain http' => ['http://app.raison.is/auth/ticket-auth'],
+            'plain http' => ['http://' . $app . '/auth/ticket-auth'],
             'javascript' => ['javascript:alert(1)'],
             'data uri' => ['data:text/html,<script>alert(1)</script>'],
-            'ftp' => ['ftp://share.raison.is/auth'],
+            'ftp' => ['ftp://' . $embed . '/auth'],
             'different host' => ['https://evil.example/auth/ticket-auth'],
-            'suffix lookalike' => ['https://app.raison.is.evil.example/auth/ticket-auth'],
-            'prefix lookalike' => ['https://evilapp.raison.is/auth'],
-            'subdomain of a trusted host' => ['https://a.share.raison.is/auth'],
-            'parent domain' => ['https://raison.is/auth/ticket-auth'],
-            'userinfo smuggling' => ['https://share.raison.is@evil.example/auth'],
-            'password smuggling' => ['https://share.raison.is:x@evil.example/auth'],
-            'non-default port' => ['https://app.raison.is:8443/auth/ticket-auth'],
-            'http port on https' => ['https://app.raison.is:80/auth'],
+            'suffix lookalike' => ['https://' . $app . '.evil.example/auth/ticket-auth'],
+            'prefix lookalike' => ['https://evil' . $app . '/auth'],
+            'subdomain of a trusted host' => ['https://a.' . $embed . '/auth'],
+            'parent domain' => ['https://' . $parent . '/auth/ticket-auth'],
+            'userinfo smuggling' => ['https://' . $embed . '@evil.example/auth'],
+            'password smuggling' => ['https://' . $embed . ':x@evil.example/auth'],
+            'non-default port' => ['https://' . $app . ':8443/auth/ticket-auth'],
+            'http port on https' => ['https://' . $app . ':80/auth'],
         ];
     }
 

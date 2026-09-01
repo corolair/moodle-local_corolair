@@ -52,9 +52,8 @@ final class upgrade_migrator {
      */
     public const LEGACY_TOKEN_GRACE = HOURSECS;
 
-    /** Authenticated endpoint that atomically replaces both inherited credentials. */
-    private const MIGRATION_ENDPOINT =
-        'https://services.raison.is/moodle-integration/v2/plugin/organization/legacy-credentials/migrate';
+    /** Authenticated endpoint that atomically replaces both inherited credentials, below the services host. */
+    private const MIGRATION_PATH = 'moodle-integration/v2/plugin/organization/legacy-credentials/migrate';
 
     /**
      * Detect a connected legacy installation and schedule its credential migration.
@@ -579,7 +578,7 @@ final class upgrade_migrator {
         $response = audited_request::execute(
             $curl,
             function () use ($curl, $postdata, $options) {
-                return $curl->post(self::MIGRATION_ENDPOINT, $postdata, $options);
+                return $curl->post(environment::url('services', self::MIGRATION_PATH), $postdata, $options);
             },
             audited_request::OP_WEBSERVICE_TOKEN_ROTATION,
             \context_system::instance()
