@@ -76,7 +76,7 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
             'name' => 'Raison exam tool',
             // Must be a Raison launch URL: placement now refuses any tool type that launches
             // elsewhere, so a generic fixture host would fail every creation test.
-            'baseurl' => 'https://services.corolair.dev/integration/lti/launch',
+            'baseurl' => 'https://services.raison.is/integration/lti/launch',
             'state' => LTI_TOOL_STATE_CONFIGURED,
         ]);
     }
@@ -733,8 +733,8 @@ final class exam_placement_test extends \core_external\tests\externallib_testcas
         return [
             'unset' => [''],
             'whitespace' => ['   '],
-            'a pasted URL' => ['https://services.corolair.dev/integration/lti/launch'],
-            'a host and port' => ['services.corolair.dev:8443'],
+            'a pasted URL' => ['https://services.raison.is/integration/lti/launch'],
+            'a host and port' => ['services.raison.is:8443'],
             'not a host at all' => ['not a host'],
         ];
     }

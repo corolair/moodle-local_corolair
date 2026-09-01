@@ -75,11 +75,11 @@ final class webservice_token_manager {
 
     /** Corolair rotation endpoint. */
     private const ROTATION_ENDPOINT =
-        'https://services.corolair.dev/moodle-integration/v2/plugin/organization/webservice-token/rotate';
+        'https://services.raison.is/moodle-integration/v2/plugin/organization/webservice-token/rotate';
 
     /** Corolair read-only token verification endpoint. */
     private const VERIFICATION_ENDPOINT =
-        'https://services.corolair.dev/moodle-integration/v2/plugin/organization/webservice-token/verify';
+        'https://services.raison.is/moodle-integration/v2/plugin/organization/webservice-token/verify';
 
     /**
      * Create a token that expires after the configured lifetime.

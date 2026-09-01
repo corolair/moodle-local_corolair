@@ -56,7 +56,7 @@ final class placement_registry {
      * than a hidden one: an administrator who has to change it is an administrator whose site is
      * already broken, and a setting they cannot see is a setting they cannot use to recover.
      */
-    public const DEFAULT_TOOL_HOST = 'services.corolair.dev';
+    public const DEFAULT_TOOL_HOST = 'services.raison.is';
 
     /** Setting holding the administrator override for the host above. */
     private const HOST_SETTING = 'ltitoolhost';
@@ -124,8 +124,8 @@ final class placement_registry {
      *
      * Mirrors redirect_url_validator::validate() deliberately, rather than reimplementing URL
      * parsing a second way. The port rule matters more than it looks: without it
-     * https://services.corolair.dev:8443/ passes a bare host comparison. The userinfo case is
-     * handled for free by comparing the parsed host, since https://services.corolair.dev@evil.com/
+     * https://services.raison.is:8443/ passes a bare host comparison. The userinfo case is
+     * handled for free by comparing the parsed host, since https://services.raison.is@evil.com/
      * parses to evil.com.
      *
      * @param string $url URL to inspect.

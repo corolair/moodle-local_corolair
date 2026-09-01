@@ -41,24 +41,24 @@ final class redirect_url_validator_test extends \advanced_testcase {
     public static function trusted_url_provider(): array {
         return [
             'staging' => [
-                'https://staging.corolair.dev/auth/ticket-auth?token=test',
-                'staging.corolair.dev',
+                'https://app.raison.is/auth/ticket-auth?token=test',
+                'app.raison.is',
             ],
             'embed' => [
-                'https://embed.corolair.dev/auth/ticket-auth?token=test',
-                'embed.corolair.dev',
+                'https://share.raison.is/auth/ticket-auth?token=test',
+                'share.raison.is',
             ],
             'explicit default port' => [
-                'https://staging.corolair.dev:443/auth/ticket-auth?token=test',
-                'staging.corolair.dev',
+                'https://app.raison.is:443/auth/ticket-auth?token=test',
+                'app.raison.is',
             ],
             'uppercase host' => [
-                'https://EMBED.corolair.dev/auth/ticket-auth',
-                'embed.corolair.dev',
+                'https://SHARE.raison.is/auth/ticket-auth',
+                'share.raison.is',
             ],
             'bare root' => [
-                'https://embed.corolair.dev/',
-                'embed.corolair.dev',
+                'https://share.raison.is/',
+                'share.raison.is',
             ],
         ];
     }
@@ -92,7 +92,7 @@ final class redirect_url_validator_test extends \advanced_testcase {
      */
     public function test_query_string_is_preserved(): void {
         $validated = redirect_url_validator::validate(
-            'https://embed.corolair.dev/auth/ticket-auth?token=abc123&source=moodle'
+            'https://share.raison.is/auth/ticket-auth?token=abc123&source=moodle'
         );
 
         $out = $validated->out(false);
@@ -112,19 +112,19 @@ final class redirect_url_validator_test extends \advanced_testcase {
             'malformed' => ['not a url'],
             'relative' => ['/auth/ticket-auth'],
             'scheme only' => ['https://'],
-            'plain http' => ['http://staging.corolair.dev/auth/ticket-auth'],
+            'plain http' => ['http://app.raison.is/auth/ticket-auth'],
             'javascript' => ['javascript:alert(1)'],
             'data uri' => ['data:text/html,<script>alert(1)</script>'],
-            'ftp' => ['ftp://embed.corolair.dev/auth'],
+            'ftp' => ['ftp://share.raison.is/auth'],
             'different host' => ['https://evil.example/auth/ticket-auth'],
-            'suffix lookalike' => ['https://staging.corolair.dev.evil.example/auth/ticket-auth'],
-            'prefix lookalike' => ['https://evilstaging.corolair.dev/auth'],
-            'subdomain of a trusted host' => ['https://a.embed.corolair.dev/auth'],
-            'parent domain' => ['https://corolair.dev/auth/ticket-auth'],
-            'userinfo smuggling' => ['https://embed.corolair.dev@evil.example/auth'],
-            'password smuggling' => ['https://embed.corolair.dev:x@evil.example/auth'],
-            'non-default port' => ['https://staging.corolair.dev:8443/auth/ticket-auth'],
-            'http port on https' => ['https://staging.corolair.dev:80/auth'],
+            'suffix lookalike' => ['https://app.raison.is.evil.example/auth/ticket-auth'],
+            'prefix lookalike' => ['https://evilapp.raison.is/auth'],
+            'subdomain of a trusted host' => ['https://a.share.raison.is/auth'],
+            'parent domain' => ['https://raison.is/auth/ticket-auth'],
+            'userinfo smuggling' => ['https://share.raison.is@evil.example/auth'],
+            'password smuggling' => ['https://share.raison.is:x@evil.example/auth'],
+            'non-default port' => ['https://app.raison.is:8443/auth/ticket-auth'],
+            'http port on https' => ['https://app.raison.is:80/auth'],
         ];
     }
 
