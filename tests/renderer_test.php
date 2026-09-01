@@ -57,8 +57,8 @@ final class renderer_test extends \advanced_testcase {
      * @return string
      */
     private function extract_troubleshoot_url(string $html): string {
-        $this->assertMatchesRegularExpression('/https:\/\/share\.raison\.is\/troubleshoot/', $html);
-        preg_match('/(https:\/\/share\.raison\.is\/troubleshoot[^"\'\s>]*)/', $html, $matches);
+        $this->assertMatchesRegularExpression('/https:\/\/embed\.corolair\.dev\/troubleshoot/', $html);
+        preg_match('/(https:\/\/embed\.corolair\.dev\/troubleshoot[^"\'\s>]*)/', $html, $matches);
         $this->assertNotEmpty($matches);
         return html_entity_decode($matches[1]);
     }

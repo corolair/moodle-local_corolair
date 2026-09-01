@@ -442,7 +442,7 @@ class provider implements
         if (!$apikey || strpos($apikey, $noapikey) === 0) {
             return $contextlist;
         }
-        $url = 'https://services.raison.is/moodle-integration/v2/privacy/users/'
+        $url = 'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
              . $userid . '/contexts';
         $curl = new curl();
         $options = self::get_curl_options($apikey);
@@ -529,7 +529,7 @@ class provider implements
                 continue;
             }
             $url = new \moodle_url(
-                'https://services.raison.is/moodle-integration/v2/privacy/users/'
+                'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
                     . $userid . '/export',
                 $scope
             );
@@ -625,7 +625,7 @@ class provider implements
             return;
         }
         $url = new \moodle_url(
-            'https://services.raison.is/moodle-integration/v2/privacy/contexts/users',
+            'https://services.corolair.dev/moodle-integration/v2/privacy/contexts/users',
             $urlparams
         );
         $curl = new curl();
@@ -673,7 +673,7 @@ class provider implements
             return;
         }
         $url = new \moodle_url(
-            'https://services.raison.is/moodle-integration/v2/privacy/contexts/delete',
+            'https://services.corolair.dev/moodle-integration/v2/privacy/contexts/delete',
             $urlparams
         );
         $curl = new curl();
@@ -720,7 +720,7 @@ class provider implements
             return;
         }
         $url = new \moodle_url(
-            'https://services.raison.is/moodle-integration/v2/privacy/users/'
+            'https://services.corolair.dev/moodle-integration/v2/privacy/users/'
                 . $userid . '/delete',
             $scope
         );

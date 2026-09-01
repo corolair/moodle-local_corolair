@@ -54,7 +54,7 @@ final class upgrade_migrator {
 
     /** Authenticated endpoint that atomically replaces both inherited credentials. */
     private const MIGRATION_ENDPOINT =
-        'https://services.raison.is/moodle-integration/v2/plugin/organization/legacy-credentials/migrate';
+        'https://services.corolair.dev/moodle-integration/v2/plugin/organization/legacy-credentials/migrate';
 
     /**
      * Detect a connected legacy installation and schedule its credential migration.
