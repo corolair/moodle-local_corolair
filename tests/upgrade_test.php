@@ -24,6 +24,7 @@
 
 namespace local_corolair;
 
+use local_corolair\local\placement_registry;
 use local_corolair\local\role_provisioner;
 use local_corolair\local\service_account_provisioner;
 use local_corolair\local\upgrade_migrator;
@@ -55,6 +56,9 @@ final class upgrade_test extends \advanced_testcase {
 
     /** Version recorded before the token overlap was cut from seven days to fifteen minutes. */
     private const VERSION_BEFORE_SHORT_OVERLAP = 2026090100;
+
+    /** Version recorded before the plugin gained its placement ownership table. */
+    private const VERSION_BEFORE_PLACEMENT_TABLE = 2026090101;
 
     /**
      * Rewind the stored plugin version so savepoints can advance.
@@ -451,5 +455,65 @@ final class upgrade_test extends \advanced_testcase {
 
         $this->assertSame(0, $DB->count_records('external_services_users', ['externalserviceid' => $serviceid]));
         $this->assertFalse(get_config('local_corolair', 'serviceaccountmigrationpending'));
+    }
+
+    /**
+     * Upgrading an existing site creates the placement table.
+     *
+     * The test site is installed from db/install.xml, so the table is already present and the
+     * upgrade step's table_exists() guard short-circuits -- which means create_table() is never
+     * reached by any other test, despite being the only path a real upgrading site takes. The
+     * table is therefore dropped here first, so this asserts what those sites actually run.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_creates_the_placement_table(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $dbman = $DB->get_manager();
+        $table = new \xmldb_table(placement_registry::TABLE);
+        $dbman->drop_table($table);
+        $this->assertFalse($dbman->table_exists($table));
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_PLACEMENT_TABLE);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_PLACEMENT_TABLE));
+
+        $this->assertTrue($dbman->table_exists($table));
+        // Written and read back, so the columns the registry uses are proven to exist rather
+        // than merely the table name.
+        $DB->insert_record(placement_registry::TABLE, (object)[
+            'ltiinstanceid' => 1,
+            'courseid' => 2,
+            'typeid' => 3,
+            'timecreated' => time(),
+        ]);
+        $this->assertSame(1, $DB->count_records(placement_registry::TABLE, ['ltiinstanceid' => 1]));
+    }
+
+    /**
+     * The upgrade step is safe to re-run against a site that already has the table.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_leaves_an_existing_placement_table_alone(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $DB->insert_record(placement_registry::TABLE, (object)[
+            'ltiinstanceid' => 42,
+            'courseid' => 7,
+            'typeid' => 9,
+            'timecreated' => time(),
+        ]);
+
+        $this->rewind_stored_version(self::VERSION_BEFORE_PLACEMENT_TABLE);
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_PLACEMENT_TABLE));
+
+        $this->assertSame(1, $DB->count_records(placement_registry::TABLE, ['ltiinstanceid' => 42]));
     }
 }

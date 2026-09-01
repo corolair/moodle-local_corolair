@@ -35,9 +35,10 @@ require_once($CFG->dirroot . '/local/corolair/db/install.php');
 /**
  * Verifies that installing is idempotent and survives leftover state.
  *
- * The plugin has no database tables of its own, so installation is entirely a
- * matter of driving core role tables to the expected end state. These tests
- * assert that end state is reached regardless of what the site started from.
+ * The plugin's one table is created by core from db/install.xml before any of this runs and
+ * holds no state an install has to seed, so installation is still almost entirely a matter of
+ * driving core role tables to the expected end state. These tests assert that end state is
+ * reached regardless of what the site started from.
  */
 final class install_test extends \advanced_testcase {
     /**

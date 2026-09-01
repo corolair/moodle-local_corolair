@@ -115,8 +115,10 @@ class create_exam_placement extends external_api {
         require_capability('moodle/course:manageactivities', $context);
         require_capability('mod/lti:addinstance', $context);
 
-        // Validate that the caller supplied an existing Moodle LTI tool type.
-        $DB->get_record('lti_types', ['id' => $params['typeid']], 'id', MUST_EXIST);
+        // Validate that the caller supplied an existing Moodle LTI tool type, and that the type
+        // launches from Raison. Checked after the capability checks above so an unauthorised
+        // caller still fails on authorisation rather than learning which tools are configured.
+        \local_corolair\local\placement_registry::assert_tool_host_allowed((int)$params['typeid']);
 
         require_once($CFG->dirroot . '/course/modlib.php');
 
@@ -153,7 +155,18 @@ class create_exam_placement extends external_api {
             ? ($sequence[$params['position']] ?? null)
             : null;
 
+        // The activity and its ownership record have to land together. add_moduleinfo() opens its
+        // own delegated transaction, so this nests rather than widening anything; what it buys is
+        // that a failed insert cannot leave an activity on the course page that Raison has no way
+        // to rename or delete afterwards, because the row proving it is ours would be missing.
+        $transaction = $DB->start_delegated_transaction();
         $createdmodule = add_moduleinfo($moduleinfo, $course, null);
+        \local_corolair\local\placement_registry::record(
+            (int)$createdmodule->instance,
+            (int)$course->id,
+            (int)$params['typeid']
+        );
+        $transaction->allow_commit();
 
         return [
             'coursemoduleid' => (int)$createdmodule->coursemodule,

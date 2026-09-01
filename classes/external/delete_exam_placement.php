@@ -81,6 +81,25 @@ class delete_exam_placement extends external_api {
             'ltiinstanceid' => $ltiinstanceid,
         ]);
 
+        // Ownership first, and it is the only thing standing between a stale identifier and
+        // course_delete_module(). The capability check below passes in every course, because the
+        // service account holds moodle/course:manageactivities at system context.
+        \local_corolair\local\placement_registry::owned_or_fail((int)$params['ltiinstanceid']);
+
+        // Ours, but a teacher already removed it through the Moodle interface. Deletion is
+        // idempotent here so Raison can converge its own state instead of retrying against an
+        // activity that will never come back. Note the condition: an owned row whose activity is
+        // gone. "No row at all" must keep failing above, or this endpoint would go back to not
+        // distinguishing "already deleted" from "not yours".
+        if (!\local_corolair\local\placement_registry::instance_exists((int)$params['ltiinstanceid'])) {
+            \local_corolair\local\placement_registry::forget((int)$params['ltiinstanceid']);
+            return [
+                'ltiinstanceid' => (int)$params['ltiinstanceid'],
+                'coursemoduleid' => 0,
+                'deleted' => true,
+            ];
+        }
+
         $lti = $DB->get_record('lti', ['id' => $params['ltiinstanceid']], '*', MUST_EXIST);
         $module = $DB->get_record('modules', ['name' => 'lti'], 'id', MUST_EXIST);
         $coursemodule = $DB->get_record('course_modules', [
@@ -101,7 +120,12 @@ class delete_exam_placement extends external_api {
         require_once($CFG->dirroot . '/course/lib.php');
 
         $coursemoduleid = (int)$cminfo->id;
+        // Not wrapped in a transaction: course_delete_module() deliberately is not either, because
+        // it reaches grade items, files and contexts. The ordering is what matters instead -- if
+        // the deletion throws, the ownership row survives and the placement stays manageable; if
+        // forget() throws afterwards, the leftover row is absorbed by the idempotent branch above.
         course_delete_module($coursemoduleid);
+        \local_corolair\local\placement_registry::forget((int)$lti->id);
 
         return [
             'ltiinstanceid' => (int)$lti->id,
