@@ -40,6 +40,11 @@ namespace local_corolair\local;
  * asking *which type is ours*, this class asks *where does this type actually launch*, which is
  * answerable locally and stays correct however the two integrations were sequenced.
  *
+ * One method here does not follow that rule. is_raison_activity() answers "is this activity a
+ * Raison one" for the widget suppression in lib.php, and it is advisory: it fails open, never
+ * throws, and treats anything it cannot resolve as not-ours. Do not authorise anything with it.
+ * Everything else in this class fails closed, and that difference is the whole point of both.
+ *
  * Note what this class does not defend against: a site administrator. They can change the setting
  * below, and they could create placements by hand anyway. The boundary here is against a leaked or
  * misused service token, and it holds because the service account provably never receives
@@ -126,6 +131,72 @@ final class placement_registry {
                 ]
             );
         }
+    }
+
+    /**
+     * Whether an LTI activity belongs to Raison.
+     *
+     * Answers the question the page-level widget suppression needs: is the activity the learner
+     * is looking at a Raison one? Two signals, because neither alone covers the site:
+     *
+     *  - the ownership row, which is exact but only exists for placements this plugin created.
+     *    db/upgrade.php deliberately back-filled nothing, so every exam placed before that
+     *    upgrade has no row, and neither has one a teacher added by hand;
+     *  - the launch host, which is what create_exam_placement already validates against and so
+     *    recognises those activities too.
+     *
+     * Deliberately silent about every failure. This runs while a page is being rendered, so an
+     * unknown or half-deleted activity has to mean "not ours" rather than an exception on a
+     * learner's screen -- the cost of being wrong here is a visible widget, not a broken page.
+     *
+     * @param int $ltiinstanceid {lti}.id of the activity on the current page.
+     * @return bool True when the activity is a Raison one.
+     */
+    public static function is_raison_activity(int $ltiinstanceid): bool {
+        global $DB;
+
+        if ($DB->record_exists(self::TABLE, ['ltiinstanceid' => $ltiinstanceid])) {
+            return true;
+        }
+
+        $lti = $DB->get_record('lti', ['id' => $ltiinstanceid], 'id, typeid, toolurl, securetoolurl');
+        if (!$lti) {
+            return false;
+        }
+
+        // The typeid column is nullable in mod_lti's schema, and 0 on an instance configured by
+        // URL rather than from a tool type. Core resolves that case in mod/lti/view.php with
+        // lti_get_tool_by_url_match(); the launch URLs on the instance answer the same question
+        // here without loading mod_lti.
+        $typeid = (int)($lti->typeid ?? 0);
+        if ($typeid > 0) {
+            $type = $DB->get_record('lti_types', ['id' => $typeid], 'id, baseurl');
+            if ($type) {
+                return self::launches_from_allowed_host((string)$type->baseurl);
+            }
+            // The type has been deleted out from under the activity. Falling through is not a
+            // second opinion: an instance created from a tool type stores no launch URL of its
+            // own -- lti_add_instance() defaults toolurl to '' and create_exam_placement never
+            // sets it -- so the check below cannot succeed for that shape and the activity goes
+            // unrecognised unless it also holds an ownership row. Accepted: deleting the Raison
+            // tool type breaks the exam itself long before it un-hides the assistant.
+        }
+
+        // Both URLs, because either can be the one that launches: lti_launch_tool() prefers
+        // securetoolurl over toolurl whenever the request is over SSL, which is every request
+        // that matters here.
+        return self::launches_from_allowed_host((string)$lti->toolurl)
+            || self::launches_from_allowed_host((string)$lti->securetoolurl);
+    }
+
+    /**
+     * Whether a launch URL points at the host exams are accepted from.
+     *
+     * @param string $url Launch URL to inspect.
+     * @return bool True when the URL is usable and its host is the allowed one.
+     */
+    private static function launches_from_allowed_host(string $url): bool {
+        return $url !== '' && self::url_host($url) === self::allowed_host();
     }
 
     /**

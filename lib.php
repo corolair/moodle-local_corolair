@@ -150,13 +150,45 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
 }
 
 /**
- * Whether the current page URL may host the course widget.
+ * Whether the assistant is suppressed on Raison exam activities.
+ *
+ * Read by hand rather than cast, because two different things look false here.
+ *
+ * The first is absence. get_config() returns boolean false for a setting that has never been
+ * written to {config_plugins}, and nothing in a plugin install or upgrade writes it:
+ * admin_apply_default_settings() is reached only from install_core() and the installer, never
+ * from upgrade_noncore(). So the value stays absent until an administrator saves the settings
+ * page -- on a fresh install of this plugin as much as on an upgrade -- and those are exactly
+ * the sites that have never thought about assessment integrity. Absent has to mean on.
+ *
+ * The second is the string 'false', which (bool) evaluates to true. That is not a hypothetical
+ * shape for this plugin: sidepanel and createtutorwithcapability on the same settings page store
+ * literal 'true'/'false', so an administrator pinning this one through
+ * $CFG->forced_plugin_settings has every reason to write 'false' and mean it.
+ *
+ * @return bool True when the widget must not render on a Raison exam.
+ */
+function local_corolair_hide_on_raison_exam(): bool {
+    $configured = get_config('local_corolair', 'hideonraisonexam');
+    if ($configured === false) {
+        return true;
+    }
+    return !in_array(strtolower(trim((string)$configured)), ['0', '', 'false'], true);
+}
+
+/**
+ * Whether the current page may host the course widget.
  *
  * @param moodle_url $pageurl The current page URL.
  * @param int $courseid The course id for course-view matching.
+ * @param cm_info|null $cm The activity being viewed, or null when the page is not an activity.
  * @return array{0: bool, 1: string} Whether to render, and the animate flag.
  */
-function local_corolair_course_widget_placement(moodle_url $pageurl, int $courseid): array {
+function local_corolair_course_widget_placement(
+    moodle_url $pageurl,
+    int $courseid,
+    ?cm_info $cm = null
+): array {
     $pageurlstr = $pageurl->out();
 
     // Get excluded mods from config (comma-separated).
@@ -183,6 +215,17 @@ function local_corolair_course_widget_placement(moodle_url $pageurl, int $course
         return [false, 'false'];
     }
 
+    // A Raison exam is an External tool activity, so excluding "lti" above would take the
+    // assistant off every other tool on the site as well -- Zoom, Turnitin, anything. The
+    // activity is identified instead, which is possible because the plugin records what it
+    // creates and knows where its own tool launches from. Left until here so the lookup only
+    // runs on a page that was otherwise going to render a widget.
+    if ($cm !== null && $cm->modname === 'lti' && local_corolair_hide_on_raison_exam()) {
+        if (\local_corolair\local\placement_registry::is_raison_activity((int)$cm->instance)) {
+            return [false, 'false'];
+        }
+    }
+
     return [true, $isoncourseview ? 'true' : 'false'];
 }
 
@@ -192,6 +235,11 @@ function local_corolair_course_widget_placement(moodle_url $pageurl, int $course
  * Must return HTML from before_footer — never echo from navigation callbacks.
  * Echoing during extend_navigation_course can flush output before <!DOCTYPE html>,
  * which puts Moodle into quirks mode and breaks TinyMCE.
+ *
+ * On Moodle 4.4 and later this is reached through the hook callback declared in
+ * db/hooks.php, and core skips this legacy callback entirely. It stays because the
+ * plugin still supports 4.3, where core\hook\output\before_footer_html_generation
+ * does not exist and this is the only entry point. Removing it there removes the widget.
  *
  * @return string The rendered embed script, or an empty string when disabled.
  */
@@ -204,7 +252,7 @@ function local_corolair_before_footer() {
     }
 
     $courseid = (int)$course->id;
-    [$shouldrender, $animate] = local_corolair_course_widget_placement($PAGE->url, $courseid);
+    [$shouldrender, $animate] = local_corolair_course_widget_placement($PAGE->url, $courseid, $PAGE->cm);
     if (!$shouldrender) {
         return '';
     }
