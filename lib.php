@@ -265,15 +265,17 @@ function local_corolair_before_footer() {
  *
  * @param navigation_node $navigation The navigation node to extend.
  * @param stdClass $course The course object.
- * @param context $context The context of the course.
+ * @param context $context The context of the course. Unused: the check goes through
+ *      launch_access so that this link and the page behind it can never disagree.
  */
 function local_corolair_extend_navigation_course($navigation, $course, $context) {
     $courseid = $course->id;
 
     // Key to identify the node.
     $raisonnodekey = get_string('coursenodetitle', 'local_corolair');
-    // Check if the user has the specific capability in this course context.
-    if (has_capability('local/corolair:createtutor', $context)) {
+    // Offer the link only when the launch it points at will be admitted. Same course
+    // context as before -- what changed is that trainer.php now asks the same question.
+    if (\local_corolair\local\launch_access::can_launch((int)$courseid)) {
         // Add the node if it doesn't already exist.
         if (!$navigation->find($raisonnodekey, navigation_node::TYPE_SETTING)) {
             $raisonnode = navigation_node::create(
@@ -299,14 +301,20 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
  *
  * @param navigation_node $parentnode The parent navigation node to extend.
  * @param stdClass $course The course object.
- * @param context_course $context The context of the course.
+ * @param context_course $context The front-page course context. Deliberately unused --
+ *      see the system-context check below.
  */
 function local_corolair_extend_navigation_frontpage(navigation_node $parentnode, stdClass $course, context_course $context) {
     // Key to identify the node.
     $raisonnodekey = get_string('frontpagenodetitle', 'local_corolair');
 
-    // Check if the user has the specific capability in this course context.
-    if (has_capability('local/corolair:createtutor', $context)) {
+    // Checked at system context, not at the context Moodle passes in. Site home is itself a
+    // course, so $context is a context_course for SITEID -- which a role assigned on Site
+    // home alone satisfies. This link carries no course id, so the launch behind it is the
+    // site-wide one and is authorised at system context; gating the link on $context would
+    // therefore show it to someone the page then refuses. Passing 0 asks launch_access for
+    // exactly the context that launch will be checked against.
+    if (\local_corolair\local\launch_access::can_launch(0)) {
         // Add the node if it doesn't already exist.
         if (!$parentnode->find($raisonnodekey, navigation_node::TYPE_SETTING)) {
             $raisonnode = navigation_node::create(
