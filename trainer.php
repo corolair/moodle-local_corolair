@@ -36,8 +36,22 @@ $PAGE->set_url(new moodle_url('/local/corolair/trainer.php'));
 $PAGE->set_context(context_system::instance());
 $PAGE->set_title(get_string('trainerpage', 'local_corolair'));
 
-// Check user capability.
-require_capability('local/corolair:createtutor', context_system::instance());
+// Handle optional course parameter for embedding, and enforce Moodle course access
+// before any of its identity is forwarded to the remote provider. This must run
+// before header output so require_login can redirect cleanly, and before the
+// capability check below, which is what the course decides.
+$raisonsourcecourse = optional_param('raisonsourcecourse', 0, PARAM_INT);
+if ($raisonsourcecourse) {
+    $course = get_course($raisonsourcecourse);
+    require_login($course);
+}
+
+// Check user capability, against the context the launch actually came from: this course
+// when the visitor arrived from one, system when they used the site-wide entry point.
+// Checking system unconditionally refused every course-level Raison Manager, while the
+// navigation link that brought them here was gated at course context and shown anyway.
+// See \local_corolair\local\launch_access, which both sides now share.
+\local_corolair\local\launch_access::require_launch($raisonsourcecourse);
 
 // Manual registration recovery is a POST-only, sesskey-protected action.
 $retryregistration = optional_param('retryregistration', 0, PARAM_BOOL);
@@ -46,16 +60,6 @@ if ($retryregistration) {
         throw new moodle_exception('invalidrequest', 'error');
     }
     require_sesskey();
-}
-
-// Handle optional course parameter for embedding, and enforce Moodle course access
-// before any of its identity is forwarded to the remote provider. This must run
-// before header output so require_login can redirect cleanly.
-$raisonsourcecourse = optional_param('raisonsourcecourse', 0, PARAM_INT);
-if ($raisonsourcecourse) {
-    $course = get_course($raisonsourcecourse);
-    require_login($course);
-    require_capability('local/corolair:createtutor', context_course::instance($course->id));
 }
 
 // Output header only after authentication and authorization have succeeded.
