@@ -300,6 +300,145 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Give a new user the plugin-owned role at a context, and sign them in.
+     *
+     * @param \context $context Context to assign the role at.
+     * @return \stdClass The signed-in user.
+     */
+    private function signed_in_corolair_manager(\context $context): \stdClass {
+        global $DB;
+
+        $roleid = (int)$DB->get_field(
+            'role',
+            'id',
+            ['shortname' => \local_corolair\local\role_provisioner::SHORTNAME],
+            MUST_EXIST
+        );
+        $user = $this->getDataGenerator()->create_user();
+        role_assign($roleid, $user->id, $context->id);
+        $this->setUser($user);
+
+        return $user;
+    }
+
+    /**
+     * Run the front-page navigation callback the way Moodle does.
+     *
+     * Moodle passes the front-page *course* context here, not the system context; the
+     * callback is expected to ignore it. Reproducing that faithfully is the whole point.
+     *
+     * @return array The texts of the resulting child nodes.
+     */
+    private function front_page_node_texts(): array {
+        global $SITE;
+
+        $parent = \navigation_node::create('Front page', null, \navigation_node::TYPE_COURSE);
+        local_corolair_extend_navigation_frontpage($parent, $SITE, \context_course::instance($SITE->id));
+
+        return $this->child_texts($parent);
+    }
+
+    /**
+     * A course-level Raison Manager gets the course link.
+     *
+     * @covers ::local_corolair_extend_navigation_course
+     * @return void
+     */
+    public function test_course_navigation_offers_the_link_to_a_course_level_manager(): void {
+        $this->resetAfterTest();
+        unset_config('apikey', 'local_corolair');
+        $course = $this->getDataGenerator()->create_course();
+        $this->signed_in_corolair_manager(\context_course::instance($course->id));
+        $this->set_page_url();
+
+        [$navigation] = $this->extend_course_navigation($course);
+
+        $this->assertContains(
+            get_string('coursenodetitle', 'local_corolair'),
+            $this->child_texts($navigation)
+        );
+    }
+
+    /**
+     * A course-level Raison Manager does not get the front-page link.
+     *
+     * The front-page link opens the site-wide launch, which is authorised at system context.
+     * Gating it on the context Moodle hands the callback -- the front-page course -- would
+     * offer it to someone the page then refuses, which is the dead link this change removes.
+     *
+     * @covers ::local_corolair_extend_navigation_frontpage
+     * @return void
+     */
+    public function test_frontpage_navigation_hides_the_link_from_a_course_level_manager(): void {
+        $this->resetAfterTest();
+        unset_config('apikey', 'local_corolair');
+        $course = $this->getDataGenerator()->create_course();
+        $this->signed_in_corolair_manager(\context_course::instance($course->id));
+
+        $this->assertNotContains(
+            get_string('frontpagenodetitle', 'local_corolair'),
+            $this->front_page_node_texts()
+        );
+    }
+
+    /**
+     * A role held only on Site home offers no front-page link either.
+     *
+     * Site home is a course, so this assignment satisfies the context Moodle passes in while
+     * satisfying nothing the launch behind the link requires.
+     *
+     * @covers ::local_corolair_extend_navigation_frontpage
+     * @return void
+     */
+    public function test_frontpage_navigation_hides_the_link_from_a_front_page_manager(): void {
+        global $SITE;
+
+        $this->resetAfterTest();
+        unset_config('apikey', 'local_corolair');
+        $this->signed_in_corolair_manager(\context_course::instance($SITE->id));
+
+        // The gate this replaced. Asserting it holds is what makes the assertion below a
+        // regression test rather than a restatement: this user satisfies the context Moodle
+        // passes the callback, so checking that context is exactly what produced the link
+        // that trainer.php then refused.
+        $this->assertTrue(has_capability(
+            \local_corolair\local\launch_access::CAPABILITY,
+            \context_course::instance($SITE->id)
+        ));
+
+        $this->assertNotContains(
+            get_string('frontpagenodetitle', 'local_corolair'),
+            $this->front_page_node_texts()
+        );
+    }
+
+    /**
+     * A site-wide Raison Manager gets both links.
+     *
+     * @covers ::local_corolair_extend_navigation_course
+     * @covers ::local_corolair_extend_navigation_frontpage
+     * @return void
+     */
+    public function test_navigation_offers_both_links_to_a_system_level_manager(): void {
+        $this->resetAfterTest();
+        unset_config('apikey', 'local_corolair');
+        $course = $this->getDataGenerator()->create_course();
+        $this->signed_in_corolair_manager(\context_system::instance());
+        $this->set_page_url();
+
+        [$navigation] = $this->extend_course_navigation($course);
+
+        $this->assertContains(
+            get_string('coursenodetitle', 'local_corolair'),
+            $this->child_texts($navigation)
+        );
+        $this->assertContains(
+            get_string('frontpagenodetitle', 'local_corolair'),
+            $this->front_page_node_texts()
+        );
+    }
+
+    /**
      * Course navigation never flushes embed HTML (preserves standards mode).
      *
      * @covers ::local_corolair_extend_navigation_course
