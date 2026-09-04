@@ -25,11 +25,14 @@
 namespace local_corolair;
 
 use local_corolair\event\remote_request_completed;
+use local_corolair\local\environment;
 
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/local/corolair/lib.php');
+// Supplies LTI_TOOL_STATE_CONFIGURED, which the tool-type fixtures below need.
+require_once($CFG->dirroot . '/mod/lti/locallib.php');
 
 /**
  * Verifies the widget is never rendered, and never requested, unless it should be.
@@ -465,5 +468,417 @@ final class lib_test extends \advanced_testcase {
             }
         }
         $this->assertSame(['rotation_disabled', 'rotation_disabled'], $actions);
+    }
+
+    /**
+     * A tool type that launches from Raison.
+     *
+     * The launch URL is built from environment rather than written out: every host in this
+     * plugin is a property of the deployment, and plugin_definition_test scans tests/ for
+     * literals just as it scans everything else.
+     *
+     * @return int {lti_types}.id
+     */
+    private function raison_tool_type(): int {
+        // The stored default belongs to whichever environment the test database was installed
+        // under, which is not necessarily this tree's. Pin it, as exam_placement_test does.
+        set_config('ltitoolhost', environment::host('services'), 'local_corolair');
+
+        return $this->getDataGenerator()->get_plugin_generator('mod_lti')->create_tool_types([
+            'name' => 'Raison exam tool',
+            'baseurl' => environment::url('services', 'integration/lti/launch'),
+            'state' => LTI_TOOL_STATE_CONFIGURED,
+        ]);
+    }
+
+    /**
+     * Put $PAGE on an activity's view page, the way mod/lti/view.php does.
+     *
+     * set_course_page() above cannot be reused: it fixes the URL id to the course id and never
+     * calls set_cm(), so $PAGE->cm stays null and the activity is invisible to the callback.
+     *
+     * @param \stdClass $course Course owning the activity.
+     * @param \stdClass $module Module record as returned by the data generator.
+     * @param string $modname Activity module short name.
+     * @return void
+     */
+    private function set_activity_page(\stdClass $course, \stdClass $module, string $modname): void {
+        global $PAGE;
+
+        $cm = get_coursemodule_from_id($modname, $module->cmid, $course->id, false, MUST_EXIST);
+        $PAGE->set_cm($cm, $course);
+        $PAGE->set_url(new \moodle_url('/mod/' . $modname . '/view.php', ['id' => $module->cmid]));
+    }
+
+    /**
+     * The placement this plugin created is recognised, and suppresses the widget.
+     *
+     * Asserted through the footer callback rather than the placement helper, because the point
+     * is not only that nothing renders: the learner's name and email must not reach Raison from
+     * an exam page either, and returning an empty string after making that request would look
+     * identical from the outside.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_raison_placement_makes_no_request(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        set_config('hideonraisonexam', 1, 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        $typeid = $this->raison_tool_type();
+        $created = \local_corolair\external\create_exam_placement::execute(
+            (int)$course->id,
+            (int)$this->section_id($course, 1),
+            $typeid,
+            'Final exam'
+        );
+        $module = (object)['cmid' => $created['coursemoduleid']];
+        $this->set_activity_page($course, $module, 'lti');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * An activity nobody recorded is still recognised by the host its tool launches from.
+     *
+     * This is the case the ownership table cannot answer: exams placed before the table
+     * existed were deliberately not back-filled, and a teacher can add the Raison tool by hand
+     * at any time. Neither has a row, and both are exams.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_unrecorded_raison_tool_makes_no_request(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        set_config('hideonraisonexam', 1, 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        $typeid = $this->raison_tool_type();
+        $module = $this->getDataGenerator()->create_module('lti', [
+            'course' => $course->id,
+            'section' => 1,
+            'typeid' => $typeid,
+        ]);
+        $this->set_activity_page($course, $module, 'lti');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * An instance configured by URL rather than from a tool type is recognised too.
+     *
+     * mod/lti/view.php resolves that shape with lti_get_tool_by_url_match(); the launch URL on
+     * the instance answers the same question here.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_raison_tool_url_without_a_type_is_recognised(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('hideonraisonexam', 1, 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        set_config('ltitoolhost', environment::host('services'), 'local_corolair');
+        $module = $this->getDataGenerator()->create_module('lti', [
+            'course' => $course->id,
+            'section' => 1,
+            'toolurl' => environment::url('services', 'integration/lti/launch'),
+        ]);
+        $this->set_activity_page($course, $module, 'lti');
+
+        $this->assertSame([false, 'false'], $this->widget_placement($course));
+    }
+
+    /**
+     * Another vendor's External tool keeps its assistant.
+     *
+     * The whole point of the setting: excluding "lti" wholesale was the only option before, and
+     * it took the assistant off every tool on the site.
+     *
+     * Asserted on the placement helper, not the footer callback. A page that renders the widget
+     * reaches the session request in local_corolair_render_embed_script(), and this suite makes
+     * no network calls.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_foreign_lti_activity_keeps_the_widget(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('hideonraisonexam', 1, 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        $this->raison_tool_type();
+        $foreign = $this->getDataGenerator()->get_plugin_generator('mod_lti')->create_tool_types([
+            'name' => 'Unrelated tool',
+            'baseurl' => 'https://tool.example.com/launch',
+            'state' => LTI_TOOL_STATE_CONFIGURED,
+        ]);
+        $module = $this->getDataGenerator()->create_module('lti', [
+            'course' => $course->id,
+            'section' => 1,
+            'typeid' => $foreign,
+        ]);
+        $this->set_activity_page($course, $module, 'lti');
+
+        $this->assertSame([true, 'false'], $this->widget_placement($course));
+    }
+
+    /**
+     * Turning the setting off puts the assistant back on exam pages.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_hide_on_raison_exam
+     * @return void
+     */
+    public function test_disabling_the_setting_restores_the_widget(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('hideonraisonexam', 0, 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        $typeid = $this->raison_tool_type();
+        $module = $this->getDataGenerator()->create_module('lti', [
+            'course' => $course->id,
+            'section' => 1,
+            'typeid' => $typeid,
+        ]);
+        $this->set_activity_page($course, $module, 'lti');
+
+        $this->assertSame([true, 'false'], $this->widget_placement($course));
+    }
+
+    /**
+     * A site that has never saved the setting is protected anyway.
+     *
+     * get_config() returns false for a setting no upgrade has applied a default for yet, and
+     * false is also what a deliberate "off" reads as after a cast. The distinction is the
+     * difference between protecting those sites and silently not protecting them.
+     *
+     * @covers ::local_corolair_hide_on_raison_exam
+     * @return void
+     */
+    public function test_the_setting_defaults_to_on_when_absent(): void {
+        $this->resetAfterTest();
+        unset_config('hideonraisonexam', 'local_corolair');
+
+        $this->assertTrue(local_corolair_hide_on_raison_exam());
+
+        set_config('hideonraisonexam', 0, 'local_corolair');
+        $this->assertFalse(local_corolair_hide_on_raison_exam());
+    }
+
+    /**
+     * A non-LTI activity is never a Raison exam, whatever the setting says.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_non_lti_activity_keeps_the_widget(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('hideonraisonexam', 1, 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        $module = $this->getDataGenerator()->create_module('page', [
+            'course' => $course->id,
+            'section' => 1,
+        ]);
+        $this->set_activity_page($course, $module, 'page');
+
+        $this->assertSame([true, 'false'], $this->widget_placement($course));
+    }
+
+    /**
+     * A site that has never saved the setting is protected on a real exam page.
+     *
+     * The helper test above proves the value reads as on; this proves the suppression actually
+     * happens for it. Both are needed, because nothing writes the default: the phpunit database
+     * is installed from scratch and so *does* hold '1', which means the absent path is never
+     * exercised unless a test removes the value on purpose.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_hide_on_raison_exam
+     * @return void
+     */
+    public function test_absent_setting_still_suppresses_the_widget(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $typeid = $this->raison_tool_type();
+        $module = $this->getDataGenerator()->create_module('lti', [
+            'course' => $course->id,
+            'section' => 1,
+            'typeid' => $typeid,
+        ]);
+        $this->set_activity_page($course, $module, 'lti');
+        unset_config('hideonraisonexam', 'local_corolair');
+
+        $this->assertSame([false, 'false'], $this->widget_placement($course));
+    }
+
+    /**
+     * A secure launch URL is recognised even when the plain one is not.
+     *
+     * lti_launch_tool() prefers securetoolurl over toolurl whenever the request is over SSL, so
+     * an instance carrying an http toolurl and an https securetoolurl launches from the secure
+     * one. Reading only toolurl would leave the assistant on that exam.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_secure_tool_url_is_recognised(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('hideonraisonexam', 1, 'local_corolair');
+        set_config('ltitoolhost', environment::host('services'), 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        $module = $this->getDataGenerator()->create_module('lti', [
+            'course' => $course->id,
+            'section' => 1,
+            'toolurl' => 'http://' . environment::host('services') . '/integration/lti/launch',
+            'securetoolurl' => environment::url('services', 'integration/lti/launch'),
+        ]);
+        $this->set_activity_page($course, $module, 'lti');
+
+        $this->assertSame([false, 'false'], $this->widget_placement($course));
+    }
+
+    /**
+     * A tool reachable only over http is not a Raison tool.
+     *
+     * url_host() accepts https alone, which is what stops a look-alike launch URL on the right
+     * host from passing. Asserted so the rule is recorded rather than incidental.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_plain_http_tool_is_not_recognised(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('hideonraisonexam', 1, 'local_corolair');
+        set_config('ltitoolhost', environment::host('services'), 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        $module = $this->getDataGenerator()->create_module('lti', [
+            'course' => $course->id,
+            'section' => 1,
+            'toolurl' => 'http://' . environment::host('services') . '/integration/lti/launch',
+        ]);
+        $this->set_activity_page($course, $module, 'lti');
+
+        $this->assertSame([true, 'false'], $this->widget_placement($course));
+    }
+
+    /**
+     * The course page keeps its assistant even when the course holds an exam.
+     *
+     * Guards the ordering in local_corolair_course_widget_placement(): the suppression is about
+     * the page being viewed, not about the course containing an exam somewhere.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_course_page_keeps_the_widget_when_the_course_holds_an_exam(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('hideonraisonexam', 1, 'local_corolair');
+
+        $course = $this->getDataGenerator()->create_course();
+        $typeid = $this->raison_tool_type();
+        $this->getDataGenerator()->create_module('lti', [
+            'course' => $course->id,
+            'section' => 1,
+            'typeid' => $typeid,
+        ]);
+        $this->set_course_page($course, '/course/view.php');
+
+        $this->assertSame([true, 'true'], $this->widget_placement($course));
+    }
+
+    /**
+     * An identifier that resolves to nothing is answered, not thrown at.
+     *
+     * The never-throws contract is the whole reason is_raison_activity() reads without
+     * MUST_EXIST, and it runs while a learner's page is being rendered.
+     *
+     * @covers \local_corolair\local\placement_registry::is_raison_activity
+     * @return void
+     */
+    public function test_unknown_activity_is_not_raison(): void {
+        $this->resetAfterTest();
+
+        $this->assertFalse(\local_corolair\local\placement_registry::is_raison_activity(-1));
+    }
+
+    /**
+     * The ownership row answers on its own, after the activity is gone.
+     *
+     * A teacher can delete the activity through the Moodle interface at any time, which leaves
+     * the row behind. The first branch must not depend on the {lti} row still being there.
+     *
+     * @covers \local_corolair\local\placement_registry::is_raison_activity
+     * @return void
+     */
+    public function test_ownership_row_outlives_the_activity(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $typeid = $this->raison_tool_type();
+        $created = \local_corolair\external\create_exam_placement::execute(
+            (int)$course->id,
+            (int)$this->section_id($course, 1),
+            $typeid,
+            'Final exam'
+        );
+
+        course_delete_module((int)$created['coursemoduleid']);
+
+        $this->assertTrue(
+            \local_corolair\local\placement_registry::is_raison_activity((int)$created['ltiinstanceid'])
+        );
+    }
+
+    /**
+     * Run the placement decision for the page $PAGE is currently on.
+     *
+     * @param \stdClass $course Course owning the page.
+     * @return array{0: bool, 1: string} Whether to render, and the animate flag.
+     */
+    private function widget_placement(\stdClass $course): array {
+        global $PAGE;
+
+        return local_corolair_course_widget_placement($PAGE->url, (int)$course->id, $PAGE->cm);
+    }
+
+    /**
+     * The {course_sections}.id of a section number in a course.
+     *
+     * @param \stdClass $course Course to look in.
+     * @param int $number Section number.
+     * @return int {course_sections}.id
+     */
+    private function section_id(\stdClass $course, int $number): int {
+        global $DB;
+
+        return (int)$DB->get_field('course_sections', 'id', [
+            'course' => $course->id,
+            'section' => $number,
+        ], MUST_EXIST);
     }
 }

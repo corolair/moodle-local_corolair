@@ -167,6 +167,18 @@ if ($hassiteconfig) {
         '', // Default value: none excluded.
         PARAM_TEXT // Validation type.
     ));
+    // Keep the assistant off Raison exam pages. A Raison exam is an External tool activity, so
+    // the "Excluded activities" list above cannot express this: excluding "lti" would take the
+    // assistant off every other tool on the site too. The activity itself is recognised instead,
+    // either because this plugin recorded creating it or because the tool it launches uses the
+    // host below. Turning this off restores the assistant on exam pages, which is a decision
+    // about assessment integrity rather than a display preference -- hence a separate setting.
+    $settings->add(new admin_setting_configcheckbox(
+        'local_corolair/hideonraisonexam',
+        get_string('hideonraisonexam', 'local_corolair'), // Setting title.
+        get_string('hideonraisonexamdesc', 'local_corolair'), // Setting description.
+        1 // Default value: the assistant is hidden during Raison exams.
+    ));
     // Host the Raison LTI exam tool launches from. Exam placement refuses any tool type that
     // launches somewhere else, which is what stops the integration touching unrelated LTI
     // activities. Visible rather than hidden on purpose: an administrator who needs to change it

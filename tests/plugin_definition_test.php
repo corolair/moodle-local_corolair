@@ -633,6 +633,57 @@ final class plugin_definition_test extends \advanced_testcase {
     }
 
     /**
+     * The footer hook callback is declared and points at code that exists.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_footer_hook_callback_is_declared(): void {
+        $callbacks = $this->load_definition('db/hooks.php', ['callbacks'])['callbacks'];
+
+        $declared = [];
+        foreach ($callbacks as $callback) {
+            $this->assertTrue(
+                class_exists($callback['hook']),
+                'A declared hook should exist in core: ' . $callback['hook']
+            );
+            $this->assertTrue(
+                is_callable($callback['callback']),
+                'A declared hook callback should be callable: ' . $callback['callback']
+            );
+            $declared[] = $callback['hook'];
+        }
+
+        $this->assertContains(\core\hook\output\before_footer_html_generation::class, $declared);
+    }
+
+    /**
+     * The footer hook is registered as the replacement for the legacy lib.php callback.
+     *
+     * This is the predicate core itself uses. While it holds, get_plugins_with_function()
+     * drops local_corolair_before_footer(), so the widget renders once and the developer
+     * deprecation notice stays silent. Lose the registration -- by renaming the callback,
+     * or by shipping db/hooks.php without bumping the version so the cache never rebuilds --
+     * and the page renders the widget twice and complains about it.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_the_footer_hook_supersedes_the_legacy_callback(): void {
+        $manager = \core\di::get(\core\hook\manager::class);
+
+        $this->assertTrue(
+            $manager->is_deprecating_hook_present('local_corolair', 'before_footer'),
+            'The footer hook callback must be registered, or Moodle keeps calling the legacy one.'
+        );
+        $this->assertSame(
+            [],
+            get_plugins_with_function(function: 'before_footer', migratedtohook: true)['local']['corolair'] ?? [],
+            'Core should no longer reach the legacy callback for this plugin.'
+        );
+    }
+
+    /**
      * The plugin metadata is well formed.
      *
      * @coversNothing
@@ -785,6 +836,8 @@ final class plugin_definition_test extends \advanced_testcase {
             'createtutorcapability', 'createtutorcapabilitydesc',
             'apikey', 'apikeydesc',
             'excludedmods', 'excludedmodsdesc',
+            'hideonraisonexam', 'hideonraisonexamdesc',
+            'ltitoolhost', 'ltitoolhostdesc',
             'disabletokenrotation', 'disabletokenrotationdesc',
         ];
         foreach (['en', 'fr', 'es'] as $language) {

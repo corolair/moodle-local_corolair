@@ -117,6 +117,8 @@ $string['excludedmods'] = 'Excluded activities';
 $string['excludedmodsdesc'] = 'Use this list to disable assistants in specific activity types, for example to prevent students from using it during assessments. Provide a comma-separated list of activity module short names (e.g. "quiz, assign"). The short name is the folder shown in the activity\'s URL after \'/mod/\' (e.g. \'/mod/quiz/\' → \'quiz\'). This also works for activity modules provided by external plugins.';
 $string['false'] = 'Chatbot';
 $string['frontpagenodetitle'] = 'Raison';
+$string['hideonraisonexam'] = 'Hide the AI Tutor during Raison exams';
+$string['hideonraisonexamdesc'] = 'Raison provides an LTI-based AI exam tool, which may not be set up on your site yet: if you would like to learn more about it or try it out, contact the Raison team at contact@raison.is. When this is enabled, the AI Tutor is not shown on pages displaying a Raison exam activity, so learners cannot ask it for help while sitting a test. The activity is recognised either because Raison created it, or because the external tool it launches uses the host set in "Raison LTI tool host" below. Other External tool activities are unaffected: use "Excluded activities" above for those. Leave this enabled unless you deliberately want the AI Tutor to be available during Raison exams.';
 $string['installfailed'] = 'The Raison plugin could not complete its installation: {$a}';
 $string['installtroubleshoot'] = 'If you encounter any issues during installation, please refer to the <a href="https://troubleshoot-moodle.raison.is" target="_blank">troubleshooting guide </a>.';
 $string['invalidredirecturl'] = 'Raison returned an untrusted redirect destination.';
