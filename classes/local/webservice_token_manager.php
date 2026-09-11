@@ -440,6 +440,55 @@ final class webservice_token_manager {
     }
 
     /**
+     * Return the token Corolair is currently meant to authenticate with.
+     *
+     * Several tokens for the service is a designed state, not corruption: a rotation candidate
+     * sits beside the active token until Corolair activates it, and the superseded token
+     * survives PREVIOUS_TOKEN_GRACE after that. A lookup by service alone is therefore
+     * ambiguous -- get_record() warns, and returns whichever row the database hands back,
+     * which may be a credential Corolair has not activated yet or one about to be revoked.
+     *
+     * Read-only, unlike get_current_token(): pages call this, and adopting a token is
+     * maintain()'s job, under its lock.
+     *
+     * @param int $serviceid External service ID.
+     * @return \stdClass|false
+     */
+    public static function active_token(int $serviceid) {
+        global $DB;
+
+        $configuredid = (int)get_config('local_corolair', 'webservicetokenid');
+        if ($configuredid > 0) {
+            $configured = $DB->get_record('external_tokens', [
+                'id' => $configuredid,
+                'externalserviceid' => $serviceid,
+                'tokentype' => 0,
+            ]);
+            if ($configured) {
+                return $configured;
+            }
+        }
+
+        // Sites registered before the active ID was recorded, or whose record was lost. The
+        // newest token is the best guess only once the rows known *not* to be active are set
+        // aside: the candidate is newer than the active token by construction, so without the
+        // exclusion this fallback would pick it every time a rotation is in flight.
+        $select = 'externalserviceid = :serviceid AND tokentype = 0';
+        $params = ['serviceid' => $serviceid];
+        $excluded = array_filter([
+            (int)get_config('local_corolair', 'webservicetokencandidateid'),
+            (int)get_config('local_corolair', 'previouswebservicetokenid'),
+        ]);
+        if ($excluded) {
+            [$notin, $notinparams] = $DB->get_in_or_equal($excluded, SQL_PARAMS_NAMED, 'excluded', false);
+            $select .= " AND id {$notin}";
+            $params += $notinparams;
+        }
+        $tokens = $DB->get_records_select('external_tokens', $select, $params, 'timecreated DESC, id DESC', '*', 0, 1);
+        return reset($tokens);
+    }
+
+    /**
      * Find the active token, including upgrades from versions without token metadata.
      *
      * @param int $serviceid External service ID.
