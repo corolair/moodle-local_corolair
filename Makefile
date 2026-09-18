@@ -29,24 +29,28 @@ endif
 export PHP_VERSION
 export MOODLE_BRANCH
 
-# Paths that are never ours: composer deps and the gitignored packaging copy.
-PHP_FILES = $(shell find . -name '*.php' \
-	-not -path './vendor/*' \
-	-not -path './local_corolair/*' \
-	-not -path './.git/*')
+# The plugin's own PHP files, for lint, cs and fix. Pruned paths are never ours, and all
+# are gitignored: composer deps, the two packaging copies, and agent tool directories.
+# Claude Code worktrees live under .claude, each a full second checkout of the plugin,
+# so without the prune every check runs over those copies too.
+PHP_FILES = $(shell find . \
+	-path ./.git -prune -o \
+	-path ./vendor -prune -o \
+	-path ./local_corolair -prune -o \
+	-path ./.package-prod -prune -o \
+	-path ./.claude -prune -o \
+	-path ./.codex -prune -o \
+	-name '*.php' -print)
 
 # Same flags moodle-plugin-ci passes to phpcs (see CodeCheckerCommand); the
 # default standard is `moodle`, not `moodle-extra`.
-# Two traps in the --ignore value, both of which make phpcs silently scan nothing
-# and report success:
-#   * unquoted, the shell expands vendor/* into real paths and mangles the flag;
-#   * patterns are matched unanchored against the full path, so `local_corolair/*`
-#     also matches this repo's own directory (moodle-local_corolair) and excludes
-#     every file. The leading */ anchors it to a real path segment.
+# phpcs and phpcbf are given PHP_FILES rather than `.` with --ignore. Ignore patterns
+# match unanchored against the absolute path, so none can exclude .claude: inside a
+# worktree every path runs through /.claude/, and phpcs would scan nothing and report
+# success. An empty file list is an error in phpcs, not a pass.
 # If you change this, check the progress output shows the expected file count.
 PHPCS_FLAGS = --standard=moodle --extensions=php -p -s --no-cache \
-	--report-full --report-width=132 --encoding=utf-8 \
-	--ignore='*/vendor/*,*/local_corolair/*'
+	--report-full --report-width=132 --encoding=utf-8
 
 COMPOSE = docker compose
 EXEC = $(COMPOSE) exec -T ci
@@ -74,11 +78,11 @@ lint: ## PHP syntax check (native, fast)
 .PHONY: cs
 cs: ## Moodle Code Checker (native, fast). Warnings fail, as in CI.
 	@echo "==> phpcs"
-	@vendor/bin/phpcs $(PHPCS_FLAGS) .
+	@vendor/bin/phpcs $(PHPCS_FLAGS) $(PHP_FILES)
 
 .PHONY: fix
 fix: ## Auto-fix what the code checker can (native)
-	@vendor/bin/phpcbf $(PHPCS_FLAGS) . || true
+	@vendor/bin/phpcbf $(PHPCS_FLAGS) $(PHP_FILES) || true
 
 .PHONY: check
 check: lint cs ## Tier 1: everything that needs no database
@@ -132,10 +136,17 @@ require-moodle: up
 
 .PHONY: sync
 sync: require-moodle ## Copy host edits into the Moodle tree (implied by every check below)
+	@# Everything excluded here is gitignored, so none of it exists in the checkout CI
+	@# tests. .claude (agent worktrees) and .package-prod (left by an interrupted or
+	@# failed `make package-prod`) each hold a full second copy of the plugin. Copied in,
+	@# every check scans it as plugin code, and the hardcoded-host test fails on its
+	@# hosts_prod.php.
 	@$(EXEC) sh -c 'rm -rf $(PLUGIN_IN_MOODLE) && mkdir -p $(PLUGIN_IN_MOODLE) && \
 		tar -C $(PLUGIN_IN_CONTAINER) \
 			--exclude=./.git --exclude=./vendor --exclude=./local_corolair \
-			--exclude=./local_corolair.zip --exclude=./plans \
+			--exclude=./local_corolair.zip --exclude=./local_corolair-prod.zip \
+			--exclude=./.package-prod --exclude=./plans \
+			--exclude=./.claude --exclude=./.codex \
 			-cf - . | tar -C $(PLUGIN_IN_MOODLE) -xf -'
 
 # Individual CI steps, each matching a step in .github/workflows/moodle-plugin-ci.yml.
@@ -178,7 +189,7 @@ package: ## Build local_corolair.zip for the Moodle plugin directory
 	@rm -f local_corolair.zip
 	@git archive --format=zip --prefix=local_corolair/ -o local_corolair.zip HEAD
 	@echo "==> local_corolair.zip ($$(unzip -l local_corolair.zip | tail -1 | awk '{print $$2}') files)"
-	@if unzip -l local_corolair.zip | grep -qE "local_corolair/(Makefile|docker-compose.yml|composer.json|.dev/|.github/)"; then \
+	@if unzip -l local_corolair.zip | grep -qE "local_corolair/(Makefile|docker-compose.yml|composer.json|.dev/|.github/|.claude/)"; then \
 		echo "WARNING: development files leaked into the zip; check .gitattributes"; \
 		exit 1; \
 	fi

@@ -460,6 +460,102 @@ final class webservice_token_manager_test extends \advanced_testcase {
     }
 
     /**
+     * The recorded token wins over the candidate a rotation leaves beside it.
+     *
+     * A candidate next to the active token is the normal state mid-rotation. trainer.php used
+     * to look the token up by service alone, which made get_record() warn on every visit and
+     * return whichever row came first -- and that row is what registration sends to Corolair.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::active_token
+     * @return void
+     */
+    public function test_active_token_prefers_the_recorded_token_over_a_candidate(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $ownerid = $this->make_site_connected_as_service();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        $current = webservice_token_manager::create_token($ownerid, $serviceid);
+        webservice_token_manager::record_initial_token($current);
+        $candidate = webservice_token_manager::create_token($ownerid, $serviceid);
+        set_config('webservicetokencandidateid', (int)$candidate->id, 'local_corolair');
+
+        $token = webservice_token_manager::active_token($serviceid);
+
+        $this->assertEquals((int)$current->id, (int)$token->id);
+        // The wrong row is only returned some of the time; the warning is emitted every time.
+        $this->assertDebuggingNotCalled();
+    }
+
+    /**
+     * Without a recorded ID, the rows known not to be active are set aside.
+     *
+     * The candidate is the newest token by construction, so "take the newest" alone would pick
+     * it every time a rotation is in flight. The lookup must not adopt what it finds either:
+     * pages call it, and recording the active token is maintain()'s job, under its lock.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::active_token
+     * @return void
+     */
+    public function test_active_token_falls_back_past_the_candidate_and_the_previous_token(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $ownerid = $this->make_site_connected_as_service();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        $previous = webservice_token_manager::create_token($ownerid, $serviceid);
+        set_config('previouswebservicetokenid', (int)$previous->id, 'local_corolair');
+        set_config('previouswebservicetokenrevokeby', time() + webservice_token_manager::PREVIOUS_TOKEN_GRACE, 'local_corolair');
+        $current = webservice_token_manager::create_token($ownerid, $serviceid);
+        $candidate = webservice_token_manager::create_token($ownerid, $serviceid);
+        set_config('webservicetokencandidateid', (int)$candidate->id, 'local_corolair');
+        unset_config('webservicetokenid', 'local_corolair');
+
+        $token = webservice_token_manager::active_token($serviceid);
+
+        $this->assertEquals((int)$current->id, (int)$token->id);
+        $this->assertFalse(get_config('local_corolair', 'webservicetokenid'));
+    }
+
+    /**
+     * A recorded ID from another service is ignored, and no token means false.
+     *
+     * The pages branch on a falsy result to report the missing token, so a stray ID must not
+     * make them hand Corolair a credential for some other integration.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::active_token
+     * @return void
+     */
+    public function test_active_token_ignores_a_token_from_another_service(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $ownerid = $this->make_site_connected_as_service();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        $otherservice = $DB->insert_record('external_services', (object)[
+            'name' => 'Unrelated service',
+            'enabled' => 1,
+            'restrictedusers' => 0,
+            'component' => null,
+            'timecreated' => time(),
+            'timemodified' => time(),
+            'shortname' => 'unrelated_rest',
+            'downloadfiles' => 0,
+            'uploadfiles' => 0,
+        ]);
+        $foreign = webservice_token_manager::create_token($ownerid, (int)$otherservice);
+        set_config('webservicetokenid', (int)$foreign->id, 'local_corolair');
+
+        $this->assertFalse(webservice_token_manager::active_token($serviceid));
+    }
+
+    /**
      * The superseded token is deleted once its overlap window has passed.
      *
      * Corolair may still be using the old token for in-flight requests when rotation

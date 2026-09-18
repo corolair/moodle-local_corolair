@@ -50,7 +50,7 @@ if ($confirm) {
 
     $existingservice = $DB->get_record('external_services', ['shortname' => 'corolair_rest']);
     $token = $existingservice
-        ? $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id])
+        ? \local_corolair\local\webservice_token_manager::active_token((int)$existingservice->id)
         : false;
     if (!$token) {
         redirect(

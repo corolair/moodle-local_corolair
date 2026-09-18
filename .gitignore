@@ -3,6 +3,8 @@ local_corolair-prod.zip
 local_corolair/
 .package-prod/
 .codex
+# Claude Code: per-user settings and agent worktrees (full checkouts of this repo).
+.claude/
 .DS_Store
 plans
 
