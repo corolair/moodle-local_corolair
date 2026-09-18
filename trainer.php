@@ -86,7 +86,7 @@ $istokenexist = false;
 $isretrysuccess = false;
 if ($existingservice) {
     $israisonserviceexist = true;
-    $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
+    $token = \local_corolair\local\webservice_token_manager::active_token((int)$existingservice->id);
     if ($token) {
         $istokenexist = true;
     }
@@ -96,7 +96,7 @@ if ($existingservice) {
 $apikey = \local_corolair\local\api_key::get();
 if ($apikey === null) {
     if ($retryregistration && $existingservice) {
-        $token = $DB->get_record('external_tokens', ['externalserviceid' => $existingservice->id]);
+        $token = \local_corolair\local\webservice_token_manager::active_token((int)$existingservice->id);
         if ($token) {
             // Attempt to register the moodle instance again.
             $newapikey = \local_corolair\local\registration_client::register(

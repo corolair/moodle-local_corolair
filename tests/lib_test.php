@@ -26,6 +26,7 @@ namespace local_corolair;
 
 use local_corolair\event\remote_request_completed;
 use local_corolair\local\environment;
+use local_corolair\local\widget_course_list;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -107,6 +108,10 @@ final class lib_test extends \advanced_testcase {
             'unset' => [null],
             'empty' => [''],
             'placeholder' => ['placeholder'],
+            // Seeded in another language than the viewer's, or by a release that still said
+            // Corolair: the viewer's own translation of the placeholder matches neither.
+            'placeholder in another language' => ['Aucune Clé API Raison'],
+            'legacy placeholder' => ['No Corolair Api Key'],
         ];
     }
 
@@ -182,6 +187,91 @@ final class lib_test extends \advanced_testcase {
                 \context_course::instance($course->id),
                 'false'
             );
+        });
+    }
+
+    /**
+     * A front-page activity -- site announcements, typically -- gets no widget.
+     *
+     * The front page is a course and its activities live under /mod/, so placement accepts
+     * the page; only the course check keeps the viewer's identity from being sent for a
+     * course that can never have a tutor.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers ::local_corolair_render_embed_script
+     * @return void
+     */
+    public function test_front_page_activity_makes_no_request(): void {
+        global $SITE;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        $this->set_course_page($SITE, '/mod/forum/view.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+        $this->assert_silent(function () {
+            return local_corolair_render_embed_script(SITEID, \context_course::instance(SITEID), 'false');
+        });
+    }
+
+    /**
+     * Cache a fresh course list, the way a successful refresh would, without a request.
+     *
+     * @param int[] $courseids Courses the list names.
+     * @param string $apikey API key the list is fetched with.
+     * @return void
+     */
+    private function seed_course_list(array $courseids, string $apikey): void {
+        widget_course_list::allows(0, $apikey, function () use ($courseids) {
+            return [
+                'response' => json_encode(['courseIds' => array_map('strval', $courseids)]),
+                'errno' => 0,
+                'httpstatus' => 200,
+            ];
+        });
+    }
+
+    /**
+     * A course page of a course Raison does not list makes no request.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers ::local_corolair_render_embed_script
+     * @return void
+     */
+    public function test_unlisted_course_makes_no_request(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        $course = $this->getDataGenerator()->create_course();
+        $this->seed_course_list([(int)$course->id + 1000], 'org_test.realsecret');
+        $this->set_course_page($course, '/course/view.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * An activity page of a course Raison does not list makes no request either.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers ::local_corolair_render_embed_script
+     * @return void
+     */
+    public function test_unlisted_course_activity_makes_no_request(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        $course = $this->getDataGenerator()->create_course();
+        $page = $this->getDataGenerator()->create_module('page', ['course' => $course->id]);
+        $this->seed_course_list([(int)$course->id + 1000], 'org_test.realsecret');
+        $this->set_activity_page($course, $page, 'page');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
         });
     }
 
@@ -539,10 +629,42 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * The course link is removed again if the capability is lost.
+     *
+     * find() matches on the node key, so this only works because the node is created with
+     * one; without it the removal branch could never locate the node.
+     *
+     * @covers ::local_corolair_extend_navigation_course
+     * @return void
+     */
+    public function test_course_link_is_removed_without_the_capability(): void {
+        $this->resetAfterTest();
+        unset_config('apikey', 'local_corolair');
+        $course = $this->getDataGenerator()->create_course();
+        $context = \context_course::instance($course->id);
+        $title = get_string('coursenodetitle', 'local_corolair');
+
+        $this->setAdminUser();
+        $navigation = \navigation_node::create('Course administration', null, \navigation_node::TYPE_COURSE);
+        local_corolair_extend_navigation_course($navigation, $course, $context);
+        $this->assertContains($title, $this->child_texts($navigation));
+
+        // Run twice for the same user: the node must not be added a second time.
+        local_corolair_extend_navigation_course($navigation, $course, $context);
+        $this->assertCount(1, array_keys($this->child_texts($navigation), $title));
+
+        // The same tree, now rendered for someone without the capability.
+        $this->setUser($this->getDataGenerator()->create_user());
+        local_corolair_extend_navigation_course($navigation, $course, $context);
+
+        $this->assertNotContains($title, $this->child_texts($navigation));
+    }
+
+    /**
      * The front-page link is removed again if the capability is lost.
      *
-     * Unlike the course node, this one is created with an explicit key, so find() can
-     * locate it and the removal branch actually works.
+     * Like the course node, this one is created with an explicit key, so find() can
+     * locate it and the removal branch works.
      *
      * @covers ::local_corolair_extend_navigation_frontpage
      * @return void

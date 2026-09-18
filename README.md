@@ -1,8 +1,8 @@
 # Raison Moodle Plugin
 
-**Version:** 1.9.6
+**Version:** 1.9.11
 
-**Last Updated:** 2026/08/28
+**Last Updated:** 2026/09/18
 
 ## Overview
 
@@ -29,7 +29,7 @@ Each AI Tutor is created and managed by a trainer or instructional designer. The
 
 ## Installation
 
-The plugin requires Moodle 3.8 or later and must be installed by a Moodle site administrator. Moodle 4.4 or later is recommended if you plan to use the Raison LTI integration, but it is not required for LTI or for the plugin's other features.
+The plugin requires Moodle 4.3 or later and must be installed by a Moodle site administrator. Moodle 4.4 or later is recommended if you plan to use the Raison LTI integration, but it is not required for LTI or for the plugin's other features.
 
 1. Install the latest version from the Moodle Plugins directory.
 2. Go to **Site administration > Plugins > Local plugins > Raison Local Plugin** and select **Open Corolair setup**.
@@ -49,6 +49,10 @@ If your organization chooses to continue using Raison after the free trial, cont
 ### Privacy and security
 
 During setup, administrators can review the plugin's exact access permissions, the Moodle functions it uses, and the purpose of each type of data involved. The integration uses restricted, short-lived access credentials that are renewed automatically. Trainer sign-in is limited to approved, secure Raison destinations.
+
+#### The course assistant
+
+The assistant appears only in courses that have a Raison tutor. The plugin asks Raison for the list of those courses at most once every five minutes for the whole site, and caches it; that request carries no user data. Pages of any other course never contact Raison. On a page of a listed course, the plugin sends the viewer's name, email address and role, together with the course and the page address, to open the assistant for them.
 
 #### The service account
 

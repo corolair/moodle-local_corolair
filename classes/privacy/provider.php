@@ -33,6 +33,7 @@ use core_privacy\local\request\userlist;
 use core_privacy\local\request\transform;
 use context;
 use context_system;
+use local_corolair\local\api_key;
 use local_corolair\local\environment;
 use curl;
 
@@ -334,6 +335,10 @@ class provider implements
             'userfirstname' => 'privacy:metadata:raison:userfirstname',
             'userlastname' => 'privacy:metadata:raison:userlastname',
             'userrolename' => 'privacy:metadata:raison:userrolename',
+            // Sent with the identity above each time a course widget is requested, so
+            // they tie that identity to the course and the exact page being viewed.
+            'courseid' => 'privacy:metadata:raison:courseid',
+            'currentpageurl' => 'privacy:metadata:raison:currentpageurl',
             'interaction' => 'privacy:metadata:raison:interaction',
         ], 'privacy:metadata:raison');
         // Local plugin configuration records the identity of the administrator who
@@ -438,9 +443,9 @@ class provider implements
                 ['contextlevel' => CONTEXT_SYSTEM]
             );
         }
-        $apikey = get_config('local_corolair', 'apikey');
-        $noapikey = get_string('noapikey', 'local_corolair');
-        if (!$apikey || strpos($apikey, $noapikey) === 0) {
+        // Every shipped placeholder, in every language -- not only the current user's.
+        $apikey = api_key::get();
+        if ($apikey === null) {
             return $contextlist;
         }
         $url = environment::url('services', 'moodle-integration/v2/privacy/users/')
@@ -516,9 +521,9 @@ class provider implements
         // Export locally retained setup accountability records first; these exist
         // independently of the remote API key.
         self::export_local_setup_records($approvedcontextlist);
-        $apikey = get_config('local_corolair', 'apikey');
-        $noapikey = get_string('noapikey', 'local_corolair');
-        if (!$apikey || strpos($apikey, $noapikey) === 0) {
+        // Every shipped placeholder, in every language -- not only the current user's.
+        $apikey = api_key::get();
+        if ($apikey === null) {
             return;
         }
         $user = $approvedcontextlist->get_user();
@@ -616,9 +621,9 @@ class provider implements
             }
         }
 
-        $apikey = get_config('local_corolair', 'apikey');
-        $noapikey = get_string('noapikey', 'local_corolair');
-        if (!$apikey || strpos($apikey, $noapikey) === 0) {
+        // Every shipped placeholder, in every language -- not only the current user's.
+        $apikey = api_key::get();
+        if ($apikey === null) {
             return;
         }
         $urlparams = self::get_context_scope($context);
@@ -664,9 +669,9 @@ class provider implements
      * @return void
      */
     public static function delete_data_for_all_users_in_context(\context $context) {
-        $apikey = get_config('local_corolair', 'apikey');
-        $noapikey = get_string('noapikey', 'local_corolair');
-        if (!$apikey || strpos($apikey, $noapikey) === 0) {
+        // Every shipped placeholder, in every language -- not only the current user's.
+        $apikey = api_key::get();
+        if ($apikey === null) {
             return;
         }
         $urlparams = self::get_context_scope($context);
@@ -766,9 +771,9 @@ class provider implements
         // as the plugin is installed. They are declared in get_metadata and exportable;
         // uninstalling the plugin removes them (see db/uninstall.php). They are therefore
         // intentionally not erased here.
-        $apikey = get_config('local_corolair', 'apikey');
-        $noapikey = get_string('noapikey', 'local_corolair');
-        if (!$apikey || strpos($apikey, $noapikey) === 0) {
+        // Every shipped placeholder, in every language -- not only the current user's.
+        $apikey = api_key::get();
+        if ($apikey === null) {
             return;
         }
         $user = $contextlist->get_user();
@@ -792,9 +797,9 @@ class provider implements
      * @param approved_userlist $userlist The list of approved users whose data needs to be deleted.
      */
     public static function delete_data_for_users(approved_userlist $userlist) {
-        $apikey = get_config('local_corolair', 'apikey');
-        $noapikey = get_string('noapikey', 'local_corolair');
-        if (!$apikey || strpos($apikey, $noapikey) === 0) {
+        // Every shipped placeholder, in every language -- not only the current user's.
+        $apikey = api_key::get();
+        if ($apikey === null) {
             return;
         }
         $users = $userlist->get_userids();
