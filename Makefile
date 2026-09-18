@@ -132,10 +132,17 @@ require-moodle: up
 
 .PHONY: sync
 sync: require-moodle ## Copy host edits into the Moodle tree (implied by every check below)
+	@# Everything excluded here is gitignored, so none of it exists in the checkout CI
+	@# tests. .claude (agent worktrees) and .package-prod (left by an interrupted or
+	@# failed `make package-prod`) each hold a full second copy of the plugin. Copied in,
+	@# every check scans it as plugin code, and the hardcoded-host test fails on its
+	@# hosts_prod.php.
 	@$(EXEC) sh -c 'rm -rf $(PLUGIN_IN_MOODLE) && mkdir -p $(PLUGIN_IN_MOODLE) && \
 		tar -C $(PLUGIN_IN_CONTAINER) \
 			--exclude=./.git --exclude=./vendor --exclude=./local_corolair \
-			--exclude=./local_corolair.zip --exclude=./plans \
+			--exclude=./local_corolair.zip --exclude=./local_corolair-prod.zip \
+			--exclude=./.package-prod --exclude=./plans \
+			--exclude=./.claude --exclude=./.codex \
 			-cf - . | tar -C $(PLUGIN_IN_MOODLE) -xf -'
 
 # Individual CI steps, each matching a step in .github/workflows/moodle-plugin-ci.yml.
@@ -178,7 +185,7 @@ package: ## Build local_corolair.zip for the Moodle plugin directory
 	@rm -f local_corolair.zip
 	@git archive --format=zip --prefix=local_corolair/ -o local_corolair.zip HEAD
 	@echo "==> local_corolair.zip ($$(unzip -l local_corolair.zip | tail -1 | awk '{print $$2}') files)"
-	@if unzip -l local_corolair.zip | grep -qE "local_corolair/(Makefile|docker-compose.yml|composer.json|.dev/|.github/)"; then \
+	@if unzip -l local_corolair.zip | grep -qE "local_corolair/(Makefile|docker-compose.yml|composer.json|.dev/|.github/|.claude/)"; then \
 		echo "WARNING: development files leaked into the zip; check .gitattributes"; \
 		exit 1; \
 	fi
