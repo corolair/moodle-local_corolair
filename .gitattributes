@@ -2,6 +2,7 @@
 # honours export-ignore, so these are kept out of the released plugin zip.
 #
 # tests/ is deliberately NOT ignored: Moodle plugins are expected to ship them.
+/.claude            export-ignore
 /.dev               export-ignore
 /.editorconfig      export-ignore
 /.gitattributes     export-ignore
