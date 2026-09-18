@@ -35,6 +35,7 @@ $string['apikeyrotatenotoken'] = 'No Raison web-service token was found. Complet
 $string['apikeyrotatesuccess'] = 'A new Raison API key was generated. The previous key is now invalid.';
 $string['apikeyset'] = 'The API key was set successfully.';
 $string['assignmanagerrolecapability'] = 'Assign the Raison Manager role through the scoped integration API.';
+$string['cachedef_widgetcourses'] = 'Raison course list: the courses of this site that have a Raison assistant, refreshed every five minutes.';
 $string['calendlydemo'] = 'To help us assist you effectively, please first describe your use case and needs in a discovery call with the Raison Team. Once we understand your requirements, our developers will prioritize resolving the connection issues with your Moodle instance. Schedule your call <strong> <a href="https://discoverycall.raison.is/" target="_blank">here</a> </strong>.';
 $string['capabilityassignerror'] = 'Could not assign the capability "{$a}" to the role.';
 $string['capabilityfalse'] = 'False';
@@ -144,6 +145,8 @@ $string['privacy:metadata:config_plugins:setupdisclosureacknowledgedat'] = 'The 
 $string['privacy:metadata:config_plugins:setupdisclosureacknowledgedby'] = 'The ID of the administrator who acknowledged the integration disclosure.';
 $string['privacy:metadata:config_plugins:webservicetokenownerid'] = 'The ID of the user who owns the current Raison web-service token. This is the dedicated service account, except during the transfer from an earlier version, when it is briefly the administrator who set the integration up.';
 $string['privacy:metadata:raison'] = 'Metadata sent to Raison allows seamless access to your data on the remote system.';
+$string['privacy:metadata:raison:courseid'] = 'The ID of the course you are viewing is sent to open that course\'s Raison assistant.';
+$string['privacy:metadata:raison:currentpageurl'] = 'The address of the course page you are viewing is sent with your identity when the Raison assistant is loaded on it.';
 $string['privacy:metadata:raison:interaction'] = 'Records of your interactions, such as created tutors and conversations, are sent to enhance your experience.';
 $string['privacy:metadata:raison:useremail'] = 'Your email address is sent to uniquely identify you on Raison and enable further communication.';
 $string['privacy:metadata:raison:userfirstname'] = 'Your first name is sent to personalize your experience on Raison and identify your conversations for your Trainer.';

@@ -60,13 +60,17 @@ function local_corolair_disabletokenrotation_updated($name = null) {
 function local_corolair_render_embed_script($courseid, $context, $animate) {
     global $PAGE, $USER, $CFG;
 
-    // Only course widgets are supported.
-    if (empty($courseid)) {
+    // Only course widgets are supported. The front page is a course too -- site
+    // announcements live under /mod/ -- but it can never have a tutor. SITEID is defined
+    // from the database, so it is a string: compare both sides as integers.
+    if (empty($courseid) || (int)$courseid === (int)SITEID) {
         return '';
     }
 
-    $apikey = get_config('local_corolair', 'apikey');
-    if (!$apikey || strpos($apikey, get_string('noapikey', 'local_corolair')) === 0) {
+    // Every shipped placeholder, in every language: comparing against the current user's
+    // translation alone let another language's placeholder go out as a bearer token.
+    $apikey = \local_corolair\local\api_key::get();
+    if ($apikey === null) {
         return '';
     }
 
@@ -74,7 +78,13 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
         return '';
     }
 
-    $pageurlstr = $PAGE->url->out();
+    // Only a course Raison lists as having a tutor is worth sending this user's identity
+    // for. The list is cached for the whole site; see widget_course_list.
+    if (!\local_corolair\local\widget_course_list::allows((int)$courseid, $apikey)) {
+        return '';
+    }
+
+    $pageurlstr = $PAGE->url->out(false);
     $roles = get_user_roles($context, $USER->id, true);
     $role = reset($roles);
     $rolename = (!empty($role) && !empty($role->shortname)) ? $role->shortname : '';
@@ -122,6 +132,10 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
     }
     $info = $curl->get_info();
     $httpstatus = (int)($info['http_code'] ?? 0);
+    if ($httpstatus === 404) {
+        // Listed, but the tutor is gone: stop asking until the next refresh says otherwise.
+        \local_corolair\local\widget_course_list::forget((int)$courseid, $apikey);
+    }
     if ($httpstatus < 200 || $httpstatus >= 300) {
         return '';
     }
@@ -192,7 +206,7 @@ function local_corolair_course_widget_placement(
     $pageurlstr = $pageurl->out();
 
     // Get excluded mods from config (comma-separated).
-    $excludedmodsraw = get_config('local_corolair', 'excludedmods') ?? '';
+    $excludedmodsraw = (string)get_config('local_corolair', 'excludedmods');
     $excludedmods = array_filter(array_map('trim', preg_split('/[,\s]+/', $excludedmodsraw)));
 
     // If current URL contains /mod/{excluded}/ then skip rendering.
@@ -283,7 +297,9 @@ function local_corolair_extend_navigation_course($navigation, $course, $context)
                 new moodle_url("/local/corolair/trainer.php?raisonsourcecourse=$courseid"),
                 navigation_node::TYPE_SETTING,
                 null,
-                null,
+                // The key is what find() matches on: without it the duplicate check above
+                // and the removal below could never locate this node.
+                $raisonnodekey,
                 null
             );
             $navigation->add_node($raisonnode);
