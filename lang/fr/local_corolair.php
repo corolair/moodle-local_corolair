@@ -35,6 +35,7 @@ $string['apikeyrotatenotoken'] = 'Aucun jeton de service web Raison n\'a été t
 $string['apikeyrotatesuccess'] = 'Une nouvelle clé API Raison a été générée. La clé précédente est désormais invalide.';
 $string['apikeyset'] = 'La clé API a été définie avec succès.';
 $string['assignmanagerrolecapability'] = 'Attribuer le rôle Gestionnaire Raison via l’API d’intégration à portée limitée.';
+$string['cachedef_widgetcourses'] = 'Liste des cours Raison : les cours de ce site qui disposent d\'un assistant Raison, actualisée toutes les cinq minutes.';
 $string['calendlydemo'] = 'Pour que nous puissions vous aider au mieux, nous vous invitons à nous présenter votre cas d\'usage lors d\'un appel découverte avec l\'équipe Raison. Après cela, nos développeurs pourront se concentrer sur la résolution des problèmes de connexion avec votre instance Moodle. Vous pouvez réserver un échange <strong> <a href="https://discoverycall.raison.is/" target="_blank">ici</a> </strong>.';
 $string['capabilityassignerror'] = 'Impossible d\'attribuer la capacité "{$a}" au rôle.';
 $string['capabilityfalse'] = 'Faux';
@@ -144,6 +145,8 @@ $string['privacy:metadata:config_plugins:setupdisclosureacknowledgedat'] = 'Le m
 $string['privacy:metadata:config_plugins:setupdisclosureacknowledgedby'] = 'L\'identifiant de l\'administrateur ayant pris connaissance de la divulgation de l\'intégration.';
 $string['privacy:metadata:config_plugins:webservicetokenownerid'] = 'L’identifiant de l’utilisateur qui possède le jeton de service web Raison actuel. Il s’agit du compte de service dédié, sauf pendant le transfert depuis une version antérieure, où il s’agit brièvement de l’administrateur ayant configuré l’intégration.';
 $string['privacy:metadata:raison'] = 'Les métadonnées envoyées à Raison permettent un accès transparent à vos données sur le système distant.';
+$string['privacy:metadata:raison:courseid'] = 'L\'identifiant du cours consulté est envoyé pour ouvrir l\'assistant Raison de ce cours.';
+$string['privacy:metadata:raison:currentpageurl'] = 'L\'adresse de la page de cours consultée est envoyée avec votre identité lorsque l\'assistant Raison y est chargé.';
 $string['privacy:metadata:raison:interaction'] = 'Les enregistrements de vos interactions, tels que les tuteurs créés et les conversations, sont envoyés pour améliorer votre expérience';
 $string['privacy:metadata:raison:useremail'] = 'Votre adresse e-mail est envoyée pour vous identifier de manière unique sur Raison et anticiper de potentielles communication ultérieure';
 $string['privacy:metadata:raison:userfirstname'] = 'Votre prénom est envoyé pour personnaliser votre expérience sur Raison et identifier vos conversations pour votre formateur';

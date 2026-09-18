@@ -102,6 +102,11 @@ final class provider_test extends \advanced_testcase {
         }
 
         $this->assertArrayHasKey('raison', $types, 'The remote service must be declared.');
+        // Sent with the viewer's identity on every widget request, so they are part of what
+        // leaves the site and belong in the registry an administrator reads.
+        $raisonfields = array_keys($types['raison']->get_privacy_fields());
+        $this->assertContains('courseid', $raisonfields);
+        $this->assertContains('currentpageurl', $raisonfields);
         $this->assertArrayHasKey(
             'config_plugins',
             $types,
@@ -439,6 +444,53 @@ final class provider_test extends \advanced_testcase {
             provider::get_users_in_context(new userlist($context, 'local_corolair'));
             provider::delete_data_for_user(new approved_contextlist($user, 'local_corolair', [$context->id]));
             provider::delete_data_for_all_users_in_context($context);
+        });
+    }
+
+    /**
+     * Placeholders the current user's language would not recognise.
+     *
+     * The setting is seeded with the placeholder in whatever language was active at the
+     * time, and earlier releases seeded the "Corolair" wording, so a site can hold either
+     * while the request runs in a different language.
+     *
+     * @return array[] Data sets of [stored placeholder].
+     */
+    public static function foreign_placeholder_provider(): array {
+        return [
+            'french placeholder' => ['Aucune Clé API Raison'],
+            'spanish placeholder' => ['No hay clave API de Raison'],
+            'legacy placeholder' => ['No Corolair Api Key'],
+        ];
+    }
+
+    /**
+     * A placeholder in another language or an older wording still short-circuits.
+     *
+     * @dataProvider foreign_placeholder_provider
+     * @covers \local_corolair\privacy\provider::get_contexts_for_userid
+     * @covers \local_corolair\privacy\provider::export_user_data
+     * @covers \local_corolair\privacy\provider::get_users_in_context
+     * @covers \local_corolair\privacy\provider::delete_data_for_user
+     * @covers \local_corolair\privacy\provider::delete_data_for_all_users_in_context
+     * @covers \local_corolair\privacy\provider::delete_data_for_users
+     * @param string $placeholder Stored placeholder.
+     * @return void
+     */
+    public function test_foreign_placeholder_also_short_circuits(string $placeholder): void {
+        $this->resetAfterTest();
+        set_config('apikey', $placeholder, 'local_corolair');
+
+        $user = $this->getDataGenerator()->create_user();
+        $context = \context_system::instance();
+
+        $this->assert_makes_no_request(function () use ($user, $context) {
+            provider::get_contexts_for_userid((int)$user->id);
+            provider::export_user_data(new approved_contextlist($user, 'local_corolair', [$context->id]));
+            provider::get_users_in_context(new userlist($context, 'local_corolair'));
+            provider::delete_data_for_user(new approved_contextlist($user, 'local_corolair', [$context->id]));
+            provider::delete_data_for_all_users_in_context($context);
+            provider::delete_data_for_users(new approved_userlist($context, 'local_corolair', [(int)$user->id]));
         });
     }
 }
