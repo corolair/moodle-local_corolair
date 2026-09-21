@@ -346,6 +346,21 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Put $PAGE on a single-section page, as Moodle 4.4 and later serve it.
+     *
+     * @param \stdClass $course Course owning the section.
+     * @param int $number Section number.
+     * @return void
+     */
+    private function set_section_page(\stdClass $course, int $number): void {
+        global $PAGE;
+
+        $PAGE->set_course($course);
+        $PAGE->set_context(\context_course::instance($course->id));
+        $PAGE->set_url(new \moodle_url('/course/section.php', ['id' => $this->section_id($course, $number)]));
+    }
+
+    /**
      * A trainer gets the course link.
      *
      * @covers ::local_corolair_extend_navigation_course
@@ -600,6 +615,30 @@ final class lib_test extends \advanced_testcase {
         $this->assert_silent(function () {
             return local_corolair_before_footer();
         });
+    }
+
+    /**
+     * A single-section page keeps the widget, as the course view it replaced did.
+     *
+     * From Moodle 4.4 every section link in core leads to course/section.php, whose id is the
+     * section's rather than the course's. Matching course/view.php alone left the assistant
+     * off a page learners reach all the time.
+     *
+     * Asserted on the placement helper, not the footer callback. A page that renders the widget
+     * reaches the session request in local_corolair_render_embed_script(), and this suite makes
+     * no network calls.
+     *
+     * @covers ::local_corolair_course_widget_placement
+     * @return void
+     */
+    public function test_section_page_keeps_the_widget(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $this->set_section_page($course, 1);
+
+        $this->assertSame([true, 'true'], $this->widget_placement($course));
     }
 
     /**
