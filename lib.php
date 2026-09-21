@@ -194,7 +194,7 @@ function local_corolair_hide_on_raison_exam(): bool {
  * Whether the current page may host the course widget.
  *
  * @param moodle_url $pageurl The current page URL.
- * @param int $courseid The course id for course-view matching.
+ * @param int $courseid The course the page belongs to, matched against course/view.php.
  * @param cm_info|null $cm The activity being viewed, or null when the page is not an activity.
  * @return array{0: bool, 1: string} Whether to render, and the animate flag.
  */
@@ -222,9 +222,16 @@ function local_corolair_course_widget_placement(
 
     $coursemodurlstr = (new moodle_url('/mod/'))->out();
     $courseviewurlstr = (new moodle_url('/course/view.php', ['id' => $courseid]))->out();
+    // Moodle 4.4 moved the single-section view off course/view.php?id=X&section=N onto its
+    // own page, which every section link in core now points at. It is treated as the course
+    // view it replaced, animation included. Its id is the section's, not the course's, so
+    // only the path is matched: section.php logs the user in to the section's own course,
+    // which is the course the caller passed in.
+    $coursesectionurlstr = (new moodle_url('/course/section.php'))->out();
 
     $isonmodpage = strpos($pageurlstr, $coursemodurlstr) !== false;
-    $isoncourseview = strpos($pageurlstr, $courseviewurlstr) !== false;
+    $isoncourseview = strpos($pageurlstr, $courseviewurlstr) !== false
+        || strpos($pageurlstr, $coursesectionurlstr) !== false;
     if (!$isonmodpage && !$isoncourseview) {
         return [false, 'false'];
     }
