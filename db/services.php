@@ -43,6 +43,16 @@ $functions = [
         // surface rather than that one.
         'ajax'        => false,
     ],
+    'local_corolair_get_ubicast_media' => [
+        'classname'    => 'local_corolair\\external\\get_ubicast_media',
+        'methodname'   => 'execute',
+        'description'  => 'Return the Nudgis media id each UbiCast activity of a course plays.',
+        'type'         => 'read',
+        'capabilities' => 'moodle/course:view',
+        // Token-only, like get_integration_status: the disclosure describes the token's
+        // surface, not the browser session's.
+        'ajax'         => false,
+    ],
     'local_corolair_get_roles' => [
         'classname'   => 'local_corolair\\external\\get_roles',
         'methodname'  => 'execute',
@@ -103,6 +113,9 @@ $services = [
             // The only read that names an H5P activity's package file: core_course_get_contents
             // lists the module but carries no file, since mod_h5pactivity has no export_contents.
             'mod_h5pactivity_get_h5pactivities_by_courses',
+            // The only read that names the video a UbiCast activity plays: mod_ubicast has no
+            // web service and no export_contents, so core_course_get_contents lists it empty.
+            'local_corolair_get_ubicast_media',
             'local_corolair_get_roles',
             'local_corolair_assign_manager_role',
             'core_completion_get_activities_completion_status',
