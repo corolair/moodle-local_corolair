@@ -29,7 +29,7 @@ namespace local_corolair\local;
  */
 final class integration_disclosure {
     /** Increment whenever the disclosed integration surface materially changes. */
-    public const VERSION = '2026-08-19-1';
+    public const VERSION = '2026-10-01-1';
 
     /**
      * Return the documented web-service groups.
@@ -55,6 +55,7 @@ final class integration_disclosure {
                 'mod_lesson_get_pages',
                 'mod_lesson_get_page_data',
                 'mod_scorm_get_scorms_by_courses',
+                'mod_h5pactivity_get_h5pactivities_by_courses',
                 'mod_lti_get_ltis_by_courses',
             ]),
             self::group('enrolment', 'read', [
@@ -126,6 +127,7 @@ final class integration_disclosure {
                 'mod/folder:view',
                 'mod/page:view',
                 'mod/url:view',
+                'mod/h5pactivity:view',
             ]),
             self::capability_group('participants', [
                 'moodle/course:viewparticipants',
