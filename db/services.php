@@ -100,6 +100,9 @@ $services = [
             'mod_lesson_get_page_data',
             'local_corolair_get_section_availability',
             'mod_scorm_get_scorms_by_courses',
+            // The only read that names an H5P activity's package file: core_course_get_contents
+            // lists the module but carries no file, since mod_h5pactivity has no export_contents.
+            'mod_h5pactivity_get_h5pactivities_by_courses',
             'local_corolair_get_roles',
             'local_corolair_assign_manager_role',
             'core_completion_get_activities_completion_status',

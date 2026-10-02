@@ -212,6 +212,11 @@ final class service_account_provisioner {
         'mod/folder:view',
         'mod/page:view',
         'mod/url:view',
+        // Unlike page, url or imscp, core grants this one to course roles only, never to
+        // authenticated users. Without it Moodle treats every H5P activity as invisible to
+        // the account: core_course_get_contents leaves the module out altogether, and its
+        // package downloads fail with requireloginerror.
+        'mod/h5pactivity:view',
         'local/corolair:viewroles',
         // Technically a write, and kept unconditionally on purpose: it is how a trainer
         // invited from Raison is onboarded, which must work on a default installation. It
