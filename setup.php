@@ -101,9 +101,13 @@ if ($step !== 'consent' || !$acknowledged) {
 $consentrequired = \local_corolair\local\setup_manager::enablement_consent_required();
 $webservicesenabled = \local_corolair\local\setup_manager::webservices_enabled();
 $restenabled = \local_corolair\local\setup_manager::rest_enabled();
+// The plugin's own strings: core has no 'enabled' or 'disabled' string, so asking it for them
+// printed [[enabled]] on every site, under a debugging notice wherever debugging is on.
+$settingstate = fn(bool $enabled): string =>
+    get_string($enabled ? 'setupsettingenabled' : 'setupsettingdisabled', 'local_corolair');
 $status = (object)[
-    'webservices' => get_string($webservicesenabled ? 'enabled' : 'disabled'),
-    'rest' => get_string($restenabled ? 'enabled' : 'disabled'),
+    'webservices' => $settingstate($webservicesenabled),
+    'rest' => $settingstate($restenabled),
 ];
 
 echo $OUTPUT->header();
