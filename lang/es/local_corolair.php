@@ -199,6 +199,8 @@ $string['setupreadynotification'] = 'Raison se instaló. Los servicios web de Mo
 $string['setuprequirednotification'] = 'Raison está instalado, pero permanece inactivo. Un administrador debe <a href="{$a}">revisar la información de integración y aprobar los cambios necesarios en los servicios web</a>.';
 $string['setuprequiredtrainer'] = 'Raison aún no se ha configurado en este sitio. No se ha iniciado ningún registro con Raison, por lo que nada de esta página puede funcionar hasta que un administrador complete la configuración. Esto es lo que deja una instalación por línea de comandos: los archivos del plugin están en su sitio, pero la página de configuración nunca se abrió.';
 $string['setuprequiredtrainernoaccess'] = 'Raison aún no se ha configurado en este sitio, por lo que no puede utilizarse. Solo un administrador del sitio puede completar la configuración: pídale que abra Administración del sitio > Plugins > Plugins locales > Raison y la finalice. Nada de esta página funcionará hasta entonces.';
+$string['setupsettingdisabled'] = 'desactivado';
+$string['setupsettingenabled'] = 'activado';
 $string['setupstatus'] = 'Estado de la integración';
 $string['setupstatuscomplete'] = 'Conectado. El consentimiento del administrador está registrado y el registro de Raison ha finalizado.';
 $string['setupstatuspending'] = 'El consentimiento del administrador está registrado y el registro está pendiente. {$a}';
