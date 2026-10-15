@@ -199,6 +199,8 @@ $string['setupreadynotification'] = 'Raison was installed. Moodle web services a
 $string['setuprequirednotification'] = 'Raison was installed but remains inactive. A site administrator must <a href="{$a}">review the integration disclosure and approve the required web-service changes</a>.';
 $string['setuprequiredtrainer'] = 'Raison has not been set up on this site yet. No registration with Raison has been started, so nothing on this page can work until an administrator completes the setup. This is what a command-line installation leaves behind: the plugin files are in place, but the setup page was never opened.';
 $string['setuprequiredtrainernoaccess'] = 'Raison has not been set up on this site yet, so it cannot be used. Only a site administrator can complete the setup: please ask one to open Site administration > Plugins > Local plugins > Raison and finish it. Nothing on this page will work until they do.';
+$string['setupsettingdisabled'] = 'disabled';
+$string['setupsettingenabled'] = 'enabled';
 $string['setupstatus'] = 'Integration status';
 $string['setupstatuscomplete'] = 'Connected. Administrator consent is recorded and Raison registration completed.';
 $string['setupstatuspending'] = 'Administrator consent is recorded and registration is pending. {$a}';
