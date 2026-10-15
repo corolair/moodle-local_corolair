@@ -621,7 +621,7 @@ final class plugin_definition_test extends \advanced_testcase {
                 $DB->record_exists('message_providers', ['component' => 'local_corolair', 'name' => $name]),
                 "The {$name} message provider is declared but not registered on the site."
             );
-            foreach (['en', 'fr', 'es'] as $language) {
+            foreach (['en', 'fr', 'es', 'pt', 'pt_br'] as $language) {
                 $strings = $this->load_strings($language);
                 $this->assertArrayHasKey(
                     'messageprovider:' . $name,
@@ -766,6 +766,8 @@ final class plugin_definition_test extends \advanced_testcase {
         return [
             'french' => ['fr'],
             'spanish' => ['es'],
+            'portuguese' => ['pt'],
+            'brazilian portuguese' => ['pt_br'],
         ];
     }
 
@@ -840,7 +842,7 @@ final class plugin_definition_test extends \advanced_testcase {
             'ltitoolhost', 'ltitoolhostdesc',
             'disabletokenrotation', 'disabletokenrotationdesc',
         ];
-        foreach (['en', 'fr', 'es'] as $language) {
+        foreach (['en', 'fr', 'es', 'pt', 'pt_br'] as $language) {
             $strings = $this->load_strings($language);
             foreach ($keys as $key) {
                 $this->assertArrayHasKey(
