@@ -41,6 +41,7 @@ final class api_key_test extends \advanced_testcase {
             'english current' => ['No Raison Api Key'],
             'french current' => ['Aucune Clé API Raison'],
             'spanish current' => ['No hay clave API de Raison'],
+            'portuguese current' => ['Nenhuma chave de API do Raison'],
             'english legacy' => ['No Corolair Api Key'],
             'french legacy' => ['Aucune Clé API Corolair'],
             'spanish legacy' => ['No hay clave API de Corolair'],
@@ -76,6 +77,48 @@ final class api_key_test extends \advanced_testcase {
         set_config('apikey', get_string('noapikey', 'local_corolair'), 'local_corolair');
 
         $this->assertNull(api_key::get());
+    }
+
+    /**
+     * Every shipped language pack, read from lang/ rather than a hand-kept list.
+     *
+     * @return array[] Data sets of [language directory, path to its string file].
+     */
+    public static function language_pack_provider(): array {
+        $packs = [];
+        foreach (glob(dirname(__DIR__) . '/lang/*/local_corolair.php') as $path) {
+            $language = basename(dirname($path));
+            $packs[$language] = [$language, $path];
+        }
+        return $packs;
+    }
+
+    /**
+     * The settings default must read as unconfigured whatever language the site installed in.
+     *
+     * The test above only sees the language the test run uses. 1.9.16 added Portuguese packs
+     * without their placeholder, so Portuguese sites sent it to Raison as a bearer token.
+     * Iterating lang/ makes the next new pack fail here until api_key recognises it.
+     *
+     * @dataProvider language_pack_provider
+     * @covers \local_corolair\local\api_key::get
+     * @param string $language Language directory name.
+     * @param string $path Path to that language's string file.
+     * @return void
+     */
+    public function test_every_translated_placeholder_is_not_a_credential(string $language, string $path): void {
+        $this->resetAfterTest();
+
+        $string = [];
+        require($path);
+        $this->assertArrayHasKey('noapikey', $string, "lang/{$language} does not define noapikey.");
+
+        set_config('apikey', $string['noapikey'], 'local_corolair');
+
+        $this->assertNull(
+            api_key::get(),
+            "lang/{$language} placeholder '{$string['noapikey']}' is missing from api_key::PLACEHOLDER_PREFIXES."
+        );
     }
 
     /**
