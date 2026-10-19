@@ -410,6 +410,29 @@ final class plugin_definition_test extends \advanced_testcase {
     }
 
     /**
+     * The service grants the scoped chooser toggle and not core's.
+     *
+     * mod_lti_toggle_showinactivitychooser checks mod/lti:addcoursetool in the course it is
+     * given, which the service account holds at system context, so it let the token show or hide
+     * any tool type in any course. Raison falls back to it only on sites whose plugin predates
+     * the scoped function; a release that put it back on the service would reopen the gap on
+     * every upgraded site.
+     *
+     * @coversNothing
+     * @return void
+     */
+    public function test_the_service_grants_only_the_scoped_chooser_toggle(): void {
+        $granted = $this->service_functions();
+
+        $this->assertContains('local_corolair_toggle_exam_tool_in_chooser', $granted);
+        $this->assertNotContains(
+            'mod_lti_toggle_showinactivitychooser',
+            $granted,
+            'The core chooser toggle reaches every tool type in every course.'
+        );
+    }
+
+    /**
      * No capability appears in both the always-granted and the opt-in set.
      *
      * An overlap would make disabling exam placement revoke something the read path needs,
@@ -469,11 +492,12 @@ final class plugin_definition_test extends \advanced_testcase {
     }
 
     /**
-     * The opt-in set covers exactly what the exam-placement functions declare they need.
+     * The opt-in set covers exactly what the exam functions declare they need.
      *
      * db/services.php declares the capabilities per function for the "missing capabilities"
      * admin report; the provisioner is what actually grants them. If the two disagree, the
-     * report tells administrators something the site does not do.
+     * report tells administrators something the site does not do. Matched on "_exam_" so the
+     * chooser toggle is covered along with the three placement functions.
      *
      * @coversNothing
      * @return void
@@ -483,7 +507,7 @@ final class plugin_definition_test extends \advanced_testcase {
 
         $declared = [];
         foreach ($functions as $name => $definition) {
-            if (strpos($name, '_exam_placement') === false) {
+            if (strpos($name, '_exam_') === false) {
                 continue;
             }
             foreach (explode(',', (string)($definition['capabilities'] ?? '')) as $capability) {

@@ -34,9 +34,11 @@ namespace local_corolair\local;
  * several classes; it lives here instead so there is one list to maintain.
  *
  * The prefixes cover both the current "Raison" wording and the earlier "Corolair" wording
- * in each shipped language. Adding a language to lang/ without adding its placeholder here
- * would let that placeholder be sent as a real credential -- the reason this whole sentinel
- * approach is scheduled to be replaced by an empty default.
+ * in each shipped language. Portuguese (pt and pt_br, one shared string) first shipped in
+ * 1.9.16, after the rename, so it has no legacy wording. Adding a language to lang/ without
+ * adding its placeholder here would let that placeholder be sent as a real credential -- the
+ * reason this whole sentinel approach is scheduled to be replaced by an empty default.
+ * api_key_test checks every lang/ pack against this list, so a missing prefix fails CI.
  */
 final class api_key {
     /** @var string[] Placeholders that mean "no API key has been issued yet". */
@@ -47,6 +49,7 @@ final class api_key {
         'No Raison Api Key',
         'Aucune Clé API Raison',
         'No hay clave API de Raison',
+        'Nenhuma chave de API do Raison',
     ];
 
     /**
