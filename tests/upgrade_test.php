@@ -24,6 +24,7 @@
 
 namespace local_corolair;
 
+use local_corolair\local\api_key;
 use local_corolair\local\placement_registry;
 use local_corolair\local\role_provisioner;
 use local_corolair\local\service_account_provisioner;
@@ -59,6 +60,9 @@ final class upgrade_test extends \advanced_testcase {
 
     /** Version recorded before the plugin gained its placement ownership table. */
     private const VERSION_BEFORE_PLACEMENT_TABLE = 2026090101;
+
+    /** Version recorded before registrations were recorded apart from the API key. */
+    private const VERSION_BEFORE_REGISTRATION_MARKER = 2026101901;
 
     /**
      * Rewind the stored plugin version so savepoints can advance.
@@ -515,5 +519,102 @@ final class upgrade_test extends \advanced_testcase {
         $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_PLACEMENT_TABLE));
 
         $this->assertSame(1, $DB->count_records(placement_registry::TABLE, ['ltiinstanceid' => 42]));
+    }
+
+    /**
+     * Put the site in the state of one that installed the plugin and never registered.
+     *
+     * Consent was given and the registration task got as far as it does before calling
+     * Raison -- a service account and a token exist -- but Raison never answered.
+     *
+     * @return void
+     */
+    private function make_never_registered_site(): void {
+        global $DB;
+
+        set_config('apikey', get_string('noapikey', 'local_corolair'), 'local_corolair');
+        unset_config(api_key::REGISTERED_SETTING, 'local_corolair');
+        set_config('setupconsented', 1, 'local_corolair');
+        set_config('setupconsentedby', (int)get_admin()->id, 'local_corolair');
+        set_config('setupcompleted', 0, 'local_corolair');
+        unset_config('legacycredentialmigrationcompletedat', 'local_corolair');
+        unset_config('legacycredentialmigrationpending', 'local_corolair');
+        unset_config('webservicetokenid', 'local_corolair');
+        unset_config('webservicetokenverifiedat', 'local_corolair');
+        $ownerid = service_account_provisioner::ensure();
+        $serviceid = (int)$DB->get_field('external_services', 'id', ['shortname' => 'corolair_rest']);
+        webservice_token_manager::create_token($ownerid, $serviceid);
+    }
+
+    /**
+     * Each piece of evidence that a site registered before the marker existed.
+     *
+     * @return array[] Data sets of [setting name, value]; null means a real API key.
+     */
+    public static function registration_evidence_provider(): array {
+        return [
+            'a real API key' => [null, null],
+            'a completed registration or migration' => ['legacycredentialmigrationcompletedat', 1700000000],
+            'a completed setup' => ['setupcompleted', 1],
+            'a recorded active token' => ['webservicetokenid', 42],
+            'a token Raison verified' => ['webservicetokenverifiedat', 1700000000],
+        ];
+    }
+
+    /**
+     * Upgrading marks a site that registered before the marker existed.
+     *
+     * Every case but the first has no key at all: a site that registered and had already lost
+     * its key before upgrading is exactly the one the marker exists for.
+     *
+     * @dataProvider registration_evidence_provider
+     * @covers ::xmldb_local_corolair_upgrade
+     * @covers ::local_corolair_backfill_registration_marker
+     * @param string|null $setting Setting that carries the evidence, or null for a real key.
+     * @param int|null $value Value it holds.
+     * @return void
+     */
+    public function test_upgrade_marks_a_site_that_registered_earlier(?string $setting, ?int $value): void {
+        $this->resetAfterTest();
+
+        $this->make_never_registered_site();
+        if ($setting === null) {
+            set_config('apikey', 'org_test.legacysecret', 'local_corolair');
+        } else {
+            set_config($setting, $value, 'local_corolair');
+        }
+        $this->rewind_stored_version(self::VERSION_BEFORE_REGISTRATION_MARKER);
+
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_REGISTRATION_MARKER));
+
+        $this->assertTrue(api_key::site_registered());
+        $this->assertGreaterThanOrEqual(2026101902, $this->stored_version());
+    }
+
+    /**
+     * Upgrading leaves a site that never registered unmarked.
+     *
+     * Marking it would turn every later privacy request on that site into a failure. The
+     * service account and the token it holds are both created before Raison is asked, so a
+     * registration that never completed leaves them behind; neither may count. Nor may a
+     * pending legacy migration, which an older release could queue for a placeholder.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @covers ::local_corolair_backfill_registration_marker
+     * @return void
+     */
+    public function test_upgrade_leaves_a_never_registered_site_unmarked(): void {
+        $this->resetAfterTest();
+
+        $this->make_never_registered_site();
+        // 1.9.16 took the Portuguese placeholder for a real key, so a Portuguese site whose
+        // first registration attempt failed could queue a migration of that placeholder.
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        $this->rewind_stored_version(self::VERSION_BEFORE_REGISTRATION_MARKER);
+
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_REGISTRATION_MARKER));
+
+        $this->assertFalse(api_key::site_registered());
+        $this->assertGreaterThanOrEqual(2026101902, $this->stored_version());
     }
 }

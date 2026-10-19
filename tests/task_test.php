@@ -25,6 +25,7 @@
 namespace local_corolair;
 
 use local_corolair\event\remote_request_completed;
+use local_corolair\local\api_key;
 use local_corolair\local\webservice_token_manager;
 use local_corolair\task\migrate_legacy_credentials_task;
 use local_corolair\task\retry_webservice_token_rotation_task;
@@ -97,6 +98,27 @@ final class task_test extends \advanced_testcase {
                 'A refused registration must not reach Raison.'
             );
         }
+    }
+
+    /**
+     * Answer the next registration request locally, and refuse any request after it.
+     *
+     * \curl::mock_response() returns the body before any connection is opened, so the one
+     * request this is meant for never leaves the process. The dead proxy is a backstop: if
+     * the task ever stopped consuming the mock, a request would fail against a closed local
+     * port instead of reaching Raison.
+     *
+     * @param array $body JSON body Raison answers with.
+     * @return void
+     */
+    private function answer_registration_locally(array $body): void {
+        global $CFG;
+
+        $CFG->proxyhost = '127.0.0.1';
+        $CFG->proxyport = 1;
+        $CFG->proxytype = 'HTTP';
+        $CFG->proxybypass = '';
+        \curl::mock_response(json_encode($body));
     }
 
     /**
@@ -520,5 +542,58 @@ final class task_test extends \advanced_testcase {
             1,
             \core\task\manager::get_adhoc_tasks('\local_corolair\task\migrate_legacy_credentials_task')
         );
+    }
+
+    /**
+     * A registration Raison accepts records the site as registered.
+     *
+     * This is the marker the privacy provider and the uninstall read to tell a site that lost
+     * its key from one that never had one.
+     *
+     * @covers \local_corolair\task\setup_corolair_connection_task::execute
+     * @return void
+     */
+    public function test_successful_registration_records_the_site_as_registered(): void {
+        $this->resetAfterTest();
+
+        $adminid = (int)get_admin()->id;
+        $this->make_setup_ready($adminid);
+        $this->assertFalse(api_key::is_configured());
+        $this->assertFalse(api_key::site_registered());
+        $this->answer_registration_locally(['apiKey' => 'org_test.issuedsecret']);
+
+        $this->registration_task(['adminid' => $adminid])->execute();
+
+        $this->assertSame('org_test.issuedsecret', api_key::get());
+        $this->assertTrue(api_key::site_registered());
+        $this->assertEquals(1, get_config('local_corolair', 'setupcompleted'));
+    }
+
+    /**
+     * A registration Raison does not accept leaves the site unregistered.
+     *
+     * The service account and the token exist by then, which is why neither can stand in
+     * for the marker.
+     *
+     * @covers \local_corolair\task\setup_corolair_connection_task::execute
+     * @return void
+     */
+    public function test_failed_registration_does_not_record_the_site_as_registered(): void {
+        $this->resetAfterTest();
+
+        $adminid = (int)get_admin()->id;
+        $this->make_setup_ready($adminid);
+        $this->answer_registration_locally(['error' => 'rejected']);
+
+        try {
+            $this->registration_task(['adminid' => $adminid])->execute();
+            $this->fail('A response without an API key must fail the registration.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('apikeymissing', $exception->errorcode);
+        }
+
+        $this->assertFalse(api_key::is_configured());
+        $this->assertFalse(api_key::site_registered());
+        $this->assertGreaterThan(0, (int)get_config('local_corolair', 'serviceaccountid'));
     }
 }

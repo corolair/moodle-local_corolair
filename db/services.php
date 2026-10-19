@@ -88,6 +88,16 @@ $functions = [
         'type'         => 'write',
         'capabilities' => 'moodle/course:manageactivities',
     ],
+    'local_corolair_toggle_exam_tool_in_chooser' => [
+        'classname'    => 'local_corolair\\external\\toggle_exam_tool_in_chooser',
+        'methodname'   => 'execute',
+        'description'  => 'Show or hide the Raison LTI tool in a course\'s activity chooser.',
+        'type'         => 'write',
+        'capabilities' => 'mod/lti:addcoursetool',
+        // Token-only, like get_integration_status: the disclosure describes the token's
+        // surface, not the browser session's.
+        'ajax'         => false,
+    ],
 ];
 
 // Service definitions for Raison integration with Moodle.
@@ -125,7 +135,9 @@ $services = [
             'local_corolair_manage_exam_placement',
             'local_corolair_delete_exam_placement',
             'core_course_get_courses_by_field',
-            'mod_lti_toggle_showinactivitychooser',
+            // Replaces mod_lti_toggle_showinactivitychooser, which could show or hide any tool
+            // type in any course: this one refuses any tool that does not launch from Raison.
+            'local_corolair_toggle_exam_tool_in_chooser',
         ],
         // Only the dedicated service account is authorised, so a token minted for any other
         // user against this service is refused -- by the function-call path and by

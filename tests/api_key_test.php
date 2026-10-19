@@ -41,6 +41,7 @@ final class api_key_test extends \advanced_testcase {
             'english current' => ['No Raison Api Key'],
             'french current' => ['Aucune Clé API Raison'],
             'spanish current' => ['No hay clave API de Raison'],
+            'portuguese current' => ['Nenhuma chave de API do Raison'],
             'english legacy' => ['No Corolair Api Key'],
             'french legacy' => ['Aucune Clé API Corolair'],
             'spanish legacy' => ['No hay clave API de Corolair'],
@@ -79,6 +80,48 @@ final class api_key_test extends \advanced_testcase {
     }
 
     /**
+     * Every shipped language pack, read from lang/ rather than a hand-kept list.
+     *
+     * @return array[] Data sets of [language directory, path to its string file].
+     */
+    public static function language_pack_provider(): array {
+        $packs = [];
+        foreach (glob(dirname(__DIR__) . '/lang/*/local_corolair.php') as $path) {
+            $language = basename(dirname($path));
+            $packs[$language] = [$language, $path];
+        }
+        return $packs;
+    }
+
+    /**
+     * The settings default must read as unconfigured whatever language the site installed in.
+     *
+     * The test above only sees the language the test run uses. 1.9.16 added Portuguese packs
+     * without their placeholder, so Portuguese sites sent it to Raison as a bearer token.
+     * Iterating lang/ makes the next new pack fail here until api_key recognises it.
+     *
+     * @dataProvider language_pack_provider
+     * @covers \local_corolair\local\api_key::get
+     * @param string $language Language directory name.
+     * @param string $path Path to that language's string file.
+     * @return void
+     */
+    public function test_every_translated_placeholder_is_not_a_credential(string $language, string $path): void {
+        $this->resetAfterTest();
+
+        $string = [];
+        require($path);
+        $this->assertArrayHasKey('noapikey', $string, "lang/{$language} does not define noapikey.");
+
+        set_config('apikey', $string['noapikey'], 'local_corolair');
+
+        $this->assertNull(
+            api_key::get(),
+            "lang/{$language} placeholder '{$string['noapikey']}' is missing from api_key::PLACEHOLDER_PREFIXES."
+        );
+    }
+
+    /**
      * A real key round-trips unchanged.
      *
      * @covers \local_corolair\local\api_key::get
@@ -91,5 +134,59 @@ final class api_key_test extends \advanced_testcase {
 
         $this->assertSame('org_abc123.9f8e7d6c5b4a', api_key::get());
         $this->assertTrue(api_key::is_configured());
+    }
+
+    /**
+     * Storing an issued key records the registration alongside it.
+     *
+     * @covers \local_corolair\local\api_key::store_issued
+     * @covers \local_corolair\local\api_key::site_registered
+     * @return void
+     */
+    public function test_storing_an_issued_key_records_the_registration(): void {
+        $this->resetAfterTest();
+
+        $this->assertFalse(api_key::site_registered(), 'A freshly installed site has not registered.');
+
+        api_key::store_issued('org_abc123.9f8e7d6c5b4a');
+
+        $this->assertSame('org_abc123.9f8e7d6c5b4a', api_key::get());
+        $this->assertTrue(api_key::site_registered());
+    }
+
+    /**
+     * Losing the key does not make a registered site look like one that never registered.
+     *
+     * The whole point of keeping the marker apart from the key. A site whose key was emptied
+     * still has an organization at Raison.
+     *
+     * @dataProvider placeholder_provider
+     * @covers \local_corolair\local\api_key::site_registered
+     * @param string $stored Value left in plugin configuration.
+     * @return void
+     */
+    public function test_losing_the_key_keeps_the_site_registered(string $stored): void {
+        $this->resetAfterTest();
+
+        api_key::store_issued('org_abc123.9f8e7d6c5b4a');
+        set_config('apikey', $stored, 'local_corolair');
+
+        $this->assertFalse(api_key::is_configured());
+        $this->assertTrue(api_key::site_registered());
+    }
+
+    /**
+     * A key typed into the settings page is not taken as proof of registration.
+     *
+     * @covers \local_corolair\local\api_key::site_registered
+     * @return void
+     */
+    public function test_a_key_set_directly_does_not_record_a_registration(): void {
+        $this->resetAfterTest();
+
+        set_config('apikey', 'org_abc123.9f8e7d6c5b4a', 'local_corolair');
+
+        $this->assertTrue(api_key::is_configured());
+        $this->assertFalse(api_key::site_registered());
     }
 }
