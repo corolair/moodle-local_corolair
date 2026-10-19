@@ -460,6 +460,7 @@ final class provider_test extends \advanced_testcase {
         return [
             'french placeholder' => ['Aucune Clé API Raison'],
             'spanish placeholder' => ['No hay clave API de Raison'],
+            'portuguese placeholder' => ['Nenhuma chave de API do Raison'],
             'legacy placeholder' => ['No Corolair Api Key'],
         ];
     }
