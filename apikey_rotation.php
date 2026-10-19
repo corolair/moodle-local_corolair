@@ -73,7 +73,7 @@ if ($confirm) {
     );
 
     if ($newapikey !== null) {
-        set_config('apikey', $newapikey, 'local_corolair');
+        \local_corolair\local\api_key::store_issued($newapikey);
         redirect(
             $settingsurl,
             get_string('apikeyrotatesuccess', 'local_corolair'),
