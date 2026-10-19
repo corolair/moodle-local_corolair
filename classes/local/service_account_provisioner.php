@@ -242,7 +242,8 @@ final class service_account_provisioner {
      * reach them through local_corolair_create_exam_placement, local_corolair_manage_exam_placement
      * and local_corolair_delete_exam_placement, and those functions refuse any activity this
      * plugin did not create -- see placement_registry. Creation is bounded separately, by refusing
-     * any LTI tool type that launches outside Raison.
+     * any LTI tool type that launches outside Raison. local_corolair_toggle_exam_tool_in_chooser,
+     * the one function that needs mod/lti:addcoursetool, refuses such a tool type the same way.
      */
     public const WRITE_CAPABILITIES = [
         'moodle/course:manageactivities',
@@ -250,6 +251,9 @@ final class service_account_provisioner {
         // Required in addition to mod/lti:addinstance since Moodle 4.3 for a preconfigured
         // tool type, which is what the Raison exam placement always creates.
         'mod/lti:addpreconfiguredinstance',
+        // Required by core to show a tool type in a course's activity chooser, which Raison does
+        // for its own tool before placing an exam. Core's own function for that is deliberately
+        // not on the service: it accepts any tool type in any course.
         'mod/lti:addcoursetool',
     ];
 
