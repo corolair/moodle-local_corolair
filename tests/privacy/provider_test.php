@@ -30,17 +30,22 @@ use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
 use local_corolair\event\remote_request_completed;
+use local_corolair\local\api_key;
+use local_corolair\local\service_account_provisioner;
 
 /**
- * Verifies the locally retained accountability records, and the unregistered-site guard.
+ * Verifies the locally retained accountability records, and what happens without a key.
  *
  * Almost all of this plugin's personal data lives in Raison rather than Moodle, so the
- * provider is mostly a client of a remote service. Two things do not need that service
- * and are covered here: the setup accountability record the plugin keeps in its own
- * configuration (who consented, who acknowledged the disclosure, and when), and the
- * guard that stops every entry point before it makes a request when no real API key is
- * configured. Sending the translated "no API key" placeholder as a bearer token would
- * turn a subject access request on an unregistered site into a failed remote call.
+ * provider is mostly a client of a remote service. What does not need that service is
+ * covered here: the setup accountability record the plugin keeps in its own configuration
+ * (who consented, who acknowledged the disclosure, and when), and the two ways a site
+ * can be without a real API key. A site that never registered has nothing at Raison, so
+ * every entry point stops before it makes a request -- sending the translated "no API
+ * key" placeholder as a bearer token would turn a subject access request into a failed
+ * remote call. A site that registered and then lost its key is the opposite case: Raison
+ * still holds its users' data, so every entry point that needs Raison fails visibly
+ * instead of reporting that there is nothing to export or erase.
  */
 final class provider_test extends \advanced_testcase {
     /**
@@ -67,6 +72,19 @@ final class provider_test extends \advanced_testcase {
     }
 
     /**
+     * Put the site in the "registered, then lost its key" state.
+     *
+     * An administrator emptying the setting stores an empty string, which is the case the
+     * assessment describes. The placeholder is what a site that never registered holds.
+     *
+     * @return void
+     */
+    private function make_site_registered_without_key(): void {
+        api_key::store_issued('org_test.realsecret');
+        set_config('apikey', '', 'local_corolair');
+    }
+
+    /**
      * Assert no outbound request was audited while running the given callback.
      *
      * @param callable $callback Provider call to run.
@@ -82,9 +100,58 @@ final class provider_test extends \advanced_testcase {
             $this->assertNotInstanceOf(
                 remote_request_completed::class,
                 $event,
-                'An unregistered site must not contact Raison.'
+                'A site without an API key must not contact Raison.'
             );
         }
+    }
+
+    /**
+     * Assert the callback fails because the key is missing, without contacting Raison.
+     *
+     * @param callable $callback Provider call to run.
+     * @return void
+     */
+    private function assert_fails_for_missing_key(callable $callback): void {
+        $this->assert_makes_no_request(function () use ($callback) {
+            try {
+                $callback();
+                $this->fail('A registered site without its key must not report that Raison holds nothing.');
+            } catch (\moodle_exception $exception) {
+                $this->assertSame('privacy:apikeymissing', $exception->errorcode);
+            }
+        });
+    }
+
+    /**
+     * Call one provider entry point for a user and a context.
+     *
+     * @param string $method Entry point name.
+     * @param \stdClass $user Data subject.
+     * @param \context $context Context to scope the call to.
+     * @return void
+     */
+    private function call_entry_point(string $method, \stdClass $user, \context $context): void {
+        switch ($method) {
+            case 'get_contexts_for_userid':
+                provider::get_contexts_for_userid((int)$user->id);
+                return;
+            case 'export_user_data':
+                provider::export_user_data(new approved_contextlist($user, 'local_corolair', [$context->id]));
+                return;
+            case 'get_users_in_context':
+                provider::get_users_in_context(new userlist($context, 'local_corolair'));
+                return;
+            case 'delete_data_for_user':
+                provider::delete_data_for_user(new approved_contextlist($user, 'local_corolair', [$context->id]));
+                return;
+            case 'delete_data_for_all_users_in_context':
+                provider::delete_data_for_all_users_in_context($context);
+                return;
+            case 'delete_data_for_users':
+                provider::delete_data_for_users(new approved_userlist($context, 'local_corolair', [(int)$user->id]));
+                return;
+        }
+        $this->fail("Unknown entry point {$method}.");
     }
 
     /**
@@ -492,6 +559,243 @@ final class provider_test extends \advanced_testcase {
             provider::delete_data_for_user(new approved_contextlist($user, 'local_corolair', [$context->id]));
             provider::delete_data_for_all_users_in_context($context);
             provider::delete_data_for_users(new approved_userlist($context, 'local_corolair', [(int)$user->id]));
+        });
+    }
+
+    /**
+     * Every entry point that needs Raison, in each context level Raison holds data for.
+     *
+     * @return array[] Data sets of [entry point, context level].
+     */
+    public static function remote_entry_point_provider(): array {
+        $cases = [];
+        $methods = [
+            'get_contexts_for_userid',
+            'export_user_data',
+            'get_users_in_context',
+            'delete_data_for_user',
+            'delete_data_for_all_users_in_context',
+            'delete_data_for_users',
+        ];
+        foreach ($methods as $method) {
+            foreach (['system', 'course'] as $level) {
+                $cases["{$method}, {$level} context"] = [$method, $level];
+            }
+        }
+        return $cases;
+    }
+
+    /**
+     * A registered site that lost its key fails rather than report nothing at Raison.
+     *
+     * This is assessment finding COR-PRIV-003. Returning nothing here let Moodle complete an
+     * export without the Raison part, and mark an erasure done while Raison still held the
+     * data. The privacy manager reports a provider exception to the Data Protection Officers,
+     * which is what makes the failure visible.
+     *
+     * @dataProvider remote_entry_point_provider
+     * @covers \local_corolair\privacy\provider::get_contexts_for_userid
+     * @covers \local_corolair\privacy\provider::export_user_data
+     * @covers \local_corolair\privacy\provider::get_users_in_context
+     * @covers \local_corolair\privacy\provider::delete_data_for_user
+     * @covers \local_corolair\privacy\provider::delete_data_for_all_users_in_context
+     * @covers \local_corolair\privacy\provider::delete_data_for_users
+     * @param string $method Entry point to call.
+     * @param string $level Context level: system or course.
+     * @return void
+     */
+    public function test_registered_site_without_key_fails_visibly(string $method, string $level): void {
+        $this->resetAfterTest();
+        $this->make_site_registered_without_key();
+
+        $user = $this->getDataGenerator()->create_user();
+        $context = $level === 'course'
+            ? \context_course::instance($this->getDataGenerator()->create_course()->id)
+            : \context_system::instance();
+
+        $this->assert_fails_for_missing_key(function () use ($method, $user, $context) {
+            $this->call_entry_point($method, $user, $context);
+        });
+    }
+
+    /**
+     * A site that never registered and has an empty key still reports nothing, quietly.
+     *
+     * The other half of the distinction. Raison holds nothing for such a site, so an empty
+     * answer is the true one, and failing here would block every privacy request forever.
+     *
+     * @dataProvider remote_entry_point_provider
+     * @covers \local_corolair\privacy\provider::get_contexts_for_userid
+     * @covers \local_corolair\privacy\provider::export_user_data
+     * @covers \local_corolair\privacy\provider::get_users_in_context
+     * @covers \local_corolair\privacy\provider::delete_data_for_user
+     * @covers \local_corolair\privacy\provider::delete_data_for_all_users_in_context
+     * @covers \local_corolair\privacy\provider::delete_data_for_users
+     * @param string $method Entry point to call.
+     * @param string $level Context level: system or course.
+     * @return void
+     */
+    public function test_never_registered_site_without_key_reports_nothing(string $method, string $level): void {
+        $this->resetAfterTest();
+        set_config('apikey', '', 'local_corolair');
+        $this->assertFalse(api_key::site_registered());
+        writer::reset();
+
+        $user = $this->getDataGenerator()->create_user();
+        $context = $level === 'course'
+            ? \context_course::instance($this->getDataGenerator()->create_course()->id)
+            : \context_system::instance();
+
+        $this->assert_makes_no_request(function () use ($method, $user, $context) {
+            $this->call_entry_point($method, $user, $context);
+        });
+
+        $this->assertSame([], provider::get_contexts_for_userid((int)$user->id)->get_contextids());
+        $userlist = new userlist($context, 'local_corolair');
+        provider::get_users_in_context($userlist);
+        $this->assertSame([], $userlist->get_userids());
+        $this->assertFalse(writer::with_context($context)->has_any_data());
+    }
+
+    /**
+     * Losing the key does not hide the locally retained record from discovery.
+     *
+     * Discovery returns the system context for the record's owner instead of throwing. A
+     * thrown exception would make the privacy manager discard the whole context list, and
+     * the record with it. The user listing keeps its users even though it throws, because
+     * the manager keeps the list it passed in.
+     *
+     * @covers \local_corolair\privacy\provider::get_contexts_for_userid
+     * @covers \local_corolair\privacy\provider::get_users_in_context
+     * @return void
+     */
+    public function test_local_record_is_still_discovered_when_the_key_is_lost(): void {
+        $this->resetAfterTest();
+        $this->make_site_registered_without_key();
+
+        $consenter = $this->getDataGenerator()->create_user();
+        $acknowledger = $this->getDataGenerator()->create_user();
+        $this->record_setup((int)$consenter->id, (int)$acknowledger->id);
+        $context = \context_system::instance();
+
+        $this->assert_makes_no_request(function () use ($consenter, $context) {
+            $contextlist = provider::get_contexts_for_userid((int)$consenter->id);
+            $this->assertSame([(int)$context->id], array_map('intval', $contextlist->get_contextids()));
+        });
+
+        $userlist = new userlist($context, 'local_corolair');
+        $this->assert_fails_for_missing_key(function () use ($userlist) {
+            provider::get_users_in_context($userlist);
+        });
+        $found = array_map('intval', $userlist->get_userids());
+        sort($found);
+        $expected = [(int)$consenter->id, (int)$acknowledger->id];
+        sort($expected);
+        $this->assertSame($expected, $found);
+    }
+
+    /**
+     * Losing the key does not stop the locally retained record from being exported.
+     *
+     * The local record is written first, then the export fails for the Raison part, so the
+     * administrator gets what Moodle holds and the request is still reported as incomplete.
+     *
+     * @covers \local_corolair\privacy\provider::export_user_data
+     * @return void
+     */
+    public function test_local_record_is_still_exported_when_the_key_is_lost(): void {
+        $this->resetAfterTest();
+        $this->make_site_registered_without_key();
+        writer::reset();
+
+        $admin = $this->getDataGenerator()->create_user();
+        $this->record_setup((int)$admin->id);
+        $context = \context_system::instance();
+
+        $this->assert_fails_for_missing_key(function () use ($admin, $context) {
+            provider::export_user_data(new approved_contextlist($admin, 'local_corolair', [$context->id]));
+        });
+
+        $exported = writer::with_context($context)->get_data(
+            [get_string('privacy:setupsubcontext', 'local_corolair')]
+        );
+        $this->assertNotEmpty($exported);
+        $this->assertEquals((int)$admin->id, (int)$exported->setupconsentedby);
+    }
+
+    /**
+     * Erasure for the record's owner still fails for the Raison part when the key is lost.
+     *
+     * Discovery returned the system context for this user rather than throwing, so this is
+     * where the missing key has to surface. The local record itself is retained, as always.
+     *
+     * @covers \local_corolair\privacy\provider::delete_data_for_user
+     * @return void
+     */
+    public function test_erasing_the_record_owner_still_fails_when_the_key_is_lost(): void {
+        $this->resetAfterTest();
+        $this->make_site_registered_without_key();
+
+        $admin = $this->getDataGenerator()->create_user();
+        $this->record_setup((int)$admin->id);
+        $context = \context_system::instance();
+
+        $this->assert_fails_for_missing_key(function () use ($admin, $context) {
+            provider::delete_data_for_user(new approved_contextlist($admin, 'local_corolair', [$context->id]));
+        });
+
+        $this->assertEquals((int)$admin->id, (int)get_config('local_corolair', 'setupconsentedby'));
+    }
+
+    /**
+     * Contexts Raison holds nothing for do not fail for want of a key.
+     *
+     * Context expiry reaches the deletion paths for user, activity and block contexts as well.
+     * Raison scopes data to the system and course contexts only, so those other contexts have
+     * nothing to report missing.
+     *
+     * @covers \local_corolair\privacy\provider::get_users_in_context
+     * @covers \local_corolair\privacy\provider::delete_data_for_all_users_in_context
+     * @covers \local_corolair\privacy\provider::delete_data_for_users
+     * @return void
+     */
+    public function test_contexts_raison_never_holds_do_not_fail_without_a_key(): void {
+        $this->resetAfterTest();
+        $this->make_site_registered_without_key();
+
+        $user = $this->getDataGenerator()->create_user();
+        $context = \context_user::instance($user->id);
+        $userlist = new userlist($context, 'local_corolair');
+
+        $this->assert_makes_no_request(function () use ($user, $context, $userlist) {
+            provider::get_users_in_context($userlist);
+            provider::delete_data_for_all_users_in_context($context);
+            provider::delete_data_for_users(new approved_userlist($context, 'local_corolair', [(int)$user->id]));
+        });
+        $this->assertSame([], $userlist->get_userids());
+    }
+
+    /**
+     * The service account stays out of every data-subject path when the key is lost.
+     *
+     * It is not a data subject at all, so there is nothing at Raison to report missing.
+     *
+     * @covers \local_corolair\privacy\provider::get_contexts_for_userid
+     * @covers \local_corolair\privacy\provider::delete_data_for_user
+     * @return void
+     */
+    public function test_service_account_is_still_skipped_when_the_key_is_lost(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->make_site_registered_without_key();
+
+        $account = $DB->get_record('user', ['id' => service_account_provisioner::ensure()], '*', MUST_EXIST);
+        $context = \context_system::instance();
+
+        $this->assert_makes_no_request(function () use ($account, $context) {
+            $this->assertSame([], provider::get_contexts_for_userid((int)$account->id)->get_contextids());
+            provider::delete_data_for_user(new approved_contextlist($account, 'local_corolair', [$context->id]));
         });
     }
 }

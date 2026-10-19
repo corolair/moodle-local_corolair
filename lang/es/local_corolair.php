@@ -138,6 +138,7 @@ $string['noapikey'] = 'No hay clave API de Raison';
 $string['placementnotowned'] = 'Esta actividad no fue creada por Raison, por lo que Raison no puede renombrarla ni eliminarla.';
 $string['placementtoolnotallowed'] = 'Los exámenes solo pueden colocarse con la herramienta externa de Raison. La herramienta seleccionada se lanza desde «{$a->host}», pero este sitio solo acepta «{$a->allowed}». Consulte el ajuste «Host de la herramienta LTI de Raison».';
 $string['pluginname'] = 'Plugin Local de Raison';
+$string['privacy:apikeymissing'] = 'Este sitio está registrado en Raison pero no tiene clave API de Raison, por lo que los datos que Raison conserva para esta solicitud de privacidad no se han podido exportar ni eliminar. Restablezca la clave API en la página de ajustes del plugin Raison, o emita una nueva desde allí con «Renovar clave API», y vuelva a ejecutar la solicitud.';
 $string['privacy:metadata:config_plugins'] = 'El plugin almacena, en su configuración local, un registro del administrador que consintió la integración y reconoció la divulgación.';
 $string['privacy:metadata:config_plugins:serviceaccountid'] = 'El ID de la cuenta de servicio dedicada que posee el token de servicio web de Raison. El plugin crea esta cuenta y no representa a ninguna persona.';
 $string['privacy:metadata:config_plugins:setupconsentedat'] = 'El momento en que el administrador consintió habilitar la integración de Raison.';

@@ -24,6 +24,7 @@
 
 namespace local_corolair;
 
+use local_corolair\local\api_key;
 use local_corolair\local\integration_disclosure;
 use local_corolair\local\service_account_provisioner;
 use local_corolair\local\upgrade_migrator;
@@ -1088,5 +1089,35 @@ final class upgrade_migrator_test extends \advanced_testcase {
             $DB->record_exists('external_tokens', ['id' => (int)$legacy->id]),
             'Failing short of the network call must not take the integration offline.'
         );
+    }
+
+    /**
+     * A migration Raison confirms stores the replacement key as an issued one.
+     *
+     * The replacement key is what the site authenticates with from then on, so it has to be
+     * recorded the same way as a key from a first registration.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::run
+     * @return void
+     */
+    public function test_a_confirmed_migration_records_the_site_as_registered(): void {
+        $this->resetAfterTest();
+        // Backstop only: the mocked response below is returned before any connection opens.
+        $this->sink_outbound_requests();
+
+        $this->make_legacy_installation();
+        set_config('legacycredentialmigrationpending', 1, 'local_corolair');
+        set_config('legacycredentialmigrationid', '0b6a2f4e-1c3d-4e5f-8a9b-0c1d2e3f4a5b', 'local_corolair');
+        \curl::mock_response(json_encode([
+            'status' => 'activated',
+            'migrationId' => '0b6a2f4e-1c3d-4e5f-8a9b-0c1d2e3f4a5b',
+        ]));
+
+        upgrade_migrator::run((int)get_admin()->id);
+
+        $this->assertStringStartsWith('org_instance.', api_key::get());
+        $this->assertNotSame('org_instance.inheritedsecret', api_key::get());
+        $this->assertTrue(api_key::site_registered());
+        $this->assertFalse(get_config('local_corolair', 'legacycredentialmigrationpending'));
     }
 }

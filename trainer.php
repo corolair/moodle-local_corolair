@@ -110,7 +110,7 @@ if ($apikey === null) {
                 (int)$USER->id
             );
             if ($newapikey !== null) {
-                set_config('apikey', $newapikey, 'local_corolair');
+                \local_corolair\local\api_key::store_issued($newapikey);
                 $isretrysuccess = true;
             }
         }

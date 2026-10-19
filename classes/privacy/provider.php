@@ -107,6 +107,31 @@ class provider implements
     }
 
     /**
+     * Return the API key for a privacy request that has to reach Raison.
+     *
+     * A site that never registered has no organization at Raison, so Raison holds nothing
+     * about its users and null is the honest answer: the caller returns without asking.
+     * A site that did register and has since lost its key is a different case. Raison still
+     * holds whatever it held, and the key was the only way to reach it. Returning nothing
+     * there let Moodle complete an export without the Raison part, and mark an erasure done
+     * while the data stayed where it was. So that case throws. The privacy manager reports
+     * the exception to the site's Data Protection Officers instead of passing it off as an
+     * empty answer.
+     *
+     * Every shipped placeholder, in every language, counts as no key.
+     *
+     * @return string|null The key, or null when the site never registered.
+     * @throws \moodle_exception When the site registered but holds no key.
+     */
+    private static function api_key_for_request(): ?string {
+        $apikey = api_key::get();
+        if ($apikey === null && api_key::site_registered()) {
+            throw new \moodle_exception('privacy:apikeymissing', 'local_corolair');
+        }
+        return $apikey;
+    }
+
+    /**
      * Decode an external JSON response as an associative array.
      *
      * @param string $response Raw response body.
@@ -419,8 +444,10 @@ class provider implements
      * Retrieves the list of contexts for a given user ID.
      *
      * This function fetches the contexts associated with a user ID from an external service
-     * and adds them to a context list. If the external service is unavailable or returns an error,
-     * an empty context list is returned.
+     * and adds them to a context list, along with the system context when the user has a local
+     * setup record. A site that never registered has nothing at Raison, so only the local record
+     * counts. A registered site without an API key, and a request that fails, both throw rather
+     * than report that Raison holds nothing.
      *
      * @param int $userid The ID of the user whose contexts are being retrieved.
      * @return contextlist The list of contexts associated with the user.
@@ -437,14 +464,22 @@ class provider implements
         }
         // Locally retained setup accountability records live in the system context and
         // exist independently of the remote API key.
-        if (self::get_local_setup_record($userid) !== null) {
+        $haslocalrecord = self::get_local_setup_record($userid) !== null;
+        if ($haslocalrecord) {
             $contextlist->add_from_sql(
                 "SELECT id FROM {context} WHERE contextlevel = :contextlevel",
                 ['contextlevel' => CONTEXT_SYSTEM]
             );
         }
-        // Every shipped placeholder, in every language -- not only the current user's.
-        $apikey = api_key::get();
+        if (!api_key::is_configured() && api_key::site_registered() && $haslocalrecord) {
+            // Throwing here would lose this context list, and with it the local record: the
+            // privacy manager discards a provider's return value when it throws. Returning the
+            // system context instead still gets export_user_data() and delete_data_for_user()
+            // called for this user, and both throw there for the Raison part -- the export
+            // only after it has written the local record.
+            return $contextlist;
+        }
+        $apikey = self::api_key_for_request();
         if ($apikey === null) {
             return $contextlist;
         }
@@ -510,10 +545,10 @@ class provider implements
     /**
      * Exports user data for the given approved context list.
      *
-     * This function retrieves the API key from the configuration, constructs a URL to an external service,
-     * and sends a request to export user data. If the API key is not set or invalid, or if the request fails,
-     * the function returns without exporting any data. If the request is successful, the function decodes the
-     * JSON response and exports the data using Moodle's privacy API.
+     * This function exports the locally retained setup record, then asks Raison for the user's data in each
+     * approved context and exports it using Moodle's privacy API. A site that never registered has nothing
+     * at Raison, so only the local record is exported. A registered site without an API key, and a request
+     * that fails, both throw rather than complete without the Raison part.
      *
      * @param approved_contextlist $approvedcontextlist The list of approved contexts for the user.
      */
@@ -521,8 +556,7 @@ class provider implements
         // Export locally retained setup accountability records first; these exist
         // independently of the remote API key.
         self::export_local_setup_records($approvedcontextlist);
-        // Every shipped placeholder, in every language -- not only the current user's.
-        $apikey = api_key::get();
+        $apikey = self::api_key_for_request();
         if ($apikey === null) {
             return;
         }
@@ -621,13 +655,16 @@ class provider implements
             }
         }
 
-        // Every shipped placeholder, in every language -- not only the current user's.
-        $apikey = api_key::get();
-        if ($apikey === null) {
-            return;
-        }
+        // Scope before key: Raison holds nothing scoped to any other context level, so a site
+        // without its key has nothing to report missing there.
         $urlparams = self::get_context_scope($context);
         if ($urlparams === null) {
+            return;
+        }
+        // Thrown after the local actors above are added. The privacy manager keeps the user
+        // list it passed in, so they are still found while the Raison part fails.
+        $apikey = self::api_key_for_request();
+        if ($apikey === null) {
             return;
         }
         $url = new \moodle_url(
@@ -669,13 +706,14 @@ class provider implements
      * @return void
      */
     public static function delete_data_for_all_users_in_context(\context $context) {
-        // Every shipped placeholder, in every language -- not only the current user's.
-        $apikey = api_key::get();
-        if ($apikey === null) {
-            return;
-        }
+        // Scope before key: context expiry reaches this for user, activity and block contexts
+        // too, where Raison holds nothing, and those must not fail for want of a key.
         $urlparams = self::get_context_scope($context);
         if ($urlparams === null) {
+            return;
+        }
+        $apikey = self::api_key_for_request();
+        if ($apikey === null) {
             return;
         }
         $url = new \moodle_url(
@@ -757,10 +795,9 @@ class provider implements
     /**
      * Deletes data for a user based on the provided context list.
      *
-     * This function retrieves the API key from the configuration and checks if it is valid.
-     * If the API key is not set or is invalid, the function returns without performing any action.
-     * Otherwise, it constructs a URL to the Raison service to delete the user's data and sends
-     * a DELETE request to that URL.
+     * This function sends a DELETE request to the Raison service for each approved context. A site
+     * that never registered has nothing at Raison, so nothing is sent. A registered site without an
+     * API key throws rather than report an erasure that did not happen.
      *
      * @param approved_contextlist $contextlist The context list containing the user whose data is to be deleted.
      */
@@ -771,14 +808,13 @@ class provider implements
         // as the plugin is installed. They are declared in get_metadata and exportable;
         // uninstalling the plugin removes them (see db/uninstall.php). They are therefore
         // intentionally not erased here.
-        // Every shipped placeholder, in every language -- not only the current user's.
-        $apikey = api_key::get();
-        if ($apikey === null) {
-            return;
-        }
         $user = $contextlist->get_user();
         $userid = $user->id;
         if (self::is_service_account((int)$userid)) {
+            return;
+        }
+        $apikey = self::api_key_for_request();
+        if ($apikey === null) {
             return;
         }
         $curl = new curl();
@@ -790,21 +826,25 @@ class provider implements
     /**
      * Deletes data for users specified in the approved user list.
      *
-     * This function sends a DELETE request to the external Raison service to delete user data.
-     * It retrieves the API key from the local configuration and constructs the request URL for each user.
-     * If the API key is not set or is invalid, the function returns without performing any action.
+     * This function sends a DELETE request to the external Raison service for each user. A site that
+     * never registered has nothing at Raison, so nothing is sent. A registered site without an API key
+     * throws rather than report an erasure that did not happen.
      *
      * @param approved_userlist $userlist The list of approved users whose data needs to be deleted.
      */
     public static function delete_data_for_users(approved_userlist $userlist) {
-        // Every shipped placeholder, in every language -- not only the current user's.
-        $apikey = api_key::get();
+        $context = $userlist->get_context();
+        // Same order as the single-context deletion: nothing is held at Raison for an
+        // unsupported context, so a missing key is no reason to fail there.
+        if (self::get_context_scope($context) === null) {
+            return;
+        }
+        $apikey = self::api_key_for_request();
         if ($apikey === null) {
             return;
         }
         $users = $userlist->get_userids();
         $curl = new curl();
-        $context = $userlist->get_context();
         foreach ($users as $userid) {
             if (self::is_service_account((int)$userid)) {
                 continue;

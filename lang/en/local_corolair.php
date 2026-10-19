@@ -138,6 +138,7 @@ $string['noapikey'] = 'No Raison Api Key';
 $string['placementnotowned'] = 'This activity was not created by Raison, so Raison cannot rename or remove it.';
 $string['placementtoolnotallowed'] = 'Exams can only be placed using the Raison external tool. The selected tool launches from "{$a->host}", but this site accepts only "{$a->allowed}". See the "Raison LTI tool host" setting.';
 $string['pluginname'] = 'Raison Local Plugin';
+$string['privacy:apikeymissing'] = 'This site is registered with Raison but has no Raison API key, so the data Raison holds for this privacy request could not be exported or deleted. Restore the API key on the Raison plugin settings page, or issue a new one there with "Rotate API key", then run the request again.';
 $string['privacy:metadata:config_plugins'] = 'The plugin stores, in its local configuration, a record of the administrator who consented to the integration and acknowledged the disclosure.';
 $string['privacy:metadata:config_plugins:serviceaccountid'] = 'The ID of the dedicated service account that owns the Raison web-service token. This account is created by the plugin and represents no person.';
 $string['privacy:metadata:config_plugins:setupconsentedat'] = 'The time at which the administrator consented to enabling the Raison integration.';

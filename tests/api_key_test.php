@@ -135,4 +135,58 @@ final class api_key_test extends \advanced_testcase {
         $this->assertSame('org_abc123.9f8e7d6c5b4a', api_key::get());
         $this->assertTrue(api_key::is_configured());
     }
+
+    /**
+     * Storing an issued key records the registration alongside it.
+     *
+     * @covers \local_corolair\local\api_key::store_issued
+     * @covers \local_corolair\local\api_key::site_registered
+     * @return void
+     */
+    public function test_storing_an_issued_key_records_the_registration(): void {
+        $this->resetAfterTest();
+
+        $this->assertFalse(api_key::site_registered(), 'A freshly installed site has not registered.');
+
+        api_key::store_issued('org_abc123.9f8e7d6c5b4a');
+
+        $this->assertSame('org_abc123.9f8e7d6c5b4a', api_key::get());
+        $this->assertTrue(api_key::site_registered());
+    }
+
+    /**
+     * Losing the key does not make a registered site look like one that never registered.
+     *
+     * The whole point of keeping the marker apart from the key. A site whose key was emptied
+     * still has an organization at Raison.
+     *
+     * @dataProvider placeholder_provider
+     * @covers \local_corolair\local\api_key::site_registered
+     * @param string $stored Value left in plugin configuration.
+     * @return void
+     */
+    public function test_losing_the_key_keeps_the_site_registered(string $stored): void {
+        $this->resetAfterTest();
+
+        api_key::store_issued('org_abc123.9f8e7d6c5b4a');
+        set_config('apikey', $stored, 'local_corolair');
+
+        $this->assertFalse(api_key::is_configured());
+        $this->assertTrue(api_key::site_registered());
+    }
+
+    /**
+     * A key typed into the settings page is not taken as proof of registration.
+     *
+     * @covers \local_corolair\local\api_key::site_registered
+     * @return void
+     */
+    public function test_a_key_set_directly_does_not_record_a_registration(): void {
+        $this->resetAfterTest();
+
+        set_config('apikey', 'org_abc123.9f8e7d6c5b4a', 'local_corolair');
+
+        $this->assertTrue(api_key::is_configured());
+        $this->assertFalse(api_key::site_registered());
+    }
 }

@@ -138,6 +138,7 @@ $string['noapikey'] = 'Aucune Clé API Raison';
 $string['placementnotowned'] = 'Cette activité n’a pas été créée par Raison ; Raison ne peut donc ni la renommer ni la supprimer.';
 $string['placementtoolnotallowed'] = 'Les examens ne peuvent être placés qu’avec l’outil externe Raison. L’outil sélectionné est lancé depuis « {$a->host} », alors que ce site n’accepte que « {$a->allowed} ». Voir le réglage « Hôte de l’outil LTI Raison ».';
 $string['pluginname'] = 'Local Plugin Raison';
+$string['privacy:apikeymissing'] = 'Ce site est inscrit auprès de Raison mais n\'a pas de clé API Raison : les données que Raison détient pour cette demande de confidentialité n\'ont donc pas pu être exportées ni supprimées. Rétablissez la clé API sur la page de réglages du plugin Raison, ou émettez-en une nouvelle depuis cette page avec « Renouveler la clé API », puis relancez la demande.';
 $string['privacy:metadata:config_plugins'] = 'Le plugin conserve, dans sa configuration locale, une trace de l\'administrateur ayant consenti à l\'intégration et pris connaissance de la divulgation.';
 $string['privacy:metadata:config_plugins:serviceaccountid'] = 'L’identifiant du compte de service dédié qui possède le jeton de service web Raison. Ce compte est créé par le plugin et ne représente aucune personne.';
 $string['privacy:metadata:config_plugins:setupconsentedat'] = 'Le moment où l\'administrateur a consenti à activer l\'intégration Raison.';

@@ -63,8 +63,9 @@ function xmldb_local_corolair_uninstall() {
 /**
  * Ask Raison to remove the organization's data.
  *
- * @return bool True when deregistration was confirmed, or when there was nothing to
- *              deregister. False only when a real credential failed to be released.
+ * @return bool True when deregistration was confirmed, or when the site never registered.
+ *              False when the organization may still exist at Raison: a request that
+ *              failed, or a registered site that no longer holds the key to ask.
  */
 function local_corolair_uninstall_deregister(): bool {
     global $CFG;
@@ -72,10 +73,13 @@ function local_corolair_uninstall_deregister(): bool {
     try {
         $apikey = \local_corolair\local\api_key::get();
         if ($apikey === null) {
-            // The site never registered, so there is no organization to remove and no
-            // reason to warn. Reading the raw setting instead would send the translated
-            // "no API key" placeholder as a bearer token, which fails every time.
-            return true;
+            // Never registered: there is no organization to remove and no reason to warn.
+            // Registered but keyless: the organization and its data are still at Raison,
+            // and core is about to wipe the configuration that says so. Returning false
+            // shows the deregisterfailed warning, the last chance anyone has to notice.
+            // Reading the raw setting instead would send the translated "no API key"
+            // placeholder as a bearer token, which fails every time.
+            return !\local_corolair\local\api_key::site_registered();
         }
         return \local_corolair\local\organization_deregistration::execute($apikey, $CFG->wwwroot);
     } catch (\Throwable $e) {
