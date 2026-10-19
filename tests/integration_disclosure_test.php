@@ -167,7 +167,7 @@ final class integration_disclosure_test extends \advanced_testcase {
      *
      * The read/write split is the heart of the disclosure: an administrator scanning the
      * page reads the write list to decide what the token can change. Anything named
-     * "get" is a read; the plugin's own writes and the LTI toggle are writes.
+     * "get" is a read; the plugin's own writes, the chooser toggle among them, are writes.
      *
      * @covers \local_corolair\local\integration_disclosure::get_function_groups
      * @return void

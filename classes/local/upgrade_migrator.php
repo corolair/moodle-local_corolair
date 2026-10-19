@@ -318,7 +318,7 @@ final class upgrade_migrator {
             $replacementapikey
         );
 
-        set_config('apikey', $replacementapikey, 'local_corolair');
+        api_key::store_issued($replacementapikey);
         webservice_token_manager::record_initial_token($newtoken);
         self::assert_migration_complete($serviceid, $newtoken);
         set_config('setupcompleted', 1, 'local_corolair');
