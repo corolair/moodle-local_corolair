@@ -24,6 +24,7 @@
 
 namespace local_corolair;
 
+use local_corolair\local\api_key;
 use local_corolair\local\organization_deregistration;
 use local_corolair\local\role_provisioner;
 use local_corolair\local\service_account_provisioner;
@@ -151,6 +152,80 @@ final class uninstall_test extends \advanced_testcase {
                 'An unregistered site must not call Raison during uninstall.'
             );
         }
+    }
+
+    /**
+     * Return the deregisterfailed warnings queued since the last fetch.
+     *
+     * @return \core\output\notification[]
+     */
+    private function fetch_deregistration_warnings(): array {
+        $expected = get_string('deregisterfailed', 'local_corolair');
+        return array_values(array_filter(
+            \core\notification::fetch(),
+            function ($notification) use ($expected) {
+                return $notification->get_message() === $expected;
+            }
+        ));
+    }
+
+    /**
+     * A registered site that lost its key warns that its data may still be at Raison.
+     *
+     * Assessment finding COR-PRIV-003. This used to read as "never registered" and return
+     * true, so the warning never showed, and core then wiped the configuration that recorded
+     * the registration. Nothing anywhere said the organization still existed.
+     *
+     * @covers ::local_corolair_uninstall_deregister
+     * @covers ::xmldb_local_corolair_uninstall
+     * @return void
+     */
+    public function test_uninstall_warns_when_a_registered_site_lost_its_key(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        api_key::store_issued('org_test.realsecret');
+        set_config('apikey', '', 'local_corolair');
+        \core\notification::fetch();
+
+        $sink = $this->redirectEvents();
+        $this->assertFalse(local_corolair_uninstall_deregister());
+        // Core calls this unguarded, so it still completes and still returns true.
+        $this->assertTrue(xmldb_local_corolair_uninstall());
+        $events = $sink->get_events();
+        $sink->close();
+
+        $warnings = $this->fetch_deregistration_warnings();
+        $this->assertCount(1, $warnings);
+        $this->assertSame(\core\output\notification::NOTIFY_WARNING, $warnings[0]->get_message_type());
+        foreach ($events as $event) {
+            $this->assertNotInstanceOf(
+                \local_corolair\event\remote_request_completed::class,
+                $event,
+                'Without a key there is nothing to authenticate a deregistration request with.'
+            );
+        }
+    }
+
+    /**
+     * A site that never registered uninstalls without the deregistration warning.
+     *
+     * @covers ::local_corolair_uninstall_deregister
+     * @covers ::xmldb_local_corolair_uninstall
+     * @return void
+     */
+    public function test_uninstall_does_not_warn_when_never_registered(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        set_config('apikey', '', 'local_corolair');
+        $this->assertFalse(api_key::site_registered());
+        \core\notification::fetch();
+
+        $this->assertTrue(local_corolair_uninstall_deregister());
+        $this->assertTrue(xmldb_local_corolair_uninstall());
+
+        $this->assertSame([], $this->fetch_deregistration_warnings());
     }
 
     /**

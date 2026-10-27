@@ -201,7 +201,7 @@ class setup_corolair_connection_task extends \core\task\adhoc_task {
         ) {
             throw new \moodle_exception('apikeymissing', 'local_corolair');
         }
-        set_config('apikey', $jsonresponse['apiKey'], 'local_corolair');
+        \local_corolair\local\api_key::store_issued($jsonresponse['apiKey']);
         \local_corolair\local\webservice_token_manager::record_initial_token($token);
         set_config('legacycredentialmigrationcompletedat', time(), 'local_corolair');
         set_config('setupcompleted', 1, 'local_corolair');

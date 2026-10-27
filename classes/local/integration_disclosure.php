@@ -29,7 +29,7 @@ namespace local_corolair\local;
  */
 final class integration_disclosure {
     /** Increment whenever the disclosed integration surface materially changes. */
-    public const VERSION = '2026-10-02-1';
+    public const VERSION = '2026-10-19-1';
 
     /**
      * Return the documented web-service groups.
@@ -76,7 +76,7 @@ final class integration_disclosure {
                 'local_corolair_create_exam_placement',
                 'local_corolair_manage_exam_placement',
                 'local_corolair_delete_exam_placement',
-                'mod_lti_toggle_showinactivitychooser',
+                'local_corolair_toggle_exam_tool_in_chooser',
             ]),
         ];
     }

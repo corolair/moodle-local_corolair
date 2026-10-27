@@ -217,7 +217,48 @@ function xmldb_local_corolair_upgrade($oldversion) {
         }
         upgrade_plugin_savepoint(true, 2026090102, 'local', 'corolair');
     }
+    // Record which sites have registered with Raison. The privacy provider and the uninstall
+    // now read this marker to tell a site that never registered from one that registered and
+    // then lost its key, which they used to treat alike. Every path that stores a key Raison
+    // issued sets it from this release on; this backfills the sites that registered earlier.
+    // Local configuration only, so it respects the no-network-IO rule at the top of this file.
+    if ($oldversion < 2026101902) {
+        local_corolair_backfill_registration_marker();
+        upgrade_plugin_savepoint(true, 2026101902, 'local', 'corolair');
+    }
     return true;
+}
+
+/**
+ * Mark a site that registered with Raison before the registration marker existed.
+ *
+ * Holding a real key is the main evidence. The rest is there for the sites this whole change is
+ * about: ones that registered and had already lost their key before upgrading. Each setting below
+ * is written only while a site holds a key Raison issued, or once Raison has accepted the site, so
+ * none of them can turn a site that never registered into one that looks registered. Getting that
+ * wrong would make every later privacy request on such a site fail.
+ *
+ * The service account and the web-service token are deliberately not evidence. Both are created
+ * before the registration request is sent, so a registration that failed leaves them behind. Nor
+ * is a pending legacy migration: 1.9.16 took the Portuguese placeholder for a real key, so a
+ * Portuguese site whose first registration attempt failed could queue a migration of it.
+ *
+ * @return void
+ */
+function local_corolair_backfill_registration_marker(): void {
+    $registered = \local_corolair\local\api_key::is_configured()
+        // Written by the registration task and the legacy migration once Raison accepted them.
+        || (int)get_config('local_corolair', 'legacycredentialmigrationcompletedat') > 0
+        // Set to 1 only beside a stored key. Re-running setup resets it to 0, so its absence
+        // proves nothing, but its presence does.
+        || (bool)get_config('local_corolair', 'setupcompleted')
+        // Recorded after a registration succeeds, or when a site with a key adopts its token.
+        || (int)get_config('local_corolair', 'webservicetokenid') > 0
+        // Written only after Raison verified the active token.
+        || (int)get_config('local_corolair', 'webservicetokenverifiedat') > 0;
+    if ($registered) {
+        set_config(\local_corolair\local\api_key::REGISTERED_SETTING, 1, 'local_corolair');
+    }
 }
 
 /**
