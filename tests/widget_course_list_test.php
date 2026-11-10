@@ -25,6 +25,7 @@
 namespace local_corolair;
 
 use local_corolair\local\widget_course_list;
+use local_corolair\local\widget_policy;
 
 /**
  * Verifies which course pages may request a widget session, and how often Raison is asked.
@@ -285,5 +286,174 @@ final class widget_course_list_test extends \advanced_testcase {
         widget_course_list::forget(5, self::KEY);
 
         $this->assertTrue(widget_course_list::allows(5, self::KEY, $this->no_request(), self::NOW + 1));
+    }
+
+    /**
+     * A transport that records what it was asked to hand over, and answers with a fixed body.
+     *
+     * @param array $body Response body, JSON-encoded.
+     * @param array|null $handedover Receives the former settings the request carried.
+     * @return callable
+     */
+    private function recording(array $body, ?array &$handedover): callable {
+        return function (string $apikey, ?array $handover = null) use ($body, &$handedover): array {
+            $this->requests++;
+            $handedover = $handover;
+            return ['response' => json_encode($body), 'errno' => 0, 'httpstatus' => 200];
+        };
+    }
+
+    /**
+     * The policy Raison sends with the list is cached with it, and read without another request.
+     *
+     * @covers \local_corolair\local\widget_course_list::policy
+     * @return void
+     */
+    public function test_policy_arrives_with_the_list(): void {
+        $this->resetAfterTest();
+        $transport = $this->transport(200, [
+            'courseIds' => ['5'],
+            'widgetPolicy' => ['excludedActivities' => ['quiz'], 'hideOnRaisonExams' => false],
+        ]);
+
+        $this->assertTrue(widget_course_list::allows(5, self::KEY, $transport, self::NOW));
+        $this->assertSame(
+            ['excludedactivities' => ['quiz'], 'hideonraisonexam' => false],
+            widget_course_list::policy(self::KEY, $this->no_request(), self::NOW + 1)
+        );
+        $this->assertSame(1, $this->requests);
+    }
+
+    /**
+     * A backend that sends no policy, or a malformed one, still lists the courses.
+     *
+     * widget_policy::effective() then decides, and it never shows the widget on an exam.
+     *
+     * @covers \local_corolair\local\widget_course_list::policy
+     * @return void
+     */
+    public function test_list_without_a_usable_policy_still_stands(): void {
+        $this->resetAfterTest();
+
+        $this->assertTrue(widget_course_list::allows(5, self::KEY, $this->listing(['5']), self::NOW));
+        $this->assertNull(widget_course_list::policy(self::KEY, $this->no_request(), self::NOW + 1));
+
+        $later = self::NOW + widget_course_list::FRESH_FOR;
+        $malformed = $this->transport(200, ['courseIds' => ['6'], 'widgetPolicy' => ['hideOnRaisonExams' => 'no']]);
+        $this->assertTrue(widget_course_list::allows(6, self::KEY, $malformed, $later));
+        $this->assertNull(widget_course_list::policy(self::KEY, $this->no_request(), $later + 1));
+    }
+
+    /**
+     * A failed refresh keeps the policy along with the list.
+     *
+     * @covers \local_corolair\local\widget_course_list::policy
+     * @return void
+     */
+    public function test_failed_refresh_keeps_the_policy(): void {
+        $this->resetAfterTest();
+        $policy = ['excludedActivities' => ['assign'], 'hideOnRaisonExams' => true];
+        $listing = $this->transport(200, ['courseIds' => ['5'], 'widgetPolicy' => $policy]);
+        widget_course_list::allows(5, self::KEY, $listing, self::NOW);
+
+        $later = self::NOW + widget_course_list::FRESH_FOR;
+        widget_course_list::allows(5, self::KEY, $this->transport(500, ['message' => 'down']), $later);
+
+        $this->assertSame(
+            ['excludedactivities' => ['assign'], 'hideonraisonexam' => true],
+            widget_course_list::policy(self::KEY, $this->no_request(), $later + 1)
+        );
+    }
+
+    /**
+     * The site's former settings ride on the request, and nothing does once there are none.
+     *
+     * @covers \local_corolair\local\widget_course_list::allows
+     * @return void
+     */
+    public function test_former_settings_are_handed_over(): void {
+        $this->resetAfterTest();
+        widget_policy::forget_legacy();
+        set_config(widget_policy::LEGACY_EXCLUDED_SETTING, 'Quiz, forum', 'local_corolair');
+        set_config(widget_policy::LEGACY_EXAM_SETTING, '0', 'local_corolair');
+
+        widget_course_list::allows(5, self::KEY, $this->recording(['courseIds' => ['5']], $handedover), self::NOW);
+        $this->assertSame(['excludedActivities' => ['quiz', 'forum'], 'hideOnRaisonExams' => false], $handedover);
+
+        widget_policy::forget_legacy();
+        $later = self::NOW + widget_course_list::FRESH_FOR;
+        widget_course_list::allows(5, self::KEY, $this->recording(['courseIds' => ['5']], $handedover), $later);
+        $this->assertNull($handedover);
+    }
+
+    /**
+     * Once Raison confirms it holds them, the former settings are deleted.
+     *
+     * @covers \local_corolair\local\widget_course_list::allows
+     * @return void
+     */
+    public function test_confirmed_handover_forgets_the_former_settings(): void {
+        $this->resetAfterTest();
+        set_config(widget_policy::LEGACY_EXCLUDED_SETTING, 'quiz', 'local_corolair');
+        set_config(widget_policy::LEGACY_EXAM_SETTING, '0', 'local_corolair');
+
+        widget_course_list::allows(5, self::KEY, $this->transport(200, [
+            'courseIds' => ['5'],
+            'legacyWidgetPolicyStored' => true,
+            'widgetPolicy' => ['excludedActivities' => ['quiz'], 'hideOnRaisonExams' => false],
+        ]), self::NOW);
+
+        $this->assertFalse(get_config('local_corolair', widget_policy::LEGACY_EXCLUDED_SETTING));
+        $this->assertFalse(get_config('local_corolair', widget_policy::LEGACY_EXAM_SETTING));
+    }
+
+    /**
+     * Anything short of a confirmation, with the policy that replaces them, keeps them.
+     *
+     * A backend that cannot store them, one that predates the hand-over, or one that confirms
+     * without sending the policy: the site must not lose the settings it is still enforcing.
+     *
+     * @dataProvider unconfirmed_handover_provider
+     * @covers \local_corolair\local\widget_course_list::allows
+     * @param array $body Response body.
+     * @return void
+     */
+    public function test_unconfirmed_handover_keeps_the_former_settings(array $body): void {
+        $this->resetAfterTest();
+        set_config(widget_policy::LEGACY_EXCLUDED_SETTING, 'quiz', 'local_corolair');
+        set_config(widget_policy::LEGACY_EXAM_SETTING, '0', 'local_corolair');
+
+        widget_course_list::allows(5, self::KEY, $this->transport(200, $body + ['courseIds' => ['5']]), self::NOW);
+
+        $this->assertSame('quiz', get_config('local_corolair', widget_policy::LEGACY_EXCLUDED_SETTING));
+        $this->assertSame('0', get_config('local_corolair', widget_policy::LEGACY_EXAM_SETTING));
+    }
+
+    /**
+     * Responses that do not confirm the hand-over.
+     *
+     * @return array
+     */
+    public static function unconfirmed_handover_provider(): array {
+        $policy = ['excludedActivities' => [], 'hideOnRaisonExams' => true];
+        return [
+            'storing failed' => [['legacyWidgetPolicyStored' => false, 'widgetPolicy' => $policy]],
+            'an older backend' => [[]],
+            'a policy but no answer' => [['widgetPolicy' => $policy]],
+            'an answer but no policy' => [['legacyWidgetPolicyStored' => true]],
+            'an answer that is not true' => [['legacyWidgetPolicyStored' => 'true', 'widgetPolicy' => $policy]],
+        ];
+    }
+
+    /**
+     * The fallback for a missing route carries no policy.
+     *
+     * @covers \local_corolair\local\widget_course_list::policy
+     * @return void
+     */
+    public function test_missing_route_has_no_policy(): void {
+        $this->resetAfterTest();
+
+        $this->assertNull(widget_course_list::policy(self::KEY, $this->transport(404, ['message' => 'Not Found']), self::NOW));
     }
 }

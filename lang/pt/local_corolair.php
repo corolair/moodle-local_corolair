@@ -35,7 +35,7 @@ $string['apikeyrotatenotoken'] = 'Não foi encontrado nenhum token de serviço w
 $string['apikeyrotatesuccess'] = 'Foi gerada uma nova chave de API do Raison. A chave anterior deixou de ser válida.';
 $string['apikeyset'] = 'A chave de API foi definida com sucesso.';
 $string['assignmanagerrolecapability'] = 'Atribuir o papel Gestor do Raison através da API de integração de âmbito restrito.';
-$string['cachedef_widgetcourses'] = 'Lista de disciplinas do Raison: as disciplinas deste site que têm um assistente Raison, atualizada a cada cinco minutos.';
+$string['cachedef_widgetcourses'] = 'Lista de disciplinas do Raison: as disciplinas deste site que têm um assistente Raison e as páginas em que a organização o oculta, atualizada a cada cinco minutos.';
 $string['calendlydemo'] = 'Para que o possamos ajudar de forma eficaz, descreva primeiro o seu caso de utilização e as suas necessidades numa chamada de descoberta com a equipa Raison. Depois de compreendermos os seus requisitos, os nossos programadores darão prioridade à resolução dos problemas de ligação com a sua instância do Moodle. Marque a sua chamada <strong> <a href="https://discoverycall.raison.is/" target="_blank">aqui</a> </strong>.';
 $string['capabilityassignerror'] = 'Não foi possível atribuir a capacidade "{$a}" ao papel.';
 $string['capabilityfalse'] = 'Falso';
@@ -115,12 +115,7 @@ $string['eventintegrationdisclosureacknowledged'] = 'Declaração de integraçã
 $string['eventprivacydeletioncompleted'] = 'Eliminação de privacidade do Raison concluída';
 $string['eventremoterequestcompleted'] = 'Pedido remoto ao Raison concluído';
 $string['eventwebservicetokenlifecycle'] = 'Ciclo de vida do token de serviço web do Raison atualizado';
-$string['excludedmods'] = 'Atividades excluídas';
-$string['excludedmodsdesc'] = 'Utilize esta lista para desativar os assistentes em tipos de atividade específicos, por exemplo para impedir que os alunos os utilizem durante as avaliações. Indique uma lista separada por vírgulas de nomes curtos de módulos de atividade (por exemplo, "quiz, assign"). O nome curto é a pasta apresentada no URL da atividade a seguir a \'/mod/\' (por exemplo, \'/mod/quiz/\' → \'quiz\'). Isto também funciona para módulos de atividade fornecidos por plugins externos.';
-$string['false'] = 'Chatbot';
 $string['frontpagenodetitle'] = 'Raison';
-$string['hideonraisonexam'] = 'Ocultar o Tutor de IA durante os exames do Raison';
-$string['hideonraisonexamdesc'] = 'O Raison disponibiliza uma ferramenta de exames com IA baseada em LTI, que talvez ainda não esteja configurada no seu site: se quiser saber mais ou experimentá-la, contacte a equipa Raison através de contact@raison.is. Quando esta opção está ativada, o Tutor de IA não é apresentado nas páginas que mostram uma atividade de exame do Raison, para que os alunos não lhe possam pedir ajuda durante uma prova. A atividade é reconhecida porque foi criada pelo Raison ou porque a ferramenta externa que inicia utiliza o anfitrião definido em "Anfitrião da ferramenta LTI do Raison" abaixo. As restantes atividades Ferramenta externa não são afetadas: para essas, utilize "Atividades excluídas" acima. Mantenha esta opção ativada, a menos que pretenda deliberadamente que o Tutor de IA esteja disponível durante os exames do Raison.';
 $string['installfailed'] = 'O plugin Raison não conseguiu concluir a instalação: {$a}';
 $string['installtroubleshoot'] = 'Se encontrar algum problema durante a instalação, consulte o <a href="https://troubleshoot-moodle.raison.is" target="_blank">guia de resolução de problemas </a>.';
 $string['invalidredirecturl'] = 'O Raison devolveu um destino de redirecionamento não fidedigno.';
@@ -208,8 +203,6 @@ $string['setupstatuscomplete'] = 'Ligado. O consentimento do administrador está
 $string['setupstatuspending'] = 'O consentimento do administrador está registado e o registo está pendente. {$a}';
 $string['setupstatusready'] = 'Os serviços web e o REST já estão ativados. Analise a declaração de integração e, em seguida, inicie o registo sem consentimento de ativação. {$a}';
 $string['setupstatusrequired'] = 'A configuração exige a confirmação da declaração de integração e o consentimento do administrador para as alterações aos serviços web. {$a}';
-$string['sidepanel'] = 'Posicionamento do Tutor de IA no ecrã';
-$string['sidepaneldesc'] = 'Escolha se prefere apresentar os Tutores de IA no lado direito das disciplinas, como um Painel lateral (recomendado), ou no canto inferior direito, como um Chatbot clássico.';
 $string['taskrotatewebservicetoken'] = 'Renovar o token de serviço web do Moodle utilizado pelo Raison';
 $string['tasksendsetupreminder'] = 'Lembrar os administradores de que a configuração do Raison não está concluída';
 $string['tokencreationerror'] = 'Não foi possível criar o token REST do Raison.';
@@ -229,7 +222,6 @@ $string['tokenrotationretryqueued'] = 'A nova tentativa de renovação do token 
 $string['tokenrotationstatusfailed'] = 'A renovação do token ainda não foi bem-sucedida. O token atual expira a {$a->expiry}. Código de erro seguro: {$a->error}. O Moodle voltará a tentar automaticamente. <a href="{$a->retryurl}">Tentar agora</a>.';
 $string['tokenrotationstatusfailedlifetime'] = 'A definição de renovação do token ainda não foi aplicada, pelo que o token atual ainda utiliza a validade anterior. Código de erro seguro: {$a->error}. Normalmente, isto significa que o Moodle não conseguiu contactar o Raison ou que o Raison ainda não foi atualizado para aceitar tokens sem expiração. O Moodle voltará a tentar automaticamente. <a href="{$a->retryurl}">Aplicar agora</a>.';
 $string['trainerpage'] = 'Raison';
-$string['true'] = 'Painel lateral';
 $string['unexpectederror'] = 'Ocorreu um erro inesperado. Tente novamente. Se o erro persistir, contacte a equipa Raison.';
 $string['uninstallroleremovalfailed'] = 'Não foi possível remover o papel Gestor do Raison durante a desinstalação, e este pode ainda existir em Administração do site > Utilizadores > Permissões > Definir papéis. Pode eliminá-lo manualmente. Detalhes: {$a}';
 $string['uninstallserviceroleremovalfailed'] = 'Não foi possível remover o papel Serviço de integração do Raison durante a desinstalação. Continua a deter capacidades ao nível do sistema, pelo que o deve eliminar manualmente em Administração do site > Utilizadores > Permissões > Definir papéis. Detalhes: {$a}';

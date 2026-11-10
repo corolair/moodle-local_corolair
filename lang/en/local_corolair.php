@@ -35,7 +35,7 @@ $string['apikeyrotatenotoken'] = 'No Raison web-service token was found. Complet
 $string['apikeyrotatesuccess'] = 'A new Raison API key was generated. The previous key is now invalid.';
 $string['apikeyset'] = 'The API key was set successfully.';
 $string['assignmanagerrolecapability'] = 'Assign the Raison Manager role through the scoped integration API.';
-$string['cachedef_widgetcourses'] = 'Raison course list: the courses of this site that have a Raison assistant, refreshed every five minutes.';
+$string['cachedef_widgetcourses'] = 'Raison course list: the courses of this site that have a Raison assistant, and the pages the organization keeps it off, refreshed every five minutes.';
 $string['calendlydemo'] = 'To help us assist you effectively, please first describe your use case and needs in a discovery call with the Raison Team. Once we understand your requirements, our developers will prioritize resolving the connection issues with your Moodle instance. Schedule your call <strong> <a href="https://discoverycall.raison.is/" target="_blank">here</a> </strong>.';
 $string['capabilityassignerror'] = 'Could not assign the capability "{$a}" to the role.';
 $string['capabilityfalse'] = 'False';
@@ -115,12 +115,7 @@ $string['eventintegrationdisclosureacknowledged'] = 'Integration disclosure ackn
 $string['eventprivacydeletioncompleted'] = 'Raison privacy deletion completed';
 $string['eventremoterequestcompleted'] = 'Raison remote request completed';
 $string['eventwebservicetokenlifecycle'] = 'Raison web-service token lifecycle updated';
-$string['excludedmods'] = 'Excluded activities';
-$string['excludedmodsdesc'] = 'Use this list to disable assistants in specific activity types, for example to prevent students from using it during assessments. Provide a comma-separated list of activity module short names (e.g. "quiz, assign"). The short name is the folder shown in the activity\'s URL after \'/mod/\' (e.g. \'/mod/quiz/\' → \'quiz\'). This also works for activity modules provided by external plugins.';
-$string['false'] = 'Chatbot';
 $string['frontpagenodetitle'] = 'Raison';
-$string['hideonraisonexam'] = 'Hide the AI Tutor during Raison exams';
-$string['hideonraisonexamdesc'] = 'Raison provides an LTI-based AI exam tool, which may not be set up on your site yet: if you would like to learn more about it or try it out, contact the Raison team at contact@raison.is. When this is enabled, the AI Tutor is not shown on pages displaying a Raison exam activity, so learners cannot ask it for help while sitting a test. The activity is recognised either because Raison created it, or because the external tool it launches uses the host set in "Raison LTI tool host" below. Other External tool activities are unaffected: use "Excluded activities" above for those. Leave this enabled unless you deliberately want the AI Tutor to be available during Raison exams.';
 $string['installfailed'] = 'The Raison plugin could not complete its installation: {$a}';
 $string['installtroubleshoot'] = 'If you encounter any issues during installation, please refer to the <a href="https://troubleshoot-moodle.raison.is" target="_blank">troubleshooting guide </a>.';
 $string['invalidredirecturl'] = 'Raison returned an untrusted redirect destination.';
@@ -208,8 +203,6 @@ $string['setupstatuscomplete'] = 'Connected. Administrator consent is recorded a
 $string['setupstatuspending'] = 'Administrator consent is recorded and registration is pending. {$a}';
 $string['setupstatusready'] = 'Web services and REST are already enabled. Review the integration disclosure, then start registration without enablement consent. {$a}';
 $string['setupstatusrequired'] = 'Setup requires integration-disclosure acknowledgment and administrator consent for the web-service changes. {$a}';
-$string['sidepanel'] = 'AI Tutor positioning on screen';
-$string['sidepaneldesc'] = 'Choose whether you prefer to display AI Tutors on the right-hand side of courses as a Side Panel (recommended) or in the bottom-right corner like a classic Chatbot.';
 $string['taskrotatewebservicetoken'] = 'Rotate the Raison Moodle web-service token';
 $string['tasksendsetupreminder'] = 'Remind administrators that Raison setup is unfinished';
 $string['tokencreationerror'] = 'Could not create the Raison REST token.';
@@ -229,7 +222,6 @@ $string['tokenrotationretryqueued'] = 'The Raison token rotation retry was queue
 $string['tokenrotationstatusfailed'] = 'Token rotation has not succeeded. The current token expires on {$a->expiry}. Safe error code: {$a->error}. Moodle will retry automatically. <a href="{$a->retryurl}">Retry now</a>.';
 $string['tokenrotationstatusfailedlifetime'] = 'The token rotation setting has not been applied yet, so the current token still uses the previous lifetime. Safe error code: {$a->error}. This usually means Moodle could not reach Raison, or that Raison has not yet been updated to accept non-expiring tokens. Moodle will retry automatically. <a href="{$a->retryurl}">Apply now</a>.';
 $string['trainerpage'] = 'Raison';
-$string['true'] = 'Side Panel';
 $string['unexpectederror'] = 'An unexpected error occurred. Please try again. If the error persists, please contact the Raison Team.';
 $string['uninstallroleremovalfailed'] = 'The Raison Manager role could not be removed during uninstallation and may still exist in Site administration > Users > Permissions > Define roles. You can delete it manually. Details: {$a}';
 $string['uninstallserviceroleremovalfailed'] = 'The Raison Integration Service role could not be removed during uninstallation. It still holds capabilities at system level, so you should delete it manually in Site administration > Users > Permissions > Define roles. Details: {$a}';

@@ -51,15 +51,11 @@ class renderer extends plugin_renderer_base {
      *
      * This method prepares the data and renders the 'local_corolair/embed_script' template.
      *
-     * @param string $sidepanel Whether to embed as a side panel.
-     * @param bool $animate Whether to animate the embed script.
      * @param string $datausertoken The short-lived Moodle widget session token.
      * @return string The rendered template.
      */
-    public function render_embed_script($sidepanel, $animate, $datausertoken) {
+    public function render_embed_script($datausertoken) {
         $data = [
-            'sidepanel' => htmlspecialchars($sidepanel, ENT_QUOTES, 'UTF-8'),
-            'animate' => $animate,
             'datausertoken' => $datausertoken,
             // Passed in rather than written in the template: a mustache file is not PHP, so a
             // hardcoded src there is a host name outside the environment tables.

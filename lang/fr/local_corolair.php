@@ -35,7 +35,7 @@ $string['apikeyrotatenotoken'] = 'Aucun jeton de service web Raison n\'a été t
 $string['apikeyrotatesuccess'] = 'Une nouvelle clé API Raison a été générée. La clé précédente est désormais invalide.';
 $string['apikeyset'] = 'La clé API a été définie avec succès.';
 $string['assignmanagerrolecapability'] = 'Attribuer le rôle Gestionnaire Raison via l’API d’intégration à portée limitée.';
-$string['cachedef_widgetcourses'] = 'Liste des cours Raison : les cours de ce site qui disposent d\'un assistant Raison, actualisée toutes les cinq minutes.';
+$string['cachedef_widgetcourses'] = 'Liste des cours Raison : les cours de ce site qui disposent d\'un assistant Raison et les pages dont l\'organisation l\'écarte, actualisée toutes les cinq minutes.';
 $string['calendlydemo'] = 'Pour que nous puissions vous aider au mieux, nous vous invitons à nous présenter votre cas d\'usage lors d\'un appel découverte avec l\'équipe Raison. Après cela, nos développeurs pourront se concentrer sur la résolution des problèmes de connexion avec votre instance Moodle. Vous pouvez réserver un échange <strong> <a href="https://discoverycall.raison.is/" target="_blank">ici</a> </strong>.';
 $string['capabilityassignerror'] = 'Impossible d\'attribuer la capacité "{$a}" au rôle.';
 $string['capabilityfalse'] = 'Faux';
@@ -115,12 +115,7 @@ $string['eventintegrationdisclosureacknowledged'] = 'Informations sur l’intég
 $string['eventprivacydeletioncompleted'] = 'Suppression des données privées Raison terminée';
 $string['eventremoterequestcompleted'] = 'Requête distante Raison terminée';
 $string['eventwebservicetokenlifecycle'] = 'Cycle de vie du jeton de service web Raison mis à jour';
-$string['excludedmods'] = 'Activités exclues';
-$string['excludedmodsdesc'] = 'Utilisez cette liste pour désactiver les assistants dans certains types d\'activités, par exemple afin d\'empêcher les étudiants de les utiliser pendant une évaluation. Listez les noms courts des activités, séparés par des virgules (ex. : "quiz, assign"). Le nom court correspond au dossier visible dans l\'URL de l\'activité après \'/mod/\' (ex : \'/mod/quiz/\' → \'quiz\'). Cela marche aussi avec des plugins d\'activités externes.';
-$string['false'] = 'Chatbot';
 $string['frontpagenodetitle'] = 'Raison';
-$string['hideonraisonexam'] = 'Masquer le Tuteur IA pendant les examens Raison';
-$string['hideonraisonexamdesc'] = 'Raison propose un outil d’examen IA basé sur LTI, qui n’est peut-être pas encore configuré sur votre site : si vous souhaitez en savoir plus ou l’essayer, contactez l’équipe Raison à l’adresse contact@raison.is. Lorsque ce réglage est activé, le Tuteur IA n’apparaît pas sur les pages affichant une activité d’examen Raison, afin que les apprenants ne puissent pas lui demander de l’aide pendant une épreuve. L’activité est reconnue soit parce que Raison l’a créée, soit parce que l’outil externe qu’elle lance utilise l’hôte défini dans « Hôte de l’outil LTI Raison » ci-dessous. Les autres activités Outil externe ne sont pas concernées : utilisez « Activités exclues » ci-dessus pour celles-ci. Laissez ce réglage activé, sauf si vous souhaitez délibérément que le Tuteur IA reste disponible pendant les examens Raison.';
 $string['installfailed'] = 'Le plugin Raison n\'a pas pu terminer son installation : {$a}';
 $string['installtroubleshoot'] = 'Si vous rencontrez des problèmes lors de l\'installation, veuillez vous référer au <a href="https://troubleshoot-moodle.raison.is" target="_blank"> guide de dépannage manuel</a>';
 $string['invalidredirecturl'] = 'Raison a renvoyé une destination de redirection non fiable.';
@@ -208,8 +203,6 @@ $string['setupstatuscomplete'] = 'Connecté. Le consentement administrateur est 
 $string['setupstatuspending'] = 'Le consentement administrateur est enregistré et l\'enregistrement est en attente. {$a}';
 $string['setupstatusready'] = 'Les services web et REST sont déjà activés. Examinez les informations sur l’intégration, puis démarrez l’enregistrement sans consentement d’activation. {$a}';
 $string['setupstatusrequired'] = 'La configuration nécessite la reconnaissance des informations sur l’intégration et le consentement administrateur aux modifications des services web. {$a}';
-$string['sidepanel'] = 'Positionnement du Tuteur IA à l\'écran';
-$string['sidepaneldesc'] = 'Choisissez si vous préférez afficher les Tuteurs IA sur le côté droit des cours sous forme de panneau latéral (recommandé) ou dans le coin inférieur droit comme un chatbot classique.';
 $string['taskrotatewebservicetoken'] = 'Renouveler le jeton de service web Moodle de Raison';
 $string['tasksendsetupreminder'] = 'Rappeler aux administrateurs que la configuration de Raison n’est pas terminée';
 $string['tokencreationerror'] = 'Impossible de créer le jeton REST Raison.';
@@ -229,7 +222,6 @@ $string['tokenrotationretryqueued'] = 'La nouvelle tentative de renouvellement d
 $string['tokenrotationstatusfailed'] = 'Le renouvellement du jeton n\'a pas abouti. Le jeton actuel expire le {$a->expiry}. Code d\'erreur sûr : {$a->error}. Moodle réessaiera automatiquement. <a href="{$a->retryurl}">Réessayer maintenant</a>.';
 $string['tokenrotationstatusfailedlifetime'] = 'Le réglage de renouvellement du jeton n\'a pas encore été appliqué : le jeton actuel conserve donc sa durée de validité précédente. Code d\'erreur sûr : {$a->error}. Cela signifie généralement que Moodle n\'a pas pu joindre Raison, ou que Raison n\'a pas encore été mis à jour pour accepter les jetons sans expiration. Moodle réessaiera automatiquement. <a href="{$a->retryurl}">Appliquer maintenant</a>.';
 $string['trainerpage'] = 'Raison';
-$string['true'] = 'Panneau Latéral';
 $string['unexpectederror'] = 'Une erreur inattendue s\'est produite. Veuillez réessayer. Si l\'erreur persiste, veuillez contacter l\'équipe Raison.';
 $string['uninstallroleremovalfailed'] = 'Le rôle Gestionnaire Raison n\'a pas pu être supprimé lors de la désinstallation et existe peut-être encore dans Administration du site > Utilisateurs > Permissions > Définition des rôles. Vous pouvez le supprimer manuellement. Détails : {$a}';
 $string['uninstallserviceroleremovalfailed'] = 'Le rôle Service d’intégration Raison n’a pas pu être supprimé lors de la désinstallation. Il détient encore des capacités au niveau du système : supprimez-le manuellement dans Administration du site > Utilisateurs > Permissions > Définition des rôles. Détails : {$a}';

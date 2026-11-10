@@ -226,6 +226,13 @@ function xmldb_local_corolair_upgrade($oldversion) {
         local_corolair_backfill_registration_marker();
         upgrade_plugin_savepoint(true, 2026101902, 'local', 'corolair');
     }
+    // The "AI Tutor positioning on screen" setting is gone: the widget always opens as a side
+    // panel and no longer reads the value the plugin used to send it. Drop what earlier
+    // versions stored so it does not linger in {config_plugins}. Local configuration only.
+    if ($oldversion < 2026111000) {
+        unset_config('sidepanel', 'local_corolair');
+        upgrade_plugin_savepoint(true, 2026111000, 'local', 'corolair');
+    }
     return true;
 }
 

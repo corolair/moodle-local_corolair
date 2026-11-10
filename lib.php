@@ -54,10 +54,10 @@ function local_corolair_disabletokenrotation_updated($name = null) {
  *
  * @param int $courseid The course id to send to Raison.
  * @param context $context The context used to resolve the current user's role.
- * @param string $animate Whether the widget should animate on load.
+ * @param cm_info|null $cm The activity being viewed, or null when the page is not an activity.
  * @return string The rendered embed script, or an empty string when disabled.
  */
-function local_corolair_render_embed_script($courseid, $context, $animate) {
+function local_corolair_render_embed_script($courseid, $context, ?cm_info $cm = null) {
     global $PAGE, $USER, $CFG;
 
     // Only course widgets are supported. The front page is a course too -- site
@@ -81,6 +81,15 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
     // Only a course Raison lists as having a tutor is worth sending this user's identity
     // for. The list is cached for the whole site; see widget_course_list.
     if (!\local_corolair\local\widget_course_list::allows((int)$courseid, $apikey)) {
+        return '';
+    }
+
+    // The organization's widget policy came with that list. Checked before the session
+    // request, so a page the policy keeps the widget off sends nothing about this user.
+    $policy = \local_corolair\local\widget_policy::effective(
+        \local_corolair\local\widget_course_list::policy($apikey)
+    );
+    if (!local_corolair_widget_policy_allows($PAGE->url, $cm, $policy)) {
         return '';
     }
 
@@ -156,75 +165,29 @@ function local_corolair_render_embed_script($courseid, $context, $animate) {
         return '';
     }
 
-    $sidepanel = get_config('local_corolair', 'sidepanel');
-    $sidepanel = ($sidepanel === 'true') ? 'true' : 'false';
-
     $output = $PAGE->get_renderer('local_corolair');
-    return $output->render_embed_script($sidepanel, $animate, $responsedata['token']);
+    return $output->render_embed_script($responsedata['token']);
 }
 
 /**
- * Whether the assistant is suppressed on Raison exam activities.
+ * Whether the current page is one that can host the course widget at all.
  *
- * Read by hand rather than cast, because two different things look false here.
- *
- * The first is absence. get_config() returns boolean false for a setting that has never been
- * written to {config_plugins}, and nothing in a plugin install or upgrade writes it:
- * admin_apply_default_settings() is reached only from install_core() and the installer, never
- * from upgrade_noncore(). So the value stays absent until an administrator saves the settings
- * page -- on a fresh install of this plugin as much as on an upgrade -- and those are exactly
- * the sites that have never thought about assessment integrity. Absent has to mean on.
- *
- * The second is the string 'false', which (bool) evaluates to true. That is not a hypothetical
- * shape for this plugin: sidepanel and createtutorwithcapability on the same settings page store
- * literal 'true'/'false', so an administrator pinning this one through
- * $CFG->forced_plugin_settings has every reason to write 'false' and mean it.
- *
- * @return bool True when the widget must not render on a Raison exam.
- */
-function local_corolair_hide_on_raison_exam(): bool {
-    $configured = get_config('local_corolair', 'hideonraisonexam');
-    if ($configured === false) {
-        return true;
-    }
-    return !in_array(strtolower(trim((string)$configured)), ['0', '', 'false'], true);
-}
-
-/**
- * Whether the current page may host the course widget.
+ * Only the page's kind is judged here -- a course view, a section, or an activity -- which
+ * needs nothing from Raison and so runs before anything is fetched. Which of those pages the
+ * organization keeps the widget off is local_corolair_widget_policy_allows().
  *
  * @param moodle_url $pageurl The current page URL.
  * @param int $courseid The course the page belongs to, matched against course/view.php.
- * @param cm_info|null $cm The activity being viewed, or null when the page is not an activity.
- * @return array{0: bool, 1: string} Whether to render, and the animate flag.
+ * @return bool Whether the page can host the widget.
  */
-function local_corolair_course_widget_placement(
-    moodle_url $pageurl,
-    int $courseid,
-    ?cm_info $cm = null
-): array {
+function local_corolair_course_widget_placement(moodle_url $pageurl, int $courseid): bool {
     $pageurlstr = $pageurl->out();
-
-    // Get excluded mods from config (comma-separated).
-    $excludedmodsraw = (string)get_config('local_corolair', 'excludedmods');
-    $excludedmods = array_filter(array_map('trim', preg_split('/[,\s]+/', $excludedmodsraw)));
-
-    // If current URL contains /mod/{excluded}/ then skip rendering.
-    foreach ($excludedmods as $modname) {
-        if ($modname === '') {
-            continue;
-        }
-        // For example: /mod/quiz/ or /mod/quiz/view.php?id=....
-        if (strpos($pageurlstr, '/mod/' . $modname . '/') !== false) {
-            return [false, 'false'];
-        }
-    }
 
     $coursemodurlstr = (new moodle_url('/mod/'))->out();
     $courseviewurlstr = (new moodle_url('/course/view.php', ['id' => $courseid]))->out();
     // Moodle 4.4 moved the single-section view off course/view.php?id=X&section=N onto its
     // own page, which every section link in core now points at. It is treated as the course
-    // view it replaced, animation included. Its id is the section's, not the course's, so
+    // view it replaced. Its id is the section's, not the course's, so
     // only the path is matched: section.php logs the user in to the section's own course,
     // which is the course the caller passed in.
     $coursesectionurlstr = (new moodle_url('/course/section.php'))->out();
@@ -232,22 +195,39 @@ function local_corolair_course_widget_placement(
     $isonmodpage = strpos($pageurlstr, $coursemodurlstr) !== false;
     $isoncourseview = strpos($pageurlstr, $courseviewurlstr) !== false
         || strpos($pageurlstr, $coursesectionurlstr) !== false;
-    if (!$isonmodpage && !$isoncourseview) {
-        return [false, 'false'];
+    return $isonmodpage || $isoncourseview;
+}
+
+/**
+ * Whether the organization's widget policy lets the widget onto this page.
+ *
+ * @param moodle_url $pageurl The current page URL.
+ * @param cm_info|null $cm The activity being viewed, or null when the page is not an activity.
+ * @param array $policy The policy to apply, from \local_corolair\local\widget_policy::effective().
+ * @return bool False when the page is an excluded activity type or a hidden Raison exam.
+ */
+function local_corolair_widget_policy_allows(moodle_url $pageurl, ?cm_info $cm, array $policy): bool {
+    $pageurlstr = $pageurl->out();
+
+    foreach ($policy['excludedactivities'] ?? [] as $modname) {
+        // For example: /mod/quiz/ or /mod/quiz/view.php?id=....
+        if ($modname !== '' && strpos($pageurlstr, '/mod/' . $modname . '/') !== false) {
+            return false;
+        }
     }
 
     // A Raison exam is an External tool activity, so excluding "lti" above would take the
     // assistant off every other tool on the site as well -- Zoom, Turnitin, anything. The
     // activity is identified instead, which is possible because the plugin records what it
-    // creates and knows where its own tool launches from. Left until here so the lookup only
-    // runs on a page that was otherwise going to render a widget.
-    if ($cm !== null && $cm->modname === 'lti' && local_corolair_hide_on_raison_exam()) {
+    // creates and knows where its own tool launches from. Raison cannot make this call: it
+    // sees the page URL, not which tool the activity launches.
+    if ($cm !== null && $cm->modname === 'lti' && ($policy['hideonraisonexam'] ?? true)) {
         if (\local_corolair\local\placement_registry::is_raison_activity((int)$cm->instance)) {
-            return [false, 'false'];
+            return false;
         }
     }
 
-    return [true, $isoncourseview ? 'true' : 'false'];
+    return true;
 }
 
 /**
@@ -273,12 +253,11 @@ function local_corolair_before_footer() {
     }
 
     $courseid = (int)$course->id;
-    [$shouldrender, $animate] = local_corolair_course_widget_placement($PAGE->url, $courseid, $PAGE->cm);
-    if (!$shouldrender) {
+    if (!local_corolair_course_widget_placement($PAGE->url, $courseid)) {
         return '';
     }
 
-    return local_corolair_render_embed_script($courseid, $PAGE->context, $animate);
+    return local_corolair_render_embed_script($courseid, $PAGE->context, $PAGE->cm);
 }
 
 /**

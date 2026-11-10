@@ -121,17 +121,6 @@ if ($hassiteconfig) {
         get_string('setupstatus', 'local_corolair'),
         $setupstatus
     ));
-    // Add a dropdown setting for enabling/disabling the side panel.
-    $settings->add(new admin_setting_configselect(
-        'local_corolair/sidepanel',
-        get_string('sidepanel', 'local_corolair'), // Setting title.
-        get_string('sidepaneldesc', 'local_corolair'), // Setting description.
-        'true', // Default value.
-        [
-            'true' => get_string('true', 'local_corolair'),
-            'false' => get_string('false', 'local_corolair'),
-        ]
-    ));
     // Add a dropdown setting for enabling tutor creation capability checks.
     $settings->add(new admin_setting_configselect(
         'local_corolair/createtutorwithcapability',
@@ -158,30 +147,17 @@ if ($hassiteconfig) {
         get_string('noapikey', 'local_corolair'), // Default value.
         PARAM_TEXT // Validation type.
     ));
-    // Add a text input setting for excluded activity modules.
-    // Example value: "quiz, lesson, forum".
-    $settings->add(new admin_setting_configtext(
-        'local_corolair/excludedmods',
-        get_string('excludedmods', 'local_corolair'), // Setting title.
-        get_string('excludedmodsdesc', 'local_corolair'), // Setting description.
-        '', // Default value: none excluded.
-        PARAM_TEXT // Validation type.
-    ));
-    // Keep the assistant off Raison exam pages. A Raison exam is an External tool activity, so
-    // the "Excluded activities" list above cannot express this: excluding "lti" would take the
-    // assistant off every other tool on the site too. The activity itself is recognised instead,
-    // either because this plugin recorded creating it or because the tool it launches uses the
-    // host below. Turning this off restores the assistant on exam pages, which is a decision
-    // about assessment integrity rather than a display preference -- hence a separate setting.
-    $settings->add(new admin_setting_configcheckbox(
-        'local_corolair/hideonraisonexam',
-        get_string('hideonraisonexam', 'local_corolair'), // Setting title.
-        get_string('hideonraisonexamdesc', 'local_corolair'), // Setting description.
-        1 // Default value: the assistant is hidden during Raison exams.
-    ));
+    // The "Excluded activities" and "Hide the AI Tutor during Raison exams" settings used to
+    // follow here. Both are now set per organization in Raison and reach the plugin with the
+    // widget course list; see \local_corolair\local\widget_policy, which also hands a site's
+    // former values over.
+    //
     // Host the Raison LTI exam tool launches from. Exam placement refuses any tool type that
     // launches somewhere else, which is what stops the integration touching unrelated LTI
-    // activities. Visible rather than hidden on purpose: an administrator who needs to change it
+    // activities, and the widget policy uses it to recognise a Raison exam that this plugin did
+    // not create. It stays here, not in Raison: it is the check that protects this site from a
+    // misused Raison token, so Raison must not be able to change it. Visible rather than hidden
+    // on purpose: an administrator who needs to change it
     // has a site that is already failing, and a setting they cannot see is one they cannot use to
     // recover. Any value that is not a bare host name falls back to the shipped default.
     $settings->add(new admin_setting_configtext(
@@ -192,9 +168,9 @@ if ($hassiteconfig) {
         PARAM_HOST // Validation type: a bare host name, so a pasted URL is rejected by the form.
     ));
     require_once($CFG->dirroot . '/local/corolair/lib.php');
-    // Opt out of the token lifecycle. A checkbox rather than the true/false dropdowns above:
-    // those store the literal string "false", and (bool)'false' is true, which is why
-    // lib.php has to compare against 'true' by hand. A checkbox stores '1'/'0', so a plain
+    // Opt out of the token lifecycle. A checkbox rather than the true/false dropdown above:
+    // that stores the literal string "false", and (bool)'false' is true, which is why
+    // trainer.php has to compare against 'true' by hand. A checkbox stores '1'/'0', so a plain
     // boolean cast is safe -- and this value is read from several places, including paths
     // where it was set by CLI or forced in config.php rather than through this form.
     $rotationsetting = new admin_setting_configcheckbox(

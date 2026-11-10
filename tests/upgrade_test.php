@@ -64,6 +64,9 @@ final class upgrade_test extends \advanced_testcase {
     /** Version recorded before registrations were recorded apart from the API key. */
     private const VERSION_BEFORE_REGISTRATION_MARKER = 2026101901;
 
+    /** Version recorded before the widget positioning setting was retired. */
+    private const VERSION_BEFORE_POSITIONING_REMOVAL = 2026101902;
+
     /**
      * Rewind the stored plugin version so savepoints can advance.
      *
@@ -616,5 +619,25 @@ final class upgrade_test extends \advanced_testcase {
 
         $this->assertFalse(api_key::site_registered());
         $this->assertGreaterThanOrEqual(2026101902, $this->stored_version());
+    }
+
+    /**
+     * Upgrading drops the retired positioning setting and leaves the others alone.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_drops_the_positioning_setting(): void {
+        $this->resetAfterTest();
+
+        set_config('sidepanel', 'false', 'local_corolair');
+        set_config('createtutorwithcapability', 'false', 'local_corolair');
+        $this->rewind_stored_version(self::VERSION_BEFORE_POSITIONING_REMOVAL);
+
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_POSITIONING_REMOVAL));
+
+        $this->assertFalse(get_config('local_corolair', 'sidepanel'));
+        $this->assertSame('false', get_config('local_corolair', 'createtutorwithcapability'));
+        $this->assertGreaterThanOrEqual(2026111000, $this->stored_version());
     }
 }
