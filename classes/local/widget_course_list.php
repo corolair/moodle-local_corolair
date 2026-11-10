@@ -45,6 +45,10 @@ namespace local_corolair\local;
  * credential problem on that route with 401, so a 404 cannot be a misconfigured site. Any
  * other failure keeps the previous list, or renders no widget when there is none: neither is
  * a reason to go back to requesting a session per page view.
+ *
+ * The same response carries the organization's widget policy (see widget_policy), cached and
+ * kept across failures alongside the list. While the site still stores the settings that policy
+ * replaced, the request hands them over, and they are deleted once Raison confirms it holds them.
  */
 final class widget_course_list {
     /** Seconds a fetched list is used before it is refreshed. */
@@ -92,12 +96,7 @@ final class widget_course_list {
         ?callable $transport = null,
         ?int $now = null
     ): bool {
-        $now = $now ?? time();
-        $fingerprint = self::fingerprint($apikey);
-        $state = self::load($fingerprint);
-        if ($state === null || $now >= $state['nextrefresh']) {
-            $state = self::refresh($state, $apikey, $fingerprint, $now, $transport);
-        }
+        $state = self::state($apikey, $transport, $now);
         if ($state === null) {
             // Nothing cached yet, and another request is fetching it: no widget this once.
             return false;
@@ -106,6 +105,39 @@ final class widget_course_list {
             return true;
         }
         return in_array($courseid, $state['courseids'] ?? [], true);
+    }
+
+    /**
+     * The widget policy Raison sent with the list, refreshing it the way allows() does.
+     *
+     * Pass the result to widget_policy::effective(), which decides what applies when there is
+     * none and while the site's former settings are still to be handed over.
+     *
+     * @param string $apikey The site's API key, as returned by api_key::get().
+     * @param callable|null $transport Test request callback, as for allows().
+     * @param int|null $now Test clock, in seconds since the epoch.
+     * @return array|null The policy, or null when Raison sent none or nothing is cached yet.
+     */
+    public static function policy(string $apikey, ?callable $transport = null, ?int $now = null): ?array {
+        return self::state($apikey, $transport, $now)['policy'] ?? null;
+    }
+
+    /**
+     * The cached state, refreshed first when it is stale or missing.
+     *
+     * @param string $apikey The site's API key.
+     * @param callable|null $transport Test request callback.
+     * @param int|null $now Test clock.
+     * @return array|null The state, or null when there is none yet.
+     */
+    private static function state(string $apikey, ?callable $transport, ?int $now): ?array {
+        $now = $now ?? time();
+        $fingerprint = self::fingerprint($apikey);
+        $state = self::load($fingerprint);
+        if ($state === null || $now >= $state['nextrefresh']) {
+            $state = self::refresh($state, $apikey, $fingerprint, $now, $transport);
+        }
+        return $state;
     }
 
     /**
@@ -159,8 +191,14 @@ final class widget_course_list {
             if ($current !== null && $now < $current['nextrefresh']) {
                 return $current;
             }
-            $next = self::next_state($current, self::fetch($apikey, $transport), $fingerprint, $now);
+            $fetched = self::fetch($apikey, $transport);
+            $next = self::next_state($current, $fetched, $fingerprint, $now);
             self::cache()->set(self::CACHE_KEY, $next);
+            // Raison holds a value for each former setting now, and has sent the policy that
+            // replaces them: the local copies have nothing left to do.
+            if (($fetched['handedover'] ?? false) && ($fetched['policy'] ?? null) !== null) {
+                widget_policy::forget_legacy();
+            }
             return $next;
         } finally {
             $lock->release();
@@ -183,6 +221,7 @@ final class widget_course_list {
                 'courseids' => $fetched['courseids'],
                 'legacy' => false,
                 'nextrefresh' => $now + self::FRESH_FOR,
+                'policy' => $fetched['policy'],
             ];
         }
         if ($fetched['status'] === 'missing') {
@@ -191,6 +230,7 @@ final class widget_course_list {
                 'courseids' => null,
                 'legacy' => true,
                 'nextrefresh' => $now + self::RECHECK_MISSING_ROUTE_AFTER,
+                'policy' => null,
             ];
         }
         // Failed: whatever was decided before stands, and is questioned again shortly.
@@ -199,6 +239,7 @@ final class widget_course_list {
             'courseids' => $previous['courseids'] ?? null,
             'legacy' => $previous['legacy'] ?? false,
             'nextrefresh' => $now + self::RETRY_AFTER,
+            'policy' => $previous['policy'] ?? null,
         ];
     }
 
@@ -206,12 +247,14 @@ final class widget_course_list {
      * Ask Raison for the list and classify the answer.
      *
      * @param string $apikey The site's API key.
-     * @param callable|null $transport Test request callback.
-     * @return array{status: string, courseids?: int[]} Status listed, missing or failed.
+     * @param callable|null $transport Test request callback, called with the key and the
+     *      former settings to hand over, or null.
+     * @return array{status: string, courseids?: int[], policy?: array|null, handedover?: bool}
+     *      Status listed, missing or failed.
      */
     private static function fetch(string $apikey, ?callable $transport): array {
         try {
-            $result = ($transport ?? [self::class, 'request'])($apikey);
+            $result = ($transport ?? [self::class, 'request'])($apikey, widget_policy::handover());
         } catch (\Throwable) {
             return ['status' => 'failed'];
         }
@@ -226,21 +269,34 @@ final class widget_course_list {
         if ($httpstatus < 200 || $httpstatus >= 300) {
             return ['status' => 'failed'];
         }
-        $courseids = self::parse_course_ids((string)$response);
+        try {
+            $data = json_decode((string)$response, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return ['status' => 'failed'];
+        }
+        $courseids = self::parse_course_ids($data);
         if ($courseids === null) {
             return ['status' => 'failed'];
         }
-        return ['status' => 'listed', 'courseids' => $courseids];
+        return [
+            'status' => 'listed',
+            'courseids' => $courseids,
+            // A backend that predates the policy sends none; widget_policy::effective() decides.
+            'policy' => widget_policy::parse($data['widgetPolicy'] ?? null),
+            // Only an explicit true: anything else leaves the former settings where they are.
+            'handedover' => ($data['legacyWidgetPolicyStored'] ?? null) === true,
+        ];
     }
 
     /**
      * Make one audited request for the list.
      *
      * @param string $apikey The site's API key.
+     * @param array|null $handover The former settings to hand over, or null when none is left.
      * @return array Request result without credentials or request headers.
      */
-    private static function request(string $apikey): array {
-        $postdata = '{}';
+    private static function request(string $apikey, ?array $handover = null): array {
+        $postdata = $handover === null ? '{}' : (json_encode(['legacyWidgetPolicy' => $handover]) ?: '{}');
         $curl = new \curl();
         $options = [
             'CURLOPT_CONNECTTIMEOUT' => 15,
@@ -269,17 +325,12 @@ final class widget_course_list {
     }
 
     /**
-     * Validate a list response and return its course ids.
+     * Validate a decoded list response and return its course ids.
      *
-     * @param string $response Response body.
+     * @param mixed $data Decoded response body.
      * @return int[]|null Distinct positive course ids, or null when the body is malformed.
      */
-    private static function parse_course_ids(string $response): ?array {
-        try {
-            $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return null;
-        }
+    private static function parse_course_ids($data): ?array {
         $values = is_array($data) ? ($data['courseIds'] ?? null) : null;
         if (!is_array($values) || count($values) > self::MAX_COURSES) {
             return null;
@@ -307,10 +358,13 @@ final class widget_course_list {
             ($state['fingerprint'] ?? null) !== $fingerprint ||
             !is_int($state['nextrefresh'] ?? null) ||
             !is_bool($state['legacy'] ?? null) ||
-            !(is_array($state['courseids'] ?? null) || ($state['courseids'] ?? null) === null)
+            !(is_array($state['courseids'] ?? null) || ($state['courseids'] ?? null) === null) ||
+            !(is_array($state['policy'] ?? null) || ($state['policy'] ?? null) === null)
         ) {
             return null;
         }
+        // A state cached before the policy existed simply has none.
+        $state['policy'] = $state['policy'] ?? null;
         return $state;
     }
 

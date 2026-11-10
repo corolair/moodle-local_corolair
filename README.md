@@ -6,20 +6,20 @@
 
 ## Overview
 
-The Raison Moodle Plugin brings **AI Tutors** directly into Moodle. It helps trainers turn existing course content into an interactive learning experience where learners can ask questions, review key concepts, and check their understanding without leaving their course.
+The Raison Moodle Plugin brings **AI Teaching Assistants** directly into Moodle. It helps trainers turn existing course content into an interactive learning experience where learners can ask questions, review key concepts, and check their understanding without leaving their course.
 
-Each AI Tutor is created and managed by a trainer or instructional designer. The tutor uses the learning resources selected for it and can be adjusted to match the course, audience, and teaching goals. Trainers remain in control of the tutor's sources and behavior.
+Each AI Teaching Assistant is created and managed by a trainer or instructional designer. The teaching assistant uses the learning resources selected for it and can be adjusted to match the course, audience, and teaching goals. Trainers remain in control of the teaching assistant's sources and behavior.
 
 ### Key Features
 
 - **For Instructional Designers & Trainers:**
-  - Create AI Tutors from Moodle courses without rebuilding course content.
-  - Select Moodle resources and add complementary material for the tutor to use.
-  - Customize each tutor's instructions, behavior, and learning purpose.
-  - Share tutors with the appropriate learners and courses.
+  - Create AI Teaching Assistants from Moodle courses without rebuilding course content.
+  - Select Moodle resources and add complementary material for the teaching assistant to use.
+  - Customize each teaching assistant's instructions, behavior, and learning purpose.
+  - Share teaching assistants with the appropriate learners and courses.
   - Review usage, common questions, and discussion trends to identify where learners may need more support.
 - **For Learners:**
-  - Open the AI Tutor from an enrolled Moodle course.
+  - Open the AI Teaching Assistant from an enrolled Moodle course.
   - Ask questions and receive answers based on the learning material chosen by the trainer.
   - Review a topic through a guided conversation at their own pace.
   - Pause a discussion and return to it later.
@@ -36,7 +36,7 @@ The plugin requires Moodle 4.3 or later and must be installed by a Moodle site a
 3. Review the integration disclosure. It explains what the plugin can access, why that access is needed, and how information is used.
 4. If Moodle web services or REST are not already enabled, approve the required configuration changes. The plugin does not make these site-wide changes without administrator approval.
 5. Start the Raison registration. Once registration is complete, a free-trial account is created for the administrator who began the setup.
-6. Assign the _Raison Manager_ role to the trainers and instructional designers who should create and manage AI Tutors. A trial account is created automatically for each assigned trainer. Where you assign it decides what it opens: assigned at site level (**Site administration > Users > Permissions > Assign system roles**) it opens Raison from the site navigation and from every course, while assigned inside a single course it opens Raison from that course only.
+6. Assign the _Raison Manager_ role to the trainers and instructional designers who should create and manage AI Teaching Assistants. A trial account is created automatically for each assigned trainer. Where you assign it decides what it opens: assigned at site level (**Site administration > Users > Permissions > Assign system roles**) it opens Raison from the site navigation and from every course, while assigned inside a single course it opens Raison from that course only.
 
 Only an authorized Moodle administrator can activate the integration. Existing Moodle web-service settings are preserved, and the setup page clearly identifies any change that requires approval.
 
@@ -52,7 +52,7 @@ During setup, administrators can review the plugin's exact access permissions, t
 
 #### The course assistant
 
-The assistant appears only in courses that have a Raison tutor. The plugin asks Raison for the list of those courses at most once every five minutes for the whole site, and caches it; that request carries no user data. Pages of any other course never contact Raison. On a page of a listed course, the plugin sends the viewer's name, email address and role, together with the course and the page address, to open the assistant for them.
+The assistant appears only in courses that have a Raison teaching assistant. The plugin asks Raison for the list of those courses at most once every five minutes for the whole site, and caches it; that request carries no user data. Pages of any other course never contact Raison. On a page of a listed course, the plugin sends the viewer's name, email address and role, together with the course and the page address, to open the assistant for them.
 
 #### The service account
 
@@ -64,7 +64,7 @@ The set includes `moodle/course:ignoreavailabilityrestrictions`, so the account 
 
 Raison asks the site what the integration can currently do through `local_corolair_get_integration_status`, rather than inferring it. That function reports whether the token can see hidden and restricted content, which features are available, and which plugin version is installed. It reads no course or user data.
 
-Exam placement — creating, renaming and deleting External tool activities — is the only feature that writes to courses. Raison can only reach it through the plugin's own three exam-placement functions, and those functions are bounded by ownership rather than by capabilities: the plugin records every activity it creates, and refuses to rename or delete anything that is not in that record. An External tool activity a teacher added by hand, or one belonging to a different product, is out of reach. Creation is bounded separately — the plugin refuses any LTI tool type that does not launch from the Raison host configured on the plugin settings page. Those same two signals — the ownership record and the launch host — are what let the plugin recognise its own exam activities on a course page, so the **Hide the AI Tutor during Raison exams** setting can take the assistant off an exam without touching External tool activities belonging to other products.
+Exam placement — creating, renaming and deleting External tool activities — is the only feature that writes to courses. Raison can only reach it through the plugin's own three exam-placement functions, and those functions are bounded by ownership rather than by capabilities: the plugin records every activity it creates, and refuses to rename or delete anything that is not in that record. An External tool activity a teacher added by hand, or one belonging to a different product, is out of reach. Creation is bounded separately — the plugin refuses any LTI tool type that does not launch from the Raison host configured on the plugin settings page. Those same two signals — the ownership record and the launch host — are what let the plugin recognise its own exam activities on a course page, so the **Hide the AI teaching assistant during Raison exams** setting can take the assistant off an exam without touching External tool activities belonging to other products. That setting, like **Excluded activities**, is set per organization in Raison (Organization → Integrations → Moodle → Settings) from plugin 1.9.20 on; the plugin receives both with its cached course list and applies them itself, before anything about a learner is sent.
 
 Upgrading from an earlier version transfers the token from the administrator who set the integration up to the service account. Both remain valid until the transfer completes, so nothing stops working in the meantime; the administrator's token is revoked afterwards. The plugin settings page reports the transfer while it is in progress.
 
@@ -150,20 +150,20 @@ Revoking the Moodle token prevents future access to the Moodle instance; it does
 ### For Trainers & Instructional Designers
 
 - **From the Moodle homepage:** Go to **Plus > Raison** to open the Creator tools.
-- **From a course:** Go to **Plus > Raison AI Assistant** to create or manage an AI Tutor for that course.
+- **From a course:** Go to **Plus > Raison AI Assistant** to create or manage an AI Teaching Assistant for that course.
 
 In the Creator platform, trainers can:
 
-- Create, share, and monitor AI Tutors.
-- Choose and update the learning sources used by a tutor.
-- Adjust tutor instructions and behavior.
+- Create, share, and monitor AI Teaching Assistants.
+- Choose and update the learning sources used by a teaching assistant.
+- Adjust teaching assistant instructions and behavior.
 - Review discussions and identify recurring learner questions.
 
 ---
 
 ### For Learners
 
-- Open the Raison AI Tutor from a Moodle course where it has been made available by the trainer.
+- Open the Raison AI Teaching Assistant from a Moodle course where it has been made available by the trainer.
 - Start a conversation, ask questions about course content, and return to previous discussions later.
 - Move between guided discussion and self-assessment when those options are enabled by the trainer.
 
@@ -171,14 +171,14 @@ In the Creator platform, trainers can:
 
 ## Roadmap
 
-### Version 2.0: Proactive AI Tutor
+### Version 2.0: Proactive AI Teaching Assistant
 
 - **Mobile Compatibility:** Seamlessly continue the AI Assistant experience on mobile devices.
-- **Expanded Learning Capabilities:** Beyond Q&A, the AI Tutor will provide a complete learning experience, enabling learners to explore topics from scratch in new and engaging ways, distinct from the current Moodle course structure.
+- **Expanded Learning Capabilities:** Beyond Q&A, the AI Teaching Assistant will provide a complete learning experience, enabling learners to explore topics from scratch in new and engaging ways, distinct from the current Moodle course structure.
 - **Personalized Learning Paths:** Tailor learning journeys to individual skill levels and performance, ensuring optimal progress for each learner.
 - **Microlearning Support:** Break down courses and resources into bite-sized lessons that can be completed in under 5 minutes for greater focus and retention.
 - **Multimedia Integration:** Offer lessons in multimedia formats, including videos, audio clips, and interactive visuals, to enhance comprehension and engagement.
-- **Voice Search:** Enable learners to interact with the AI Tutor using voice commands for quick and intuitive navigation.
+- **Voice Search:** Enable learners to interact with the AI Teaching Assistant using voice commands for quick and intuitive navigation.
 
 ---
 

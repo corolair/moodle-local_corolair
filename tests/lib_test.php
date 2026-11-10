@@ -27,6 +27,7 @@ namespace local_corolair;
 use local_corolair\event\remote_request_completed;
 use local_corolair\local\environment;
 use local_corolair\local\widget_course_list;
+use local_corolair\local\widget_policy;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -94,7 +95,7 @@ final class lib_test extends \advanced_testcase {
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
 
         $this->assert_silent(function () {
-            return local_corolair_render_embed_script(0, \context_system::instance(), 'false');
+            return local_corolair_render_embed_script(0, \context_system::instance());
         });
     }
 
@@ -140,8 +141,7 @@ final class lib_test extends \advanced_testcase {
         $this->assert_silent(function () use ($course) {
             return local_corolair_render_embed_script(
                 (int)$course->id,
-                \context_course::instance($course->id),
-                'false'
+                \context_course::instance($course->id)
             );
         });
     }
@@ -162,8 +162,7 @@ final class lib_test extends \advanced_testcase {
         $this->assert_silent(function () use ($course) {
             return local_corolair_render_embed_script(
                 (int)$course->id,
-                \context_course::instance($course->id),
-                'false'
+                \context_course::instance($course->id)
             );
         });
     }
@@ -184,8 +183,7 @@ final class lib_test extends \advanced_testcase {
         $this->assert_silent(function () use ($course) {
             return local_corolair_render_embed_script(
                 (int)$course->id,
-                \context_course::instance($course->id),
-                'false'
+                \context_course::instance($course->id)
             );
         });
     }
@@ -213,7 +211,7 @@ final class lib_test extends \advanced_testcase {
             return local_corolair_before_footer();
         });
         $this->assert_silent(function () {
-            return local_corolair_render_embed_script(SITEID, \context_course::instance(SITEID), 'false');
+            return local_corolair_render_embed_script(SITEID, \context_course::instance(SITEID));
         });
     }
 
@@ -222,16 +220,32 @@ final class lib_test extends \advanced_testcase {
      *
      * @param int[] $courseids Courses the list names.
      * @param string $apikey API key the list is fetched with.
+     * @param array|null $widgetpolicy The `widgetPolicy` Raison sends with it, if any.
      * @return void
      */
-    private function seed_course_list(array $courseids, string $apikey): void {
-        widget_course_list::allows(0, $apikey, function () use ($courseids) {
+    private function seed_course_list(array $courseids, string $apikey, ?array $widgetpolicy = null): void {
+        $body = ['courseIds' => array_map('strval', $courseids)];
+        if ($widgetpolicy !== null) {
+            $body['widgetPolicy'] = $widgetpolicy;
+        }
+        widget_course_list::allows(0, $apikey, function () use ($body) {
             return [
-                'response' => json_encode(['courseIds' => array_map('strval', $courseids)]),
+                'response' => json_encode($body),
                 'errno' => 0,
                 'httpstatus' => 200,
             ];
         });
+    }
+
+    /**
+     * A widget policy as widget_policy::effective() returns it.
+     *
+     * @param bool $hideonraisonexam Whether Raison exam pages keep the widget off.
+     * @param string[] $excludedactivities Activity types whose pages keep the widget off.
+     * @return array
+     */
+    private function policy(bool $hideonraisonexam, array $excludedactivities = []): array {
+        return ['excludedactivities' => $excludedactivities, 'hideonraisonexam' => $hideonraisonexam];
     }
 
     /**
@@ -572,18 +586,23 @@ final class lib_test extends \advanced_testcase {
      *
      * The exclusion has to short-circuit before the session request, not merely discard
      * its result: an administrator who excludes /mod/quiz/ is saying that no identity
-     * should be sent to Raison from quiz pages at all.
+     * should be sent to Raison from quiz pages at all. The course is listed, so the only thing
+     * standing between this page and the session request is the policy Raison sent.
      *
      * @covers ::local_corolair_before_footer
-     * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_excluded_module_makes_no_request(): void {
         $this->resetAfterTest();
         $course = $this->getDataGenerator()->create_course();
         $this->setAdminUser();
+        widget_policy::forget_legacy();
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
-        set_config('excludedmods', 'quiz, forum', 'local_corolair');
+        $this->seed_course_list([(int)$course->id], 'org_test.realsecret', [
+            'excludedActivities' => ['quiz', 'forum'],
+            'hideOnRaisonExams' => true,
+        ]);
         $this->set_course_page($course, '/mod/quiz/view.php');
 
         $this->assert_silent(function () {
@@ -596,6 +615,53 @@ final class lib_test extends \advanced_testcase {
             $this->child_texts($navigation),
             'Excluding a module hides the widget, not the trainer link.'
         );
+    }
+
+    /**
+     * A site's own former exclusion still applies until Raison has taken it over.
+     *
+     * The policy Raison sends excludes nothing here, as it would for an organization that has
+     * not received this site's settings yet; the site keeps behaving as it did before 1.9.20.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers \local_corolair\local\widget_policy::effective
+     * @return void
+     */
+    public function test_former_exclusion_applies_until_handed_over(): void {
+        $this->resetAfterTest();
+        $course = $this->getDataGenerator()->create_course();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        set_config('excludedmods', 'quiz, forum', 'local_corolair');
+        $this->seed_course_list([(int)$course->id], 'org_test.realsecret', [
+            'excludedActivities' => [],
+            'hideOnRaisonExams' => true,
+        ]);
+        $this->set_course_page($course, '/mod/quiz/view.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * An excluded activity type keeps the widget off its pages, and only its pages.
+     *
+     * @covers ::local_corolair_widget_policy_allows
+     * @return void
+     */
+    public function test_excluded_activity_type_is_matched_by_its_pages(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $page = $this->getDataGenerator()->create_module('page', ['course' => $course->id]);
+        $this->set_activity_page($course, $page, 'page');
+
+        $this->assertFalse($this->widget_placement($course, $this->policy(true, ['page'])));
+        $this->assertTrue($this->widget_placement($course, $this->policy(true, ['quiz'])));
+        // A type whose name is the start of another's is not that other type.
+        $this->assertTrue($this->widget_placement($course, $this->policy(true, ['pag'])));
     }
 
     /**
@@ -638,7 +704,7 @@ final class lib_test extends \advanced_testcase {
         $course = $this->getDataGenerator()->create_course();
         $this->set_section_page($course, 1);
 
-        $this->assertSame([true, 'true'], $this->widget_placement($course));
+        $this->assertTrue($this->widget_placement($course));
     }
 
     /**
@@ -820,13 +886,14 @@ final class lib_test extends \advanced_testcase {
      *
      * @covers ::local_corolair_before_footer
      * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_raison_placement_makes_no_request(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
+        widget_policy::forget_legacy();
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
-        set_config('hideonraisonexam', 1, 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
         $typeid = $this->raison_tool_type();
@@ -837,6 +904,10 @@ final class lib_test extends \advanced_testcase {
             'Final exam'
         );
         $module = (object)['cmid' => $created['coursemoduleid']];
+        $this->seed_course_list([(int)$course->id], 'org_test.realsecret', [
+            'excludedActivities' => [],
+            'hideOnRaisonExams' => true,
+        ]);
         $this->set_activity_page($course, $module, 'lti');
 
         $this->assert_silent(function () {
@@ -853,13 +924,14 @@ final class lib_test extends \advanced_testcase {
      *
      * @covers ::local_corolair_before_footer
      * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_unrecorded_raison_tool_makes_no_request(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
+        widget_policy::forget_legacy();
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
-        set_config('hideonraisonexam', 1, 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
         $typeid = $this->raison_tool_type();
@@ -867,6 +939,10 @@ final class lib_test extends \advanced_testcase {
             'course' => $course->id,
             'section' => 1,
             'typeid' => $typeid,
+        ]);
+        $this->seed_course_list([(int)$course->id], 'org_test.realsecret', [
+            'excludedActivities' => [],
+            'hideOnRaisonExams' => true,
         ]);
         $this->set_activity_page($course, $module, 'lti');
 
@@ -882,12 +958,12 @@ final class lib_test extends \advanced_testcase {
      * the instance answers the same question here.
      *
      * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_raison_tool_url_without_a_type_is_recognised(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
-        set_config('hideonraisonexam', 1, 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
         set_config('ltitoolhost', environment::host('services'), 'local_corolair');
@@ -898,7 +974,7 @@ final class lib_test extends \advanced_testcase {
         ]);
         $this->set_activity_page($course, $module, 'lti');
 
-        $this->assertSame([false, 'false'], $this->widget_placement($course));
+        $this->assertFalse($this->widget_placement($course, $this->policy(true)));
     }
 
     /**
@@ -912,12 +988,12 @@ final class lib_test extends \advanced_testcase {
      * no network calls.
      *
      * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_foreign_lti_activity_keeps_the_widget(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
-        set_config('hideonraisonexam', 1, 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
         $this->raison_tool_type();
@@ -933,20 +1009,20 @@ final class lib_test extends \advanced_testcase {
         ]);
         $this->set_activity_page($course, $module, 'lti');
 
-        $this->assertSame([true, 'false'], $this->widget_placement($course));
+        $this->assertTrue($this->widget_placement($course, $this->policy(true)));
     }
 
     /**
-     * Turning the setting off puts the assistant back on exam pages.
+     * An organization that turns exam hiding off in Raison gets the assistant back on exam pages.
      *
      * @covers ::local_corolair_course_widget_placement
-     * @covers ::local_corolair_hide_on_raison_exam
+     * @covers ::local_corolair_widget_policy_allows
+     * @covers \local_corolair\local\widget_policy::effective
      * @return void
      */
     public function test_disabling_the_setting_restores_the_widget(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
-        set_config('hideonraisonexam', 0, 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
         $typeid = $this->raison_tool_type();
@@ -957,39 +1033,19 @@ final class lib_test extends \advanced_testcase {
         ]);
         $this->set_activity_page($course, $module, 'lti');
 
-        $this->assertSame([true, 'false'], $this->widget_placement($course));
-    }
-
-    /**
-     * A site that has never saved the setting is protected anyway.
-     *
-     * get_config() returns false for a setting no upgrade has applied a default for yet, and
-     * false is also what a deliberate "off" reads as after a cast. The distinction is the
-     * difference between protecting those sites and silently not protecting them.
-     *
-     * @covers ::local_corolair_hide_on_raison_exam
-     * @return void
-     */
-    public function test_the_setting_defaults_to_on_when_absent(): void {
-        $this->resetAfterTest();
-        unset_config('hideonraisonexam', 'local_corolair');
-
-        $this->assertTrue(local_corolair_hide_on_raison_exam());
-
-        set_config('hideonraisonexam', 0, 'local_corolair');
-        $this->assertFalse(local_corolair_hide_on_raison_exam());
+        $this->assertTrue($this->widget_placement($course, $this->policy(false)));
     }
 
     /**
      * A non-LTI activity is never a Raison exam, whatever the setting says.
      *
      * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_non_lti_activity_keeps_the_widget(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
-        set_config('hideonraisonexam', 1, 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
         $module = $this->getDataGenerator()->create_module('page', [
@@ -998,19 +1054,19 @@ final class lib_test extends \advanced_testcase {
         ]);
         $this->set_activity_page($course, $module, 'page');
 
-        $this->assertSame([true, 'false'], $this->widget_placement($course));
+        $this->assertTrue($this->widget_placement($course, $this->policy(true)));
     }
 
     /**
-     * A site that has never saved the setting is protected on a real exam page.
+     * With no policy from Raison and no former setting left, a real exam page is still protected.
      *
-     * The helper test above proves the value reads as on; this proves the suppression actually
-     * happens for it. Both are needed, because nothing writes the default: the phpunit database
-     * is installed from scratch and so *does* hold '1', which means the absent path is never
-     * exercised unless a test removes the value on purpose.
+     * That is the state of a site whose backend sent no policy (an older one, or a first fetch
+     * that failed) after its former settings were handed over: not knowing must not be what puts
+     * the assistant on an exam page.
      *
      * @covers ::local_corolair_course_widget_placement
-     * @covers ::local_corolair_hide_on_raison_exam
+     * @covers ::local_corolair_widget_policy_allows
+     * @covers \local_corolair\local\widget_policy::effective
      * @return void
      */
     public function test_absent_setting_still_suppresses_the_widget(): void {
@@ -1025,9 +1081,9 @@ final class lib_test extends \advanced_testcase {
             'typeid' => $typeid,
         ]);
         $this->set_activity_page($course, $module, 'lti');
-        unset_config('hideonraisonexam', 'local_corolair');
+        widget_policy::forget_legacy();
 
-        $this->assertSame([false, 'false'], $this->widget_placement($course));
+        $this->assertFalse($this->widget_placement($course));
     }
 
     /**
@@ -1038,12 +1094,12 @@ final class lib_test extends \advanced_testcase {
      * one. Reading only toolurl would leave the assistant on that exam.
      *
      * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_secure_tool_url_is_recognised(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
-        set_config('hideonraisonexam', 1, 'local_corolair');
         set_config('ltitoolhost', environment::host('services'), 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
@@ -1055,7 +1111,7 @@ final class lib_test extends \advanced_testcase {
         ]);
         $this->set_activity_page($course, $module, 'lti');
 
-        $this->assertSame([false, 'false'], $this->widget_placement($course));
+        $this->assertFalse($this->widget_placement($course, $this->policy(true)));
     }
 
     /**
@@ -1065,12 +1121,12 @@ final class lib_test extends \advanced_testcase {
      * host from passing. Asserted so the rule is recorded rather than incidental.
      *
      * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_plain_http_tool_is_not_recognised(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
-        set_config('hideonraisonexam', 1, 'local_corolair');
         set_config('ltitoolhost', environment::host('services'), 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
@@ -1081,7 +1137,7 @@ final class lib_test extends \advanced_testcase {
         ]);
         $this->set_activity_page($course, $module, 'lti');
 
-        $this->assertSame([true, 'false'], $this->widget_placement($course));
+        $this->assertTrue($this->widget_placement($course, $this->policy(true)));
     }
 
     /**
@@ -1091,12 +1147,12 @@ final class lib_test extends \advanced_testcase {
      * the page being viewed, not about the course containing an exam somewhere.
      *
      * @covers ::local_corolair_course_widget_placement
+     * @covers ::local_corolair_widget_policy_allows
      * @return void
      */
     public function test_course_page_keeps_the_widget_when_the_course_holds_an_exam(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
-        set_config('hideonraisonexam', 1, 'local_corolair');
 
         $course = $this->getDataGenerator()->create_course();
         $typeid = $this->raison_tool_type();
@@ -1107,7 +1163,7 @@ final class lib_test extends \advanced_testcase {
         ]);
         $this->set_course_page($course, '/course/view.php');
 
-        $this->assertSame([true, 'true'], $this->widget_placement($course));
+        $this->assertTrue($this->widget_placement($course, $this->policy(true)));
     }
 
     /**
@@ -1155,15 +1211,18 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
-     * Run the placement decision for the page $PAGE is currently on.
+     * Run the placement decision for the page $PAGE is currently on: its kind, then the policy.
      *
      * @param \stdClass $course Course owning the page.
-     * @return array{0: bool, 1: string} Whether to render, and the animate flag.
+     * @param array|null $policy Policy to apply, or null for what widget_policy::effective() picks
+     *      when Raison sent none.
+     * @return bool Whether to render the widget.
      */
-    private function widget_placement(\stdClass $course): array {
+    private function widget_placement(\stdClass $course, ?array $policy = null): bool {
         global $PAGE;
 
-        return local_corolair_course_widget_placement($PAGE->url, (int)$course->id, $PAGE->cm);
+        return local_corolair_course_widget_placement($PAGE->url, (int)$course->id)
+            && local_corolair_widget_policy_allows($PAGE->url, $PAGE->cm, $policy ?? widget_policy::effective(null));
     }
 
     /**

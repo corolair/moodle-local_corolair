@@ -144,7 +144,10 @@ final class renderer_test extends \advanced_testcase {
     }
 
     /**
-     * The widget session token reaches the embed script, and the panel flag is escaped.
+     * The widget session token reaches the embed script, and the retired layout flags do not.
+     *
+     * The widget no longer reads data-sidepanel or data-animate: it always opens as a side
+     * panel. Asserting their absence keeps a stale template from reintroducing them.
      *
      * @covers \local_corolair\output\renderer::render_embed_script
      * @return void
@@ -153,24 +156,26 @@ final class renderer_test extends \advanced_testcase {
         $this->resetAfterTest();
         $this->setAdminUser();
 
-        $html = $this->renderer()->render_embed_script('true', 'false', 'session-token-value');
+        $html = $this->renderer()->render_embed_script('session-token-value');
 
         $this->assertStringContainsString('data-user-token="session-token-value"', $html);
-        $this->assertStringContainsString('data-sidepanel="true"', $html);
-        $this->assertStringContainsString('data-animate="false"', $html);
+        $this->assertStringNotContainsString('data-sidepanel', $html);
+        $this->assertStringNotContainsString('data-animate', $html);
     }
 
     /**
-     * A hostile side-panel value cannot break out of its attribute.
+     * A hostile session token cannot break out of its attribute.
+     *
+     * The token is read from Raison's response, so it is network input like any other.
      *
      * @covers \local_corolair\output\renderer::render_embed_script
      * @return void
      */
-    public function test_embed_script_escapes_the_side_panel_value(): void {
+    public function test_embed_script_escapes_the_session_token(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
 
-        $html = $this->renderer()->render_embed_script('"><script>alert(1)</script>', 'false', 'token');
+        $html = $this->renderer()->render_embed_script('"><script>alert(1)</script>');
 
         $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
         $this->assertStringNotContainsString('"><', $html);

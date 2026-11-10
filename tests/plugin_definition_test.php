@@ -858,11 +858,7 @@ final class plugin_definition_test extends \advanced_testcase {
      */
     public function test_settings_strings_resolve(): void {
         $keys = [
-            'sidepanel', 'sidepaneldesc',
-            'createtutorcapability', 'createtutorcapabilitydesc',
             'apikey', 'apikeydesc',
-            'excludedmods', 'excludedmodsdesc',
-            'hideonraisonexam', 'hideonraisonexamdesc',
             'ltitoolhost', 'ltitoolhostdesc',
             'disabletokenrotation', 'disabletokenrotationdesc',
         ];
