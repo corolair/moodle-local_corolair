@@ -233,6 +233,14 @@ function xmldb_local_corolair_upgrade($oldversion) {
         unset_config('sidepanel', 'local_corolair');
         upgrade_plugin_savepoint(true, 2026111000, 'local', 'corolair');
     }
+    // The "Allows users to create and manage AI Tutors within Raison" setting is gone too:
+    // Raison stored it once, on the site's first launch, and ignored every later change, so
+    // what applies has always been Raison's copy. It is now set on the organization's Moodle
+    // settings page in Raison, and nothing reads this value any more. Local configuration only.
+    if ($oldversion < 2026111001) {
+        unset_config('createtutorwithcapability', 'local_corolair');
+        upgrade_plugin_savepoint(true, 2026111001, 'local', 'corolair');
+    }
     return true;
 }
 

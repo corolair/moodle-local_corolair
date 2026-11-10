@@ -121,17 +121,11 @@ if ($hassiteconfig) {
         get_string('setupstatus', 'local_corolair'),
         $setupstatus
     ));
-    // Add a dropdown setting for enabling tutor creation capability checks.
-    $settings->add(new admin_setting_configselect(
-        'local_corolair/createtutorwithcapability',
-        get_string('createtutorcapability', 'local_corolair'), // Setting title.
-        get_string('createtutorcapabilitydesc', 'local_corolair'), // Setting description.
-        'true', // Default value.
-        [
-            'true' => get_string('capabilitytrue', 'local_corolair'),
-            'false' => get_string('capabilityfalse', 'local_corolair'),
-        ]
-    ));
+    // The "Allows users to create and manage AI Tutors within Raison" setting used to follow
+    // here. Raison stored it once, on a site's first launch, and ignored later changes; which
+    // courses a user may build a tutor from is now set on the organization's Moodle settings
+    // page in Raison, where changes apply.
+    //
     // Add a masked input setting for the Raison API key. The rotation action is
     // appended to the field description so it sits right next to the key itself.
     $rotatelink = html_writer::link(
@@ -168,9 +162,9 @@ if ($hassiteconfig) {
         PARAM_HOST // Validation type: a bare host name, so a pasted URL is rejected by the form.
     ));
     require_once($CFG->dirroot . '/local/corolair/lib.php');
-    // Opt out of the token lifecycle. A checkbox rather than the true/false dropdown above:
-    // that stores the literal string "false", and (bool)'false' is true, which is why
-    // trainer.php has to compare against 'true' by hand. A checkbox stores '1'/'0', so a plain
+    // Opt out of the token lifecycle. A checkbox rather than a true/false dropdown: a dropdown
+    // stores the literal string "false", and (bool)'false' is true, so every reader would have
+    // to compare against 'true' by hand. A checkbox stores '1'/'0', so a plain
     // boolean cast is safe -- and this value is read from several places, including paths
     // where it was set by CLI or forced in config.php rather than through this form.
     $rotationsetting = new admin_setting_configcheckbox(

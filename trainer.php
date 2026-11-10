@@ -217,16 +217,15 @@ if ($apikey === null) {
     }
 }
 
-$createtutorwithcapability = get_config('local_corolair', 'createtutorwithcapability') === 'true';
 // The course parameter ($raisonsourcecourse) was resolved and authorized earlier, before header output.
 $plugin = optional_param('corolairplugin', '', PARAM_TEXT);
-// Prepare payload for external authentication request.
+// Prepare payload for external authentication request. Which courses a user may build a tutor
+// from is no longer sent: it is set on the organization's Moodle settings page in Raison.
 $postdata = json_encode([
     'email' => $USER->email,
     'firstname' => $USER->firstname,
     'lastname' => $USER->lastname,
     'moodleUserId' => $USER->id,
-    'createTutorWithCapability' => $createtutorwithcapability,
     'courseId' => $raisonsourcecourse,
     'plugin' => $plugin,
 ]);

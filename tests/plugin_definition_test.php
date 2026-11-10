@@ -858,7 +858,6 @@ final class plugin_definition_test extends \advanced_testcase {
      */
     public function test_settings_strings_resolve(): void {
         $keys = [
-            'createtutorcapability', 'createtutorcapabilitydesc',
             'apikey', 'apikeydesc',
             'ltitoolhost', 'ltitoolhostdesc',
             'disabletokenrotation', 'disabletokenrotationdesc',

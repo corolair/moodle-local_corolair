@@ -38,15 +38,12 @@ $string['assignmanagerrolecapability'] = 'Assign the Raison Manager role through
 $string['cachedef_widgetcourses'] = 'Raison course list: the courses of this site that have a Raison assistant, and the pages the organization keeps it off, refreshed every five minutes.';
 $string['calendlydemo'] = 'To help us assist you effectively, please first describe your use case and needs in a discovery call with the Raison Team. Once we understand your requirements, our developers will prioritize resolving the connection issues with your Moodle instance. Schedule your call <strong> <a href="https://discoverycall.raison.is/" target="_blank">here</a> </strong>.';
 $string['capabilityassignerror'] = 'Could not assign the capability "{$a}" to the role.';
-$string['capabilityfalse'] = 'False';
-$string['capabilitytrue'] = 'True';
 $string['choosertoolnotincourse'] = 'This external tool belongs to another course, so Raison cannot change whether it appears in this course\'s activity chooser.';
 $string['corolair:assignmanagerrole'] = 'Assign the Raison Manager role through the scoped integration API.';
 $string['corolair:createtutor'] = 'Allows the user to create and manage tutors within the Raison plugin.';
 $string['corolair:viewroles'] = 'Allows the user to retrieve Moodle role metadata for the Raison integration.';
 $string['coursenodetitle'] = 'Raison AI Assistant';
 $string['createtutorcapability'] = 'Allows users to create and manage AI Tutors within Raison';
-$string['createtutorcapabilitydesc'] = 'The user will not be able to create AI Tutors from courses they cannot manage. If set to False, they can create AI Tutors from courses they are just enrolled in.';
 $string['curlerror'] = 'An error occurred while communicating with the Raison API. Could not register your moodle instance, please try again. If error persists, please contact the Raison team';
 $string['deregisterfailed'] = 'Raison could not confirm remote deregistration after the available attempts. Moodle access has been revoked and the local integration credentials have been removed, but deletion of data already held by Raison was not technically confirmed. Contact contact@raison.is under your applicable service or data processing agreement and provide this Moodle site URL to complete the deletion process.';
 $string['disabletokenrotation'] = 'Disable web-service token rotation';

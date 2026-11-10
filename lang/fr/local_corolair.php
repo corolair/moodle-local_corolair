@@ -38,15 +38,12 @@ $string['assignmanagerrolecapability'] = 'Attribuer le rôle Gestionnaire Raison
 $string['cachedef_widgetcourses'] = 'Liste des cours Raison : les cours de ce site qui disposent d\'un assistant Raison et les pages dont l\'organisation l\'écarte, actualisée toutes les cinq minutes.';
 $string['calendlydemo'] = 'Pour que nous puissions vous aider au mieux, nous vous invitons à nous présenter votre cas d\'usage lors d\'un appel découverte avec l\'équipe Raison. Après cela, nos développeurs pourront se concentrer sur la résolution des problèmes de connexion avec votre instance Moodle. Vous pouvez réserver un échange <strong> <a href="https://discoverycall.raison.is/" target="_blank">ici</a> </strong>.';
 $string['capabilityassignerror'] = 'Impossible d\'attribuer la capacité "{$a}" au rôle.';
-$string['capabilityfalse'] = 'Faux';
-$string['capabilitytrue'] = 'Vrai';
 $string['choosertoolnotincourse'] = 'Cet outil externe appartient à un autre cours ; Raison ne peut donc pas modifier son affichage dans le sélecteur d’activités de ce cours.';
 $string['corolair:assignmanagerrole'] = 'Attribuer le rôle Gestionnaire Raison via l’API d’intégration à portée limitée.';
 $string['corolair:createtutor'] = 'Permet à l\'utilisateur de créer et gérer des Tuteurs IA dans le plugin Raison.';
 $string['corolair:viewroles'] = 'Permet à l\'utilisateur de récupérer les métadonnées des rôles Moodle pour l\'intégration Raison.';
 $string['coursenodetitle'] = 'Assistant IA de Raison';
 $string['createtutorcapability'] = 'Permet à l\'utilisateur de créer et gérer ses Tuteurs IA avec Raison';
-$string['createtutorcapabilitydesc'] = 'L\'utilisateur ne pourra créer des Tuteurs IA qu\'à partir des cours qu\'il peut gérer. Si cette option est à Faux, il pourra créer des Tuteurs IA à partir des ressources des cours où il est simplement inscrit.';
 $string['curlerror'] = 'Une erreur est survenue lors de la communication avec l\'API Raison. Impossible d\'enregistrer votre instance Moodle, veuillez réessayer. Si l\'erreur persiste, veuillez contacter l\'équipe Raison.';
 $string['deregisterfailed'] = 'Raison n\'a pas pu confirmer la désinscription distante après les tentatives disponibles. L\'accès à Moodle a été révoqué et les identifiants locaux de l\'intégration ont été supprimés, mais la suppression des données déjà détenues par Raison n\'a pas été confirmée techniquement. Contactez contact@raison.is dans le cadre de votre contrat de service ou accord de traitement des données applicable et fournissez l\'URL de ce site Moodle afin de terminer la procédure de suppression.';
 $string['disabletokenrotation'] = 'Désactiver le renouvellement du jeton de service web';

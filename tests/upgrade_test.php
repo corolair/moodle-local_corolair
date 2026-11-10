@@ -67,6 +67,9 @@ final class upgrade_test extends \advanced_testcase {
     /** Version recorded before the widget positioning setting was retired. */
     private const VERSION_BEFORE_POSITIONING_REMOVAL = 2026101902;
 
+    /** Version recorded before the course picker setting moved to Raison. */
+    private const VERSION_BEFORE_COURSE_PICKER_REMOVAL = 2026111000;
+
     /**
      * Rewind the stored plugin version so savepoints can advance.
      *
@@ -631,13 +634,35 @@ final class upgrade_test extends \advanced_testcase {
         $this->resetAfterTest();
 
         set_config('sidepanel', 'false', 'local_corolair');
-        set_config('createtutorwithcapability', 'false', 'local_corolair');
+        set_config('disabletokenrotation', 1, 'local_corolair');
         $this->rewind_stored_version(self::VERSION_BEFORE_POSITIONING_REMOVAL);
 
         $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_POSITIONING_REMOVAL));
 
         $this->assertFalse(get_config('local_corolair', 'sidepanel'));
-        $this->assertSame('false', get_config('local_corolair', 'createtutorwithcapability'));
+        $this->assertSame('1', get_config('local_corolair', 'disabletokenrotation'));
         $this->assertGreaterThanOrEqual(2026111000, $this->stored_version());
+    }
+
+    /**
+     * Upgrading drops the retired course picker setting, which Raison now holds.
+     *
+     * Run from just after the positioning step, so it is this step that removes it.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_drops_the_course_picker_setting(): void {
+        $this->resetAfterTest();
+
+        set_config('createtutorwithcapability', 'false', 'local_corolair');
+        set_config('disabletokenrotation', 1, 'local_corolair');
+        $this->rewind_stored_version(self::VERSION_BEFORE_COURSE_PICKER_REMOVAL);
+
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_COURSE_PICKER_REMOVAL));
+
+        $this->assertFalse(get_config('local_corolair', 'createtutorwithcapability'));
+        $this->assertSame('1', get_config('local_corolair', 'disabletokenrotation'));
+        $this->assertGreaterThanOrEqual(2026111001, $this->stored_version());
     }
 }
