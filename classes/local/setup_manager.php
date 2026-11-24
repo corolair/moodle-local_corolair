@@ -37,8 +37,7 @@ final class setup_manager {
     public static function acknowledge_disclosure(int $adminid): void {
         self::require_setup_administrator($adminid);
         set_config('setupdisclosureversion', integration_disclosure::VERSION, 'local_corolair');
-        set_config('setupdisclosureacknowledgedby', $adminid, 'local_corolair');
-        set_config('setupdisclosureacknowledgedat', time(), 'local_corolair');
+        setup_accountability::record_disclosure_acknowledgement($adminid);
         \local_corolair\event\integration_disclosure_acknowledged::create([
             'context' => \context_system::instance(),
             'userid' => $adminid,
@@ -171,8 +170,7 @@ final class setup_manager {
         // This legacy flag also means that an authorized administrator initiated setup.
         set_config('setupconsented', 1, 'local_corolair');
         set_config('setupconsentrequired', $consentrequired ? 1 : 0, 'local_corolair');
-        set_config('setupconsentedby', $admin->id, 'local_corolair');
-        set_config('setupconsentedat', time(), 'local_corolair');
+        setup_accountability::record_consent((int)$admin->id);
         set_config('setupcompleted', 0, 'local_corolair');
 
         // Recording the rotation policy here rather than leaving it to the settings page is

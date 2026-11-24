@@ -35,6 +35,7 @@ use context;
 use context_system;
 use local_corolair\local\api_key;
 use local_corolair\local\environment;
+use local_corolair\local\setup_accountability;
 use curl;
 
 defined('MOODLE_INTERNAL') || die();
@@ -368,8 +369,9 @@ class provider implements
         ], 'privacy:metadata:raison');
         // Local plugin configuration records the identity of the administrator who
         // consented to the integration and acknowledged the disclosure, together with
-        // the times they did so. These are retained as operational accountability
-        // records for the active integration owner.
+        // the times they did so. The identity is kept while the administrator's account
+        // exists and their data has not been erased; the times outlive it. See
+        // setup_accountability.
         $collection->add_database_table('config_plugins', [
             'setupconsentedby' => 'privacy:metadata:config_plugins:setupconsentedby',
             'setupconsentedat' => 'privacy:metadata:config_plugins:setupconsentedat',
@@ -712,6 +714,11 @@ class provider implements
         if ($urlparams === null) {
             return;
         }
+        // The local setup record lives in the system context. Its facts stay; the
+        // administrators it names leave it, before anything that needs the key.
+        if ((int)$context->contextlevel === CONTEXT_SYSTEM) {
+            setup_accountability::erase_all();
+        }
         $apikey = self::api_key_for_request();
         if ($apikey === null) {
             return;
@@ -795,23 +802,27 @@ class provider implements
     /**
      * Deletes data for a user based on the provided context list.
      *
-     * This function sends a DELETE request to the Raison service for each approved context. A site
-     * that never registered has nothing at Raison, so nothing is sent. A registered site without an
-     * API key throws rather than report an erasure that did not happen.
+     * When the system context is approved, the user is first removed from the local setup record.
+     * This function then sends a DELETE request to the Raison service for each approved context. A
+     * site that never registered has nothing at Raison, so nothing is sent. A registered site without
+     * an API key throws rather than report an erasure that did not happen.
      *
      * @param approved_contextlist $contextlist The context list containing the user whose data is to be deleted.
      */
     public static function delete_data_for_user(approved_contextlist $contextlist) {
-        // The locally retained setup accountability records (consenting/acknowledging
-        // administrator identity and timestamps) are the operational owner identity of
-        // the active integration and are retained under legitimate interest for as long
-        // as the plugin is installed. They are declared in get_metadata and exportable;
-        // uninstalling the plugin removes them (see db/uninstall.php). They are therefore
-        // intentionally not erased here.
         $user = $contextlist->get_user();
         $userid = $user->id;
         if (self::is_service_account((int)$userid)) {
             return;
+        }
+        // The local setup record first: it needs no key, so it must not wait on Raison or
+        // be skipped when the Raison part fails. Only the user's identity leaves it; that
+        // consent was given, and when, stays. See setup_accountability.
+        foreach ($contextlist->get_contexts() as $context) {
+            if ((int)$context->contextlevel === CONTEXT_SYSTEM) {
+                setup_accountability::erase((int)$userid);
+                break;
+            }
         }
         $apikey = self::api_key_for_request();
         if ($apikey === null) {
@@ -838,6 +849,12 @@ class provider implements
         // unsupported context, so a missing key is no reason to fail there.
         if (self::get_context_scope($context) === null) {
             return;
+        }
+        // Local record first, for the same reason as the single-user deletion.
+        if ((int)$context->contextlevel === CONTEXT_SYSTEM) {
+            foreach ($userlist->get_userids() as $userid) {
+                setup_accountability::erase((int)$userid);
+            }
         }
         $apikey = self::api_key_for_request();
         if ($apikey === null) {
