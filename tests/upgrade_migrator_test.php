@@ -27,6 +27,7 @@ namespace local_corolair;
 use local_corolair\local\api_key;
 use local_corolair\local\integration_disclosure;
 use local_corolair\local\service_account_provisioner;
+use local_corolair\local\setup_accountability;
 use local_corolair\local\upgrade_migrator;
 
 /**
@@ -300,6 +301,40 @@ final class upgrade_migrator_test extends \advanced_testcase {
             'the-version-they-actually-read',
             get_config('local_corolair', 'setupdisclosureversion')
         );
+    }
+
+    /**
+     * Grandfathering must not name anyone in a record whose administrator was erased.
+     *
+     * The erased record still says consent was given, and when. Reading its missing ID as
+     * "never consented" would write the migration's administrator in, dated today, and
+     * attribute the consent to someone who never gave it.
+     *
+     * @covers \local_corolair\local\upgrade_migrator::migrate_if_required
+     * @return void
+     */
+    public function test_grandfathering_leaves_an_erased_record_unnamed(): void {
+        $this->resetAfterTest();
+
+        $adminid = (int)get_admin()->id;
+        $this->make_legacy_installation($adminid);
+        $departed = (int)$this->getDataGenerator()->create_user()->id;
+        set_config('setupconsentedby', $departed, 'local_corolair');
+        set_config('setupconsentedat', 1234567890, 'local_corolair');
+        set_config('setupdisclosureacknowledgedby', $departed, 'local_corolair');
+        set_config('setupdisclosureacknowledgedat', 1234567890, 'local_corolair');
+        setup_accountability::erase($departed);
+
+        upgrade_migrator::migrate_if_required();
+
+        $this->assertFalse(get_config('local_corolair', 'setupconsentedby'));
+        $this->assertFalse(get_config('local_corolair', 'setupdisclosureacknowledgedby'));
+        $this->assertEquals(1234567890, (int)get_config('local_corolair', 'setupconsentedat'));
+        $this->assertEquals(1234567890, (int)get_config('local_corolair', 'setupdisclosureacknowledgedat'));
+        // The migration itself still goes ahead, owned by a usable administrator.
+        $tasks = $this->queued_migrations();
+        $this->assertCount(1, $tasks);
+        $this->assertSame($adminid, (int)reset($tasks)->get_custom_data()->adminid);
     }
 
     /**

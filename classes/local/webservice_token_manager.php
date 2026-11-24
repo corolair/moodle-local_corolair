@@ -341,11 +341,14 @@ final class webservice_token_manager {
         self::cleanup_previous_token();
 
         $service = $db->get_record('external_services', ['shortname' => self::SERVICE_SHORTNAME], '*', MUST_EXIST);
-        // The consenting human, used only for warnings and attribution from here on.
-        $adminid = (int)get_config('local_corolair', 'setupconsentedby');
-        if ($adminid <= 0) {
+        // The precondition is that consent was given, not that its author is still named: an
+        // administrator erased from the record leaves the consent standing. Their ID is used
+        // only to attribute outgoing requests, and is 0 once erased. Warnings resolve their
+        // own recipients. See setup_accountability.
+        if (!setup_accountability::consent_recorded()) {
             throw new \moodle_exception('setupconsentmissing', 'local_corolair');
         }
+        $adminid = (int)get_config('local_corolair', setup_accountability::CONSENTED_BY);
 
         try {
             $desiredowner = service_account_provisioner::ensure();
@@ -358,14 +361,14 @@ final class webservice_token_manager {
             // nothing while burying the actual problem in cron noise. Convergence retries
             // hourly, and the administrator is told once a day in the meantime.
             self::set_rotation_failure('service_account_unavailable');
-            self::send_warning($adminid, null, 'service_account_unavailable');
+            self::send_warning(null, 'service_account_unavailable');
             return;
         }
 
         $current = self::get_current_token((int)$service->id, self::token_owner_id());
         if (!$current) {
             self::set_rotation_failure('current_token_missing');
-            self::send_warning($adminid, null, 'current_token_missing');
+            self::send_warning(null, 'current_token_missing');
             throw new \moodle_exception('tokenmissing', 'local_corolair');
         }
 
@@ -393,7 +396,7 @@ final class webservice_token_manager {
                 set_config('webservicetokenrotationstatus', 'EXPIRED', 'local_corolair');
             }
             if (self::warning_due($current)) {
-                self::send_warning($adminid, $current, self::safe_error_code($exception));
+                self::send_warning($current, self::safe_error_code($exception));
             }
             throw $exception;
         }
@@ -713,7 +716,7 @@ final class webservice_token_manager {
      * side to notice. These two checks replace it.
      *
      * @param \stdClass $token Active token record.
-     * @param int $adminid Integration owner.
+     * @param int $adminid Consenting administrator, to attribute requests to; 0 once erased.
      * @param string $apikey Corolair API key.
      * @return void
      */
@@ -723,7 +726,7 @@ final class webservice_token_manager {
         }
         $drift = self::local_drift($token);
         if ($drift !== null) {
-            self::send_warning($adminid, $token, $drift);
+            self::send_warning($token, $drift);
             return;
         }
         if ((int)get_config('local_corolair', 'webservicetokenverifiedat') > time() - self::VERIFY_INTERVAL) {
@@ -763,7 +766,7 @@ final class webservice_token_manager {
     /**
      * Ask Corolair to re-verify the active token without rotating it.
      *
-     * @param int $adminid Integration owner.
+     * @param int $adminid Consenting administrator, to attribute requests to; 0 once erased.
      * @param string $apikey Corolair API key.
      * @return void
      */
@@ -803,7 +806,7 @@ final class webservice_token_manager {
             // still perfectly usable, and turning a Corolair outage into a failing scheduled
             // task would bury the signal in cron noise rather than surface it.
             self::trigger_event('verification_failed', null, null);
-            self::send_warning($adminid, null, 'token_verification_failed');
+            self::send_warning(null, 'token_verification_failed');
             return;
         }
         set_config('webservicetokenverifiedat', time(), 'local_corolair');
@@ -905,21 +908,28 @@ final class webservice_token_manager {
     }
 
     /**
-     * Send a rate-limited warning to the consenting administrator.
+     * Send a rate-limited warning to the administrators who can act on it.
      *
-     * @param int $adminid Administrator ID.
+     * The recipients are resolved now rather than read from setup. This used to load the
+     * consenting administrator with MUST_EXIST, so once that account was deleted -- the
+     * ordinary end of an erasure request for someone who has left -- every warning threw
+     * instead of being sent. Nobody heard that the integration was failing, and the callers
+     * that deliberately do not rethrow failed the task with a database error instead.
+     *
      * @param \stdClass|null $token Current token.
      * @param string $errorcode Safe failure code.
      * @return void
      */
-    private static function send_warning(int $adminid, ?\stdClass $token, string $errorcode): void {
-        global $DB;
-
+    private static function send_warning(?\stdClass $token, string $errorcode): void {
         $lastnotified = (int)get_config('local_corolair', 'webservicetokenadminnotifiedat');
         if ($lastnotified > time() - self::WARNING_INTERVAL) {
             return;
         }
-        $admin = $DB->get_record('user', ['id' => $adminid, 'deleted' => 0], '*', MUST_EXIST);
+        $recipients = setup_accountability::alert_recipients();
+        if (!$recipients) {
+            // Not recorded as sent, so the next run tries again once someone can be told.
+            return;
+        }
         $expiry = $token && !empty($token->validuntil)
             ? userdate((int)$token->validuntil)
             : get_string('tokenexpiryunknown', 'local_corolair');
@@ -930,20 +940,22 @@ final class webservice_token_manager {
         $bodystring = $token && self::is_non_expiring($token)
             ? 'tokenexpirywarningbodylifetime'
             : 'tokenexpirywarningbody';
-        $message = new \core\message\message();
-        $message->component = 'local_corolair';
-        $message->name = 'tokenexpirywarning';
-        $message->userfrom = \core_user::get_noreply_user();
-        $message->userto = $admin;
-        $message->subject = get_string('tokenexpirywarningsubject', 'local_corolair');
-        $message->fullmessage = get_string($bodystring, 'local_corolair', $details);
-        $message->fullmessageformat = FORMAT_PLAIN;
-        $message->fullmessagehtml = '';
-        $message->smallmessage = $message->fullmessage;
-        $message->notification = 1;
-        $message->contexturl = (new \moodle_url('/admin/settings.php', ['section' => 'local_corolair']))->out(false);
-        $message->contexturlname = get_string('setupstatus', 'local_corolair');
-        message_send($message);
+        foreach ($recipients as $recipient) {
+            $message = new \core\message\message();
+            $message->component = 'local_corolair';
+            $message->name = 'tokenexpirywarning';
+            $message->userfrom = \core_user::get_noreply_user();
+            $message->userto = $recipient;
+            $message->subject = get_string('tokenexpirywarningsubject', 'local_corolair');
+            $message->fullmessage = get_string($bodystring, 'local_corolair', $details);
+            $message->fullmessageformat = FORMAT_PLAIN;
+            $message->fullmessagehtml = '';
+            $message->smallmessage = $message->fullmessage;
+            $message->notification = 1;
+            $message->contexturl = (new \moodle_url('/admin/settings.php', ['section' => 'local_corolair']))->out(false);
+            $message->contexturlname = get_string('setupstatus', 'local_corolair');
+            message_send($message);
+        }
         set_config('webservicetokenadminnotifiedat', time(), 'local_corolair');
         self::trigger_event('warning_sent', $token, null);
     }

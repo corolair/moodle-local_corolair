@@ -345,8 +345,8 @@ final class upgrade_migrator {
     private static function resolve_admin_id(int $serviceid): int {
         global $DB;
 
-        $configured = (int)get_config('local_corolair', 'setupconsentedby');
-        if ($configured > 0 && self::is_usable_admin($configured)) {
+        $configured = (int)get_config('local_corolair', setup_accountability::CONSENTED_BY);
+        if (setup_accountability::is_usable_admin($configured)) {
             return $configured;
         }
         $tokens = $DB->get_records(
@@ -358,7 +358,7 @@ final class upgrade_migrator {
             1
         );
         $token = reset($tokens);
-        if ($token && self::is_usable_admin((int)$token->userid)) {
+        if ($token && setup_accountability::is_usable_admin((int)$token->userid)) {
             return (int)$token->userid;
         }
         $admin = get_admin();
@@ -366,40 +366,24 @@ final class upgrade_migrator {
     }
 
     /**
-     * Whether a user exists, is not deleted, and can administer the site.
-     *
-     * @param int $userid User ID.
-     * @return bool
-     */
-    private static function is_usable_admin(int $userid): bool {
-        global $DB;
-
-        if ($userid <= 0) {
-            return false;
-        }
-        if (!$DB->record_exists('user', ['id' => $userid, 'deleted' => 0, 'suspended' => 0])) {
-            return false;
-        }
-        return has_capability('moodle/site:config', \context_system::instance(), $userid);
-    }
-
-    /**
      * Grandfather the existing integration as consented so the token lifecycle can operate.
+     *
+     * Only for a site with no record at all. A record whose administrator was erased still
+     * records consent; writing $adminid into it, dated today, would attribute that consent
+     * to someone who never gave it.
      *
      * @param int $adminid Integration owner.
      * @return void
      */
     private static function grandfather_consent(int $adminid): void {
-        if ((int)get_config('local_corolair', 'setupconsentedby') <= 0) {
+        if (!setup_accountability::consent_recorded()) {
             set_config('setupconsented', 1, 'local_corolair');
             set_config('setupconsentrequired', 0, 'local_corolair');
-            set_config('setupconsentedby', $adminid, 'local_corolair');
-            set_config('setupconsentedat', time(), 'local_corolair');
+            setup_accountability::record_consent($adminid);
         }
-        if ((int)get_config('local_corolair', 'setupdisclosureacknowledgedby') <= 0) {
+        if (!setup_accountability::disclosure_acknowledgement_recorded()) {
             set_config('setupdisclosureversion', integration_disclosure::VERSION, 'local_corolair');
-            set_config('setupdisclosureacknowledgedby', $adminid, 'local_corolair');
-            set_config('setupdisclosureacknowledgedat', time(), 'local_corolair');
+            setup_accountability::record_disclosure_acknowledgement($adminid);
         }
     }
 

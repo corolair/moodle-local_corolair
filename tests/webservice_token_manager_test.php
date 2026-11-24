@@ -26,6 +26,7 @@ namespace local_corolair;
 
 use local_corolair\event\webservice_token_lifecycle;
 use local_corolair\local\service_account_provisioner;
+use local_corolair\local\setup_accountability;
 use local_corolair\local\webservice_token_manager;
 
 /**
@@ -403,6 +404,101 @@ final class webservice_token_manager_test extends \advanced_testcase {
 
         $this->assertCount(1, $messages, 'The administrator should be told once per day, not once per run.');
         $this->assertEquals(2, get_config('local_corolair', 'webservicetokenfailurecount'));
+    }
+
+    /**
+     * The ways the consenting administrator can stop being able to receive a warning.
+     *
+     * @return array[] Data sets of [what happened to them].
+     */
+    public static function departed_consenter_provider(): array {
+        return [
+            'account deleted, still referenced' => ['deleted'],
+            'no longer an administrator' => ['demoted'],
+            'erased from the record' => ['erased'],
+        ];
+    }
+
+    /**
+     * A warning still reaches someone once the consenting administrator cannot receive it.
+     *
+     * Issue #115. The warning loaded the consenting administrator with MUST_EXIST, so once
+     * that account was deleted every warning threw a database error instead of being sent:
+     * the failure it was reporting reached nobody, and the error the run ended with was about
+     * who to tell rather than what went wrong. It now goes to the site administrators.
+     *
+     * @dataProvider departed_consenter_provider
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @param string $departure What happened to the consenting administrator.
+     * @return void
+     */
+    public function test_warning_reaches_the_site_administrators_when_the_consenter_is_gone(string $departure): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->make_site_connected();
+        $departed = (int)$this->getDataGenerator()->create_user()->id;
+        set_config('setupconsentedby', $departed, 'local_corolair');
+        if ($departure === 'deleted') {
+            // As a deletion before the user_deleted observer existed left it.
+            $DB->set_field('user', 'deleted', 1, ['id' => $departed]);
+        } else if ($departure === 'erased') {
+            setup_accountability::erase($departed);
+        }
+        $DB->delete_records('external_tokens', ['externalserviceid' => $this->service_id()]);
+
+        $messagesink = $this->redirectMessages();
+        try {
+            webservice_token_manager::maintain();
+            $this->fail('A missing token should surface as an error.');
+        } catch (\moodle_exception $exception) {
+            // The failure being reported, not a lookup error about who to report it to.
+            $this->assertSame('tokenmissing', $exception->errorcode);
+        }
+        $messages = $messagesink->get_messages();
+        $messagesink->close();
+
+        $recipients = array_map(function ($message) {
+            return (int)$message->useridto;
+        }, $messages);
+        $this->assertSame([(int)get_admin()->id], array_values($recipients));
+        $this->assertGreaterThan(0, (int)get_config('local_corolair', 'webservicetokenadminnotifiedat'));
+    }
+
+    /**
+     * Maintenance keeps running after the consenting administrator is erased.
+     *
+     * Erasure removes who consented, not that consent was given, and the consent is what
+     * maintenance requires. Stopping here would disconnect the site as a side effect of a
+     * privacy request.
+     *
+     * @covers \local_corolair\local\webservice_token_manager::maintain
+     * @return void
+     */
+    public function test_maintain_runs_once_the_consenting_administrator_is_erased(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $ownerid = $this->make_site_connected_as_service();
+        $serviceid = $this->service_id();
+        $DB->delete_records('external_tokens', ['externalserviceid' => $serviceid]);
+
+        // A converged token, so maintenance completes without needing the network.
+        set_config('disabletokenrotation', 1, 'local_corolair');
+        $token = webservice_token_manager::create_token($ownerid, $serviceid);
+        webservice_token_manager::record_initial_token($token);
+        set_config('webservicetokenverifiedat', time(), 'local_corolair');
+
+        setup_accountability::erase((int)get_admin()->id);
+        $this->assertFalse(get_config('local_corolair', 'setupconsentedby'));
+
+        $messagesink = $this->redirectMessages();
+        webservice_token_manager::maintain();
+        $messages = $messagesink->get_messages();
+        $messagesink->close();
+
+        $this->assertSame([], $messages, 'A healthy integration has nothing to warn about.');
+        $this->assertEquals((int)$token->id, (int)get_config('local_corolair', 'webservicetokenid'));
     }
 
     /**
