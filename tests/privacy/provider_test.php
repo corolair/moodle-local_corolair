@@ -32,6 +32,7 @@ use core_privacy\local\request\writer;
 use local_corolair\event\remote_request_completed;
 use local_corolair\local\api_key;
 use local_corolair\local\service_account_provisioner;
+use local_corolair\local\setup_accountability;
 
 /**
  * Verifies the locally retained accountability records, and what happens without a key.
@@ -422,21 +423,22 @@ final class provider_test extends \advanced_testcase {
     }
 
     /**
-     * Deleting one user's data does not erase the integration's owner record.
+     * Erasing an administrator removes them from the setup record and keeps its facts.
      *
-     * The consenting administrator's identity is retained under legitimate interest for
-     * as long as the plugin is installed; it is the accountability record for the active
-     * integration and is removed by uninstalling, not by a subject request.
+     * Issue #115. The identity used to be kept for as long as the plugin was installed. It
+     * now leaves on erasure, and the time it left is recorded in its place, so the record
+     * still shows that consent was given -- which is what token maintenance depends on.
      *
      * @covers \local_corolair\privacy\provider::delete_data_for_user
      * @return void
      */
-    public function test_deleting_a_user_keeps_the_accountability_record(): void {
+    public function test_erasing_an_administrator_removes_them_from_the_setup_record(): void {
         $this->resetAfterTest();
         $this->make_site_unregistered();
 
         $admin = $this->getDataGenerator()->create_user();
-        $this->record_setup((int)$admin->id);
+        $acknowledger = $this->getDataGenerator()->create_user();
+        $this->record_setup((int)$admin->id, (int)$acknowledger->id);
         $context = \context_system::instance();
 
         $this->assert_makes_no_request(function () use ($admin, $context) {
@@ -447,8 +449,94 @@ final class provider_test extends \advanced_testcase {
             ));
         });
 
-        $this->assertEquals((int)$admin->id, (int)get_config('local_corolair', 'setupconsentedby'));
+        $this->assertFalse(get_config('local_corolair', 'setupconsentedby'));
+        $this->assertGreaterThan(0, (int)get_config('local_corolair', 'setupconsentedbyerasedat'));
         $this->assertEquals(1700000000, (int)get_config('local_corolair', 'setupconsentedat'));
+        $this->assertTrue(setup_accountability::consent_recorded());
+        // The other administrator's part of the record is theirs, and stays.
+        $this->assertEquals(
+            (int)$acknowledger->id,
+            (int)get_config('local_corolair', 'setupdisclosureacknowledgedby')
+        );
+
+        // Erased means no longer found here as a data subject either.
+        $this->assertSame([], provider::get_contexts_for_userid((int)$admin->id)->get_contextids());
+        $userlist = new userlist($context, 'local_corolair');
+        provider::get_users_in_context($userlist);
+        $this->assertSame([(int)$acknowledger->id], array_map('intval', $userlist->get_userids()));
+    }
+
+    /**
+     * An erasure that does not cover the system context leaves the setup record alone.
+     *
+     * The record lives in the system context, so only an approval for that context reaches it.
+     *
+     * @covers \local_corolair\privacy\provider::delete_data_for_user
+     * @return void
+     */
+    public function test_erasure_outside_the_system_context_leaves_the_setup_record(): void {
+        $this->resetAfterTest();
+        $this->make_site_unregistered();
+
+        $admin = $this->getDataGenerator()->create_user();
+        $this->record_setup((int)$admin->id);
+        $course = \context_course::instance($this->getDataGenerator()->create_course()->id);
+
+        $this->assert_makes_no_request(function () use ($admin, $course) {
+            provider::delete_data_for_user(new approved_contextlist($admin, 'local_corolair', [$course->id]));
+        });
+
+        $this->assertEquals((int)$admin->id, (int)get_config('local_corolair', 'setupconsentedby'));
+    }
+
+    /**
+     * A user-list erasure in the system context removes the listed administrators only.
+     *
+     * @covers \local_corolair\privacy\provider::delete_data_for_users
+     * @return void
+     */
+    public function test_userlist_erasure_removes_only_the_listed_administrators(): void {
+        $this->resetAfterTest();
+        $this->make_site_unregistered();
+
+        $consenter = $this->getDataGenerator()->create_user();
+        $acknowledger = $this->getDataGenerator()->create_user();
+        $this->record_setup((int)$consenter->id, (int)$acknowledger->id);
+        $context = \context_system::instance();
+
+        $this->assert_makes_no_request(function () use ($consenter, $context) {
+            provider::delete_data_for_users(new approved_userlist($context, 'local_corolair', [(int)$consenter->id]));
+        });
+
+        $this->assertFalse(get_config('local_corolair', 'setupconsentedby'));
+        $this->assertEquals(
+            (int)$acknowledger->id,
+            (int)get_config('local_corolair', 'setupdisclosureacknowledgedby')
+        );
+    }
+
+    /**
+     * Erasing everyone in the system context leaves a record that names no one.
+     *
+     * @covers \local_corolair\privacy\provider::delete_data_for_all_users_in_context
+     * @return void
+     */
+    public function test_context_erasure_removes_every_administrator_from_the_setup_record(): void {
+        $this->resetAfterTest();
+        $this->make_site_unregistered();
+
+        $consenter = $this->getDataGenerator()->create_user();
+        $acknowledger = $this->getDataGenerator()->create_user();
+        $this->record_setup((int)$consenter->id, (int)$acknowledger->id);
+
+        $this->assert_makes_no_request(function () {
+            provider::delete_data_for_all_users_in_context(\context_system::instance());
+        });
+
+        $this->assertFalse(get_config('local_corolair', 'setupconsentedby'));
+        $this->assertFalse(get_config('local_corolair', 'setupdisclosureacknowledgedby'));
+        $this->assertEquals(1700000000, (int)get_config('local_corolair', 'setupconsentedat'));
+        $this->assertEquals(1700000001, (int)get_config('local_corolair', 'setupdisclosureacknowledgedat'));
     }
 
     /**
@@ -727,7 +815,8 @@ final class provider_test extends \advanced_testcase {
      * Erasure for the record's owner still fails for the Raison part when the key is lost.
      *
      * Discovery returned the system context for this user rather than throwing, so this is
-     * where the missing key has to surface. The local record itself is retained, as always.
+     * where the missing key has to surface. The local part needs no key and runs first, so
+     * the administrator has already left the local record when the Raison part fails.
      *
      * @covers \local_corolair\privacy\provider::delete_data_for_user
      * @return void
@@ -744,7 +833,8 @@ final class provider_test extends \advanced_testcase {
             provider::delete_data_for_user(new approved_contextlist($admin, 'local_corolair', [$context->id]));
         });
 
-        $this->assertEquals((int)$admin->id, (int)get_config('local_corolair', 'setupconsentedby'));
+        $this->assertFalse(get_config('local_corolair', 'setupconsentedby'));
+        $this->assertEquals(1700000000, (int)get_config('local_corolair', 'setupconsentedat'));
     }
 
     /**
