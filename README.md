@@ -131,9 +131,18 @@ The plugin stores the following records in Moodle's `config_plugins` table under
 
 These records apply only to administrators who activate the integration or acknowledge its disclosure. They are used to demonstrate authorization and maintain operational accountability. They remain within the Moodle installation and are separate from data processed by the external Raison service.
 
-The records are available for discovery and export through Moodle's Privacy API. They are not automatically removed by an individual erasure request because they identify the accountable owner of the active integration. The Moodle operator is responsible for determining and documenting the applicable lawful basis and retention requirements. Access must be limited to authorized Moodle administrators and other personnel who require it for privacy, audit, or operational purposes.
+The records are available for discovery and export through Moodle's Privacy API. Access must be limited to authorized Moodle administrators and other personnel who require it for privacy, audit, or operational purposes.
 
-Uninstalling the plugin removes these records with the rest of the plugin configuration.
+Retention follows one rule. The administrator's user ID is kept while that administrator's account exists on the site and their data has not been erased. It is removed when either of these happens:
+
+- an erasure request for the administrator is processed through Moodle's Privacy API, or
+- the administrator's account is deleted, with or without a privacy request.
+
+The dates, the disclosure version and the fact that consent was given are kept, so the site can still show that the integration was authorized without naming who authorized it. In place of each removed ID, the plugin records when it was removed (`setupconsentedbyerasedat`, `setupdisclosureacknowledgedbyerasedat`). The integration keeps running: these records are evidence, not configuration, and removing an administrator from them does not disconnect the site.
+
+Token warnings go to the administrator who consented while that person still has an active account with site configuration rights (`moodle/site:config`), and otherwise to every active site administrator. The recipients are worked out each time a warning is sent, so a departed administrator never leaves the integration without someone to warn.
+
+Uninstalling the plugin removes all of these records with the rest of the plugin configuration. The Moodle operator remains responsible for documenting the applicable lawful basis.
 
 For questions about data processing, retention, deletion, privacy, or security, contact contact@raison.is.
 

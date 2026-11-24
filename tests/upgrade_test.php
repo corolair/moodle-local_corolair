@@ -70,6 +70,9 @@ final class upgrade_test extends \advanced_testcase {
     /** Version recorded before the course picker setting moved to Raison. */
     private const VERSION_BEFORE_COURSE_PICKER_REMOVAL = 2026111000;
 
+    /** Version recorded before the setup record stopped naming deleted accounts. */
+    private const VERSION_BEFORE_SETUP_RECORD_RETENTION = 2026111001;
+
     /**
      * Rewind the stored plugin version so savepoints can advance.
      *
@@ -664,5 +667,36 @@ final class upgrade_test extends \advanced_testcase {
         $this->assertFalse(get_config('local_corolair', 'createtutorwithcapability'));
         $this->assertSame('1', get_config('local_corolair', 'disabletokenrotation'));
         $this->assertGreaterThanOrEqual(2026111001, $this->stored_version());
+    }
+
+    /**
+     * Upgrading removes administrators whose accounts were already deleted from the setup record.
+     *
+     * Before the user_deleted observer, deleting an account left the record pointing at it.
+     * The step applies the retention rule to those once, and leaves live accounts named.
+     *
+     * @covers ::xmldb_local_corolair_upgrade
+     * @return void
+     */
+    public function test_upgrade_removes_deleted_accounts_from_the_setup_record(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $departed = (int)$this->getDataGenerator()->create_user()->id;
+        $current = (int)$this->getDataGenerator()->create_user()->id;
+        set_config('setupconsentedby', $departed, 'local_corolair');
+        set_config('setupconsentedat', 1700000000, 'local_corolair');
+        set_config('setupdisclosureacknowledgedby', $current, 'local_corolair');
+        $DB->set_field('user', 'deleted', 1, ['id' => $departed]);
+        $this->rewind_stored_version(self::VERSION_BEFORE_SETUP_RECORD_RETENTION);
+
+        $this->assertTrue(xmldb_local_corolair_upgrade(self::VERSION_BEFORE_SETUP_RECORD_RETENTION));
+
+        $this->assertFalse(get_config('local_corolair', 'setupconsentedby'));
+        $this->assertGreaterThan(0, (int)get_config('local_corolair', 'setupconsentedbyerasedat'));
+        $this->assertEquals(1700000000, (int)get_config('local_corolair', 'setupconsentedat'));
+        $this->assertEquals($current, (int)get_config('local_corolair', 'setupdisclosureacknowledgedby'));
+        $this->assertGreaterThanOrEqual(2026112400, $this->stored_version());
     }
 }

@@ -241,6 +241,13 @@ function xmldb_local_corolair_upgrade($oldversion) {
         unset_config('createtutorwithcapability', 'local_corolair');
         upgrade_plugin_savepoint(true, 2026111001, 'local', 'corolair');
     }
+    // The setup record now names an administrator only while their account exists. Accounts
+    // deleted before this release left it pointing at them, so apply the rule to those once;
+    // from here on the user_deleted observer keeps it. Local configuration only.
+    if ($oldversion < 2026112400) {
+        \local_corolair\local\setup_accountability::erase_deleted_actors();
+        upgrade_plugin_savepoint(true, 2026112400, 'local', 'corolair');
+    }
     return true;
 }
 

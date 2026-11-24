@@ -49,6 +49,8 @@ function xmldb_local_corolair_install() {
         unset_config('setupdisclosureversion', 'local_corolair');
         unset_config('setupdisclosureacknowledgedby', 'local_corolair');
         unset_config('setupdisclosureacknowledgedat', 'local_corolair');
+        unset_config('setupconsentedbyerasedat', 'local_corolair');
+        unset_config('setupdisclosureacknowledgedbyerasedat', 'local_corolair');
         // Create (or repair) the "Raison Manager" role. This is convergent, so a role
         // left behind by an uninstall that did not finish is reused rather than fatal.
         $roleid = \local_corolair\local\role_provisioner::ensure_role();
