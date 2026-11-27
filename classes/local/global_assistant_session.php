@@ -240,6 +240,11 @@ final class global_assistant_session {
      * @return array Request result without credentials or request headers.
      */
     private static function request(string $apikey, string $body, \context $context, int $userid): array {
+        global $CFG;
+
+        // The curl class lives in filelib.php, which is not autoloaded and which most pages
+        // outside courses -- the dashboard among them -- never load.
+        require_once($CFG->libdir . '/filelib.php');
         $curl = new \curl();
         $options = [
             'CURLOPT_CONNECTTIMEOUT' => 15,

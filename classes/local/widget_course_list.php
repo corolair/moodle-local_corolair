@@ -323,7 +323,12 @@ final class widget_course_list {
      * @return array Request result without credentials or request headers.
      */
     private static function request(string $apikey, ?array $handover = null): array {
+        global $CFG;
+
         $postdata = $handover === null ? '{}' : (json_encode(['legacyWidgetPolicy' => $handover]) ?: '{}');
+        // The curl class lives in filelib.php, which is not autoloaded. Course pages happen to
+        // load it; pages outside courses, which now read the list too, may not.
+        require_once($CFG->libdir . '/filelib.php');
         $curl = new \curl();
         $options = [
             'CURLOPT_CONNECTTIMEOUT' => 15,
