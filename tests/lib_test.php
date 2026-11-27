@@ -26,6 +26,7 @@ namespace local_corolair;
 
 use local_corolair\event\remote_request_completed;
 use local_corolair\local\environment;
+use local_corolair\local\global_assistant_session;
 use local_corolair\local\widget_course_list;
 use local_corolair\local\widget_policy;
 
@@ -189,11 +190,12 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
-     * A front-page activity -- site announcements, typically -- gets no widget.
+     * A front-page activity -- site announcements, typically -- gets no course widget.
      *
      * The front page is a course and its activities live under /mod/, so placement accepts
      * the page; only the course check keeps the viewer's identity from being sent for a
-     * course that can never have a tutor.
+     * course that can never have a tutor. With the global assistant off, nothing else may
+     * take its place.
      *
      * @covers ::local_corolair_before_footer
      * @covers ::local_corolair_render_embed_script
@@ -205,6 +207,7 @@ final class lib_test extends \advanced_testcase {
         $this->resetAfterTest();
         $this->setAdminUser();
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        $this->seed_course_list([], 'org_test.realsecret');
         $this->set_course_page($SITE, '/mod/forum/view.php');
 
         $this->assert_silent(function () {
@@ -290,7 +293,7 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
-     * Without a course on the page, the footer hook renders nothing.
+     * Outside courses, the footer hook renders nothing while the global assistant is off.
      *
      * @covers ::local_corolair_before_footer
      * @return void
@@ -299,6 +302,7 @@ final class lib_test extends \advanced_testcase {
         $this->resetAfterTest();
         $this->setAdminUser();
         set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        $this->seed_course_list([], 'org_test.realsecret');
         $this->set_page_url('/my/index.php');
 
         $this->assert_silent(function () {
@@ -1239,5 +1243,346 @@ final class lib_test extends \advanced_testcase {
             'course' => $course->id,
             'section' => $number,
         ], MUST_EXIST);
+    }
+
+    /**
+     * Cache a fresh course list with the global assistant switched on, without a request.
+     *
+     * @param int[] $courseids Courses that have their own assistant.
+     * @param string[] $excludedpages Pages Raison keeps the global assistant off.
+     * @param array|null $widgetpolicy The `widgetPolicy` Raison sends with it, if any.
+     * @return void
+     */
+    private function seed_global_assistant(array $courseids, array $excludedpages = [], ?array $widgetpolicy = null): void {
+        $body = [
+            'courseIds' => array_map('strval', $courseids),
+            'globalAssistant' => ['excludedPages' => $excludedpages],
+        ];
+        if ($widgetpolicy !== null) {
+            $body['widgetPolicy'] = $widgetpolicy;
+        }
+        widget_course_list::allows(0, 'org_test.realsecret', function () use ($body) {
+            return ['response' => json_encode($body), 'errno' => 0, 'httpstatus' => 200];
+        });
+    }
+
+    /**
+     * Store Raison's yes for this person, the way a first request would, without a request.
+     *
+     * Every global assistant test seeds a yes, so that a guard failing to stop a page shows up
+     * as a rendered assistant rather than as a request leaving the test.
+     *
+     * @param \stdClass $user Person viewing the page.
+     * @return void
+     */
+    private function seed_global_yes(\stdClass $user): void {
+        $answer = global_assistant_session::get(
+            $user,
+            'org_test.realsecret',
+            \context_system::instance(),
+            function () {
+                return [
+                    'response' => json_encode([
+                        'access' => true,
+                        'token' => 'global-token',
+                        'expiresIn' => 1800,
+                        'organizationId' => 'org_abc',
+                        'reuseFor' => 1500,
+                    ]),
+                    'errno' => 0,
+                    'httpstatus' => 200,
+                ];
+            }
+        );
+        $this->assertNotNull($answer, 'Precondition: the yes must be stored.');
+    }
+
+    /**
+     * A signed-in learner Raison said yes for, with the global assistant on.
+     *
+     * @param string[] $excludedpages Pages Raison keeps the global assistant off.
+     * @param int[] $courseids Courses that have their own assistant.
+     * @param array|null $widgetpolicy The `widgetPolicy` Raison sends, if any.
+     * @return \stdClass The learner.
+     */
+    private function learner_with_global_assistant(
+        array $excludedpages = [],
+        array $courseids = [],
+        ?array $widgetpolicy = null
+    ): \stdClass {
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        widget_policy::forget_legacy();
+        $this->seed_global_assistant($courseids, $excludedpages, $widgetpolicy);
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+        $this->seed_global_yes($user);
+        return $user;
+    }
+
+    /**
+     * Assert the callback rendered the global assistant without contacting anybody.
+     *
+     * @param callable $callback Callback that should render it.
+     * @return void
+     */
+    private function assert_global_assistant(callable $callback): void {
+        $sink = $this->redirectEvents();
+        $output = $callback();
+        $events = $sink->get_events();
+        $sink->close();
+
+        $this->assertStringContainsString('data-organization-id="org_abc"', $output);
+        $this->assertStringContainsString('data-user-token="global-token"', $output);
+        $this->assertStringNotContainsString('data-super', $output);
+        foreach ($events as $event) {
+            $this->assertNotInstanceOf(remote_request_completed::class, $event, 'The stored answer should have been used.');
+        }
+    }
+
+    /**
+     * Outside courses, the global assistant renders from Raison's stored yes.
+     *
+     * @covers ::local_corolair_before_footer
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_global_assistant_outside_courses(): void {
+        $this->resetAfterTest();
+        $this->learner_with_global_assistant();
+        $this->set_page_url('/my/index.php');
+
+        $this->assert_global_assistant(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * A course without its own assistant gets the global one on its course page.
+     *
+     * @covers ::local_corolair_before_footer
+     * @return void
+     */
+    public function test_course_without_an_assistant_gets_the_global_one(): void {
+        $this->resetAfterTest();
+        $course = $this->getDataGenerator()->create_course();
+        $this->learner_with_global_assistant([], [(int)$course->id + 1000]);
+        $this->set_course_page($course, '/course/view.php');
+
+        $this->assert_global_assistant(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * In a course, the global assistant takes only the course assistant's places.
+     *
+     * @covers ::local_corolair_before_footer
+     * @return void
+     */
+    public function test_global_assistant_keeps_to_the_course_assistants_places(): void {
+        $this->resetAfterTest();
+        $course = $this->getDataGenerator()->create_course();
+        $this->learner_with_global_assistant();
+        $this->set_course_page($course, '/user/index.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * A course with its own assistant never falls back to the global one, even when its own fails.
+     *
+     * Raison's answer for the course session is a malformed body, so the course widget renders
+     * nothing; the global assistant, which would render if reached, must not take its place.
+     *
+     * @covers ::local_corolair_before_footer
+     * @return void
+     */
+    public function test_course_with_an_assistant_never_shows_the_global_one(): void {
+        global $CFG;
+
+        $this->resetAfterTest();
+        $course = $this->getDataGenerator()->create_course();
+        $this->learner_with_global_assistant([], [(int)$course->id]);
+        $this->set_course_page($course, '/course/view.php');
+        // Answer the course session request locally; the dead proxy refuses anything else.
+        $CFG->proxyhost = '127.0.0.1';
+        $CFG->proxyport = 1;
+        $CFG->proxytype = 'HTTP';
+        $CFG->proxybypass = '';
+        \curl::mock_response('{}');
+
+        $this->assertSame('', local_corolair_before_footer());
+    }
+
+    /**
+     * Pages Raison excludes keep it off, by page type or by path.
+     *
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_excluded_pages_keep_it_off(): void {
+        global $PAGE;
+
+        $this->resetAfterTest();
+        $this->learner_with_global_assistant(['user-*', '/my/courses.php']);
+
+        $this->set_page_url('/user/profile.php');
+        $PAGE->set_pagetype('user-profile');
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+
+        $this->set_page_url('/my/courses.php');
+        $PAGE->set_pagetype('my-index');
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+
+        // The dashboard shares My courses' page type, but not its path.
+        $this->set_page_url('/my/index.php');
+        $this->assert_global_assistant(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * Excluded activities keep the global assistant off too, on the site home as in courses.
+     *
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_excluded_activities_keep_it_off(): void {
+        global $SITE;
+
+        $this->resetAfterTest();
+        $this->learner_with_global_assistant([], [], ['excludedActivities' => ['forum'], 'hideOnRaisonExams' => true]);
+        $forum = $this->getDataGenerator()->create_module('forum', ['course' => $SITE->id]);
+        $this->set_activity_page($SITE, $forum, 'forum');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * A Raison exam keeps the global assistant off in a course without its own assistant.
+     *
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_raison_exam_keeps_it_off(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        $course = $this->getDataGenerator()->create_course();
+        $created = \local_corolair\external\create_exam_placement::execute(
+            (int)$course->id,
+            (int)$this->section_id($course, 1),
+            $this->raison_tool_type(),
+            'Final exam'
+        );
+        $this->learner_with_global_assistant();
+        $this->set_activity_page($course, (object)['cmid' => $created['coursemoduleid']], 'lti');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * A page shown in a popup never gets it.
+     *
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_popup_keeps_it_off(): void {
+        global $PAGE;
+
+        $this->resetAfterTest();
+        $this->learner_with_global_assistant();
+        $this->set_page_url('/my/index.php');
+        $PAGE->set_pagelayout('popup');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * The plugin's own pages, which embed Raison already, never get it.
+     *
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_own_pages_keep_it_off(): void {
+        $this->resetAfterTest();
+        $this->learner_with_global_assistant();
+        $this->set_page_url('/local/corolair/trainer.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * Before accepting the site policy, nothing about the person is used, whatever Raison said.
+     *
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_pending_site_policy_keeps_it_off(): void {
+        global $USER;
+
+        $this->resetAfterTest();
+        $this->learner_with_global_assistant();
+        set_config('sitepolicy', 'https://example.com/policy.html');
+        $USER->policyagreed = 0;
+        $this->set_page_url('/my/index.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * A guest never gets it.
+     *
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_guest_never_gets_it(): void {
+        $this->resetAfterTest();
+        $this->learner_with_global_assistant();
+        $this->setGuestUser();
+        $this->seed_global_yes(guest_user());
+        $this->set_page_url('/my/index.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
+    }
+
+    /**
+     * A backend without the course list route has no global assistant.
+     *
+     * @covers ::local_corolair_render_global_assistant
+     * @return void
+     */
+    public function test_backend_without_the_list_has_no_global_assistant(): void {
+        $this->resetAfterTest();
+        set_config('apikey', 'org_test.realsecret', 'local_corolair');
+        widget_course_list::allows(0, 'org_test.realsecret', function () {
+            return ['response' => json_encode(['message' => 'Not Found']), 'errno' => 0, 'httpstatus' => 404];
+        });
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+        $this->seed_global_yes($user);
+        $this->set_page_url('/my/index.php');
+
+        $this->assert_silent(function () {
+            return local_corolair_before_footer();
+        });
     }
 }

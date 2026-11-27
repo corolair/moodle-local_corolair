@@ -65,6 +65,26 @@ class renderer extends plugin_renderer_base {
     }
 
     /**
+     * Renders the organization's global assistant.
+     *
+     * The widget opens the global assistant, rather than a course's, because the tag names the
+     * organization. The token is Raison's own and only Raison can read it.
+     *
+     * @param string $token The global assistant widget token Raison issued for this person.
+     * @param string $organizationid The Raison organization whose global assistant opens.
+     * @return string The rendered template.
+     */
+    public function render_global_assistant(string $token, string $organizationid): string {
+        $data = [
+            'organizationid' => $organizationid,
+            'token' => $token,
+            // See render_embed_script(): the URL cannot live in the template.
+            'widgeturl' => environment::url('widget', 'widget.js'),
+        ];
+        return $this->render_from_template('local_corolair/global_assistant', $data);
+    }
+
+    /**
      * Renders the installation troubleshoot template with the provided site data.
      *
      * Only non-personal technical status flags are forwarded to the external diagnostic

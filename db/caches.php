@@ -23,6 +23,11 @@
  * outlive its freshness -- a failed refresh keeps serving the previous list rather than
  * losing it, which an expired ttl entry could not do.
  *
+ * globalassistant holds, per person and for their session only, Raison's answer on whether they
+ * get the organization's global assistant, so they are asked about once a session rather than
+ * once a page. Raison says how long each answer holds; global_assistant_session keeps that time
+ * inside the value for the same reason as above.
+ *
  * @package   local_corolair
  * @copyright 2025 Raison
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -36,5 +41,9 @@ $definitions = [
         'simplekeys' => true,
         'staticacceleration' => true,
         'staticaccelerationsize' => 1,
+    ],
+    'globalassistant' => [
+        'mode' => cache_store::MODE_SESSION,
+        'simplekeys' => true,
     ],
 ];
