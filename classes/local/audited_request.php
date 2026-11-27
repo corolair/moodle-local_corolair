@@ -37,6 +37,9 @@ final class audited_request {
     /** Site-wide fetch of the courses that have a widget tutor. */
     public const OP_WIDGET_COURSES = 'widget_courses';
 
+    /** Whether one person gets the organization's global assistant. */
+    public const OP_GLOBAL_ASSISTANT_SESSION = 'global_assistant_session';
+
     /** Trainer authentication operation. */
     public const OP_TRAINER_AUTH = 'trainer_auth';
 
@@ -71,6 +74,7 @@ final class audited_request {
     private const OPERATIONS = [
         self::OP_WIDGET_SESSION,
         self::OP_WIDGET_COURSES,
+        self::OP_GLOBAL_ASSISTANT_SESSION,
         self::OP_TRAINER_AUTH,
         self::OP_ORGANIZATION_REGISTER,
         self::OP_ORGANIZATION_DEREGISTER,

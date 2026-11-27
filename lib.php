@@ -231,7 +231,63 @@ function local_corolair_widget_policy_allows(moodle_url $pageurl, ?cm_info $cm, 
 }
 
 /**
- * Renders the course widget after the page document has started.
+ * Builds the organization's global assistant for the current page.
+ *
+ * Reached outside courses, and in a course without its own assistant on the pages that would
+ * carry one. Every check that needs nothing from Raison runs first, then the rules Raison sent
+ * with the course list, and only then is Raison asked about this person -- once a session, see
+ * global_assistant_session. A page any of these keeps it off sends nothing about the viewer.
+ *
+ * @return string The rendered embed script, or an empty string when it does not belong here.
+ */
+function local_corolair_render_global_assistant(): string {
+    global $PAGE, $USER;
+
+    $apikey = \local_corolair\local\api_key::get();
+    if ($apikey === null) {
+        return '';
+    }
+    if (!isloggedin() || isguestuser()) {
+        return '';
+    }
+    $path = \local_corolair\local\global_assistant::local_path($PAGE->url);
+    if (
+        \local_corolair\local\global_assistant::own_page($path) ||
+        \local_corolair\local\global_assistant::layout_excluded((string)$PAGE->pagelayout)
+    ) {
+        return '';
+    }
+
+    // Null while the organization keeps it off, or while the backend predates it. Read before
+    // anything about the person: it is the site-wide cached list, and carries no one's data.
+    $rules = \local_corolair\local\widget_course_list::global_assistant($apikey);
+    if ($rules === null) {
+        return '';
+    }
+    if (\local_corolair\local\global_assistant::person_must_act_first($USER)) {
+        return '';
+    }
+    // Excluded activities and Raison exams keep both assistants off, here as in courses.
+    $policy = \local_corolair\local\widget_policy::effective(
+        \local_corolair\local\widget_course_list::policy($apikey)
+    );
+    if (!local_corolair_widget_policy_allows($PAGE->url, $PAGE->cm, $policy)) {
+        return '';
+    }
+    if (\local_corolair\local\global_assistant::page_excluded((string)$PAGE->pagetype, $path, $rules['excludedpages'])) {
+        return '';
+    }
+
+    $session = \local_corolair\local\global_assistant_session::get($USER, $apikey, $PAGE->context);
+    if ($session === null) {
+        return '';
+    }
+    $output = $PAGE->get_renderer('local_corolair');
+    return $output->render_global_assistant($session['token'], $session['organizationid']);
+}
+
+/**
+ * Renders the course widget, or the global assistant, after the page document has started.
  *
  * Must return HTML from before_footer — never echo from navigation callbacks.
  * Echoing during extend_navigation_course can flush output before <!DOCTYPE html>,
@@ -241,6 +297,12 @@ function local_corolair_widget_policy_allows(moodle_url $pageurl, ?cm_info $cm, 
  * db/hooks.php, and core skips this legacy callback entirely. It stays because the
  * plugin still supports 4.3, where core\hook\output\before_footer_html_generation
  * does not exist and this is the only entry point. Removing it there removes the widget.
+ *
+ * A page carries one assistant at most. In a course Raison lists, it is that course's
+ * assistant, exactly as before the global assistant existed -- even when the policy keeps it
+ * off the page or its session request fails. In a course Raison does not list, the global
+ * assistant takes the same places: the course page, its sections and its activities. Outside
+ * courses, any page may carry the global assistant.
  *
  * @return string The rendered embed script, or an empty string when disabled.
  */
@@ -253,11 +315,20 @@ function local_corolair_before_footer() {
     }
 
     $courseid = (int)$course->id;
-    if (!local_corolair_course_widget_placement($PAGE->url, $courseid)) {
-        return '';
+    if ($courseid !== (int)SITEID) {
+        if (!local_corolair_course_widget_placement($PAGE->url, $courseid)) {
+            return '';
+        }
+        $apikey = \local_corolair\local\api_key::get();
+        if ($apikey === null || !isloggedin() || isguestuser()) {
+            return '';
+        }
+        if (\local_corolair\local\widget_course_list::allows($courseid, $apikey)) {
+            return local_corolair_render_embed_script($courseid, $PAGE->context, $PAGE->cm);
+        }
     }
 
-    return local_corolair_render_embed_script($courseid, $PAGE->context, $PAGE->cm);
+    return local_corolair_render_global_assistant();
 }
 
 /**

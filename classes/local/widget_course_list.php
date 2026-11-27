@@ -49,6 +49,10 @@ namespace local_corolair\local;
  * The same response carries the organization's widget policy (see widget_policy), cached and
  * kept across failures alongside the list. While the site still stores the settings that policy
  * replaced, the request hands them over, and they are deleted once Raison confirms it holds them.
+ *
+ * It also carries the organization's global assistant rules (see global_assistant): null while
+ * the organization keeps it off, else the pages it stays off. Cached and kept across failures the
+ * same way. A backend that predates the global assistant sends none, and none means off.
  */
 final class widget_course_list {
     /** Seconds a fetched list is used before it is refreshed. */
@@ -120,6 +124,24 @@ final class widget_course_list {
      */
     public static function policy(string $apikey, ?callable $transport = null, ?int $now = null): ?array {
         return self::state($apikey, $transport, $now)['policy'] ?? null;
+    }
+
+    /**
+     * The global assistant rules Raison sent with the list, refreshing it the way allows() does.
+     *
+     * While the list route is missing the backend predates the global assistant, so it is off.
+     *
+     * @param string $apikey The site's API key, as returned by api_key::get().
+     * @param callable|null $transport Test request callback, as for allows().
+     * @param int|null $now Test clock, in seconds since the epoch.
+     * @return array|null ['excludedpages' => string[]] while the organization has it on, else null.
+     */
+    public static function global_assistant(string $apikey, ?callable $transport = null, ?int $now = null): ?array {
+        $state = self::state($apikey, $transport, $now);
+        if ($state === null || $state['legacy']) {
+            return null;
+        }
+        return $state['globalassistant'];
     }
 
     /**
@@ -222,6 +244,7 @@ final class widget_course_list {
                 'legacy' => false,
                 'nextrefresh' => $now + self::FRESH_FOR,
                 'policy' => $fetched['policy'],
+                'globalassistant' => $fetched['globalassistant'],
             ];
         }
         if ($fetched['status'] === 'missing') {
@@ -231,6 +254,7 @@ final class widget_course_list {
                 'legacy' => true,
                 'nextrefresh' => $now + self::RECHECK_MISSING_ROUTE_AFTER,
                 'policy' => null,
+                'globalassistant' => null,
             ];
         }
         // Failed: whatever was decided before stands, and is questioned again shortly.
@@ -240,6 +264,7 @@ final class widget_course_list {
             'legacy' => $previous['legacy'] ?? false,
             'nextrefresh' => $now + self::RETRY_AFTER,
             'policy' => $previous['policy'] ?? null,
+            'globalassistant' => $previous['globalassistant'] ?? null,
         ];
     }
 
@@ -249,8 +274,8 @@ final class widget_course_list {
      * @param string $apikey The site's API key.
      * @param callable|null $transport Test request callback, called with the key and the
      *      former settings to hand over, or null.
-     * @return array{status: string, courseids?: int[], policy?: array|null, handedover?: bool}
-     *      Status listed, missing or failed.
+     * @return array{status: string, courseids?: int[], policy?: array|null, handedover?: bool,
+     *      globalassistant?: array|null} Status listed, missing or failed.
      */
     private static function fetch(string $apikey, ?callable $transport): array {
         try {
@@ -285,6 +310,8 @@ final class widget_course_list {
             'policy' => widget_policy::parse($data['widgetPolicy'] ?? null),
             // Only an explicit true: anything else leaves the former settings where they are.
             'handedover' => ($data['legacyWidgetPolicyStored'] ?? null) === true,
+            // A backend that predates the global assistant sends none: off.
+            'globalassistant' => global_assistant::parse($data['globalAssistant'] ?? null),
         ];
     }
 
@@ -359,12 +386,14 @@ final class widget_course_list {
             !is_int($state['nextrefresh'] ?? null) ||
             !is_bool($state['legacy'] ?? null) ||
             !(is_array($state['courseids'] ?? null) || ($state['courseids'] ?? null) === null) ||
-            !(is_array($state['policy'] ?? null) || ($state['policy'] ?? null) === null)
+            !(is_array($state['policy'] ?? null) || ($state['policy'] ?? null) === null) ||
+            !(is_array($state['globalassistant'] ?? null) || ($state['globalassistant'] ?? null) === null)
         ) {
             return null;
         }
-        // A state cached before the policy existed simply has none.
+        // A state cached before the policy or the global assistant existed simply has none.
         $state['policy'] = $state['policy'] ?? null;
+        $state['globalassistant'] = $state['globalassistant'] ?? null;
         return $state;
     }
 
