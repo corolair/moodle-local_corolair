@@ -182,6 +182,43 @@ final class renderer_test extends \advanced_testcase {
     }
 
     /**
+     * The global assistant names the organization, so the widget opens it rather than a course's.
+     *
+     * The retired organization-wide widget marked itself with data-super, which the widget now
+     * ignores on purpose: the global assistant must never carry it.
+     *
+     * @covers \local_corolair\output\renderer::render_global_assistant
+     * @return void
+     */
+    public function test_global_assistant_names_the_organization(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $html = $this->renderer()->render_global_assistant('global-token', 'org_abc');
+
+        $this->assertStringContainsString('data-name="COROLAIR_EMBED"', $html);
+        $this->assertStringContainsString('data-organization-id="org_abc"', $html);
+        $this->assertStringContainsString('data-user-token="global-token"', $html);
+        $this->assertStringNotContainsString('data-super', $html);
+    }
+
+    /**
+     * Neither value from Raison can break out of its attribute.
+     *
+     * @covers \local_corolair\output\renderer::render_global_assistant
+     * @return void
+     */
+    public function test_global_assistant_escapes_its_values(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $html = $this->renderer()->render_global_assistant('"><script>alert(1)</script>', '"><script>alert(2)</script>');
+
+        $this->assertStringNotContainsString('<script>alert(', $html);
+        $this->assertStringNotContainsString('"><', $html);
+    }
+
+    /**
      * The disclosure page renders everything the administrator is being asked to consent to.
      *
      * Built from the same context setup.php passes, because a mustache template resolves an

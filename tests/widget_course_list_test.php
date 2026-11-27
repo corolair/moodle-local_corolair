@@ -456,4 +456,105 @@ final class widget_course_list_test extends \advanced_testcase {
 
         $this->assertNull(widget_course_list::policy(self::KEY, $this->transport(404, ['message' => 'Not Found']), self::NOW));
     }
+
+    /**
+     * The global assistant rules arrive with the list, from the same single request.
+     *
+     * @covers \local_corolair\local\widget_course_list::global_assistant
+     * @return void
+     */
+    public function test_global_assistant_rules_arrive_with_the_list(): void {
+        $this->resetAfterTest();
+        $body = ['courseIds' => ['5'], 'globalAssistant' => ['excludedPages' => ['admin-*', ' /my/courses.php ']]];
+
+        $this->assertSame(
+            ['excludedpages' => ['admin-*', '/my/courses.php']],
+            widget_course_list::global_assistant(self::KEY, $this->transport(200, $body), self::NOW)
+        );
+        $this->assertTrue(widget_course_list::allows(5, self::KEY, $this->no_request(), self::NOW + 1));
+        $this->assertSame(1, $this->requests);
+    }
+
+    /**
+     * Answers that keep the global assistant off: switched off, an older backend, nonsense.
+     *
+     * @return array[] Data sets of [body].
+     */
+    public static function global_assistant_off_provider(): array {
+        return [
+            'switched off' => [['courseIds' => ['5'], 'globalAssistant' => null]],
+            'a backend that predates it' => [['courseIds' => ['5']]],
+            'not an object' => [['courseIds' => ['5'], 'globalAssistant' => true]],
+            'pages that are not a list' => [['courseIds' => ['5'], 'globalAssistant' => ['excludedPages' => 'admin-*']]],
+        ];
+    }
+
+    /**
+     * Whatever is not a well-formed rule set keeps the global assistant off, and the list stands.
+     *
+     * @dataProvider global_assistant_off_provider
+     * @covers \local_corolair\local\widget_course_list::global_assistant
+     * @param array $body Response body.
+     * @return void
+     */
+    public function test_global_assistant_off_unless_sent(array $body): void {
+        $this->resetAfterTest();
+
+        $this->assertNull(widget_course_list::global_assistant(self::KEY, $this->transport(200, $body), self::NOW));
+        $this->assertTrue(widget_course_list::allows(5, self::KEY, $this->no_request(), self::NOW + 1));
+    }
+
+    /**
+     * A failed refresh keeps the global assistant rules, as it keeps the list.
+     *
+     * @covers \local_corolair\local\widget_course_list::global_assistant
+     * @return void
+     */
+    public function test_failed_refresh_keeps_the_global_assistant_rules(): void {
+        $this->resetAfterTest();
+        $body = ['courseIds' => ['5'], 'globalAssistant' => ['excludedPages' => []]];
+        widget_course_list::global_assistant(self::KEY, $this->transport(200, $body), self::NOW);
+
+        $later = self::NOW + widget_course_list::FRESH_FOR;
+        $this->assertSame(
+            ['excludedpages' => []],
+            widget_course_list::global_assistant(self::KEY, $this->transport(503, 'Service Unavailable'), $later)
+        );
+    }
+
+    /**
+     * The fallback for a missing route has no global assistant: that backend predates it.
+     *
+     * @covers \local_corolair\local\widget_course_list::global_assistant
+     * @return void
+     */
+    public function test_missing_route_has_no_global_assistant(): void {
+        $this->resetAfterTest();
+
+        $this->assertNull(
+            widget_course_list::global_assistant(self::KEY, $this->transport(404, ['message' => 'Not Found']), self::NOW)
+        );
+    }
+
+    /**
+     * A list cached by 1.9.21, before the global assistant existed, still serves after upgrade.
+     *
+     * The cached value is kept across an upgrade, so its shape from the previous release has to
+     * load: its courses and policy stand until the next refresh, with the global assistant off.
+     *
+     * @covers \local_corolair\local\widget_course_list::allows
+     * @covers \local_corolair\local\widget_course_list::global_assistant
+     * @return void
+     */
+    public function test_list_cached_before_the_upgrade_still_serves(): void {
+        $this->resetAfterTest();
+        widget_course_list::allows(0, self::KEY, $this->listing(['5']), self::NOW);
+        $cache = \cache::make('local_corolair', 'widgetcourses');
+        $state = $cache->get('site');
+        unset($state['globalassistant']);
+        $cache->set('site', $state);
+
+        $this->assertTrue(widget_course_list::allows(5, self::KEY, $this->no_request(), self::NOW + 1));
+        $this->assertNull(widget_course_list::global_assistant(self::KEY, $this->no_request(), self::NOW + 1));
+    }
 }
